@@ -30,7 +30,7 @@
 
 ;; How to traverse directories.
 ;; http://xahlee.info/emacs/emacs/elisp_traverse_dir.html
-;; Code:
+;;; Code:
 
 (eval-when-compile
   (require 'cl-lib)
@@ -95,7 +95,14 @@
 ;; ===========================================================================
 (defun kiss/alternatives ()
   (interactive)
-  (async-shell-command "kiss alternatives"))
+  ;; (async-shell-command "kiss alternatives")
+  (mapcar
+   (lambda (s)
+     (let ((d (split-string s ">")))
+       (list (car d)
+             (concat "/" (string-join (cdr d) "/")))))
+   (cdr (cdr (directory-files kiss/choices-db-dir))))
+  )
 
 ;; -> build        Build packages
 ;; ===========================================================================
