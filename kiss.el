@@ -250,10 +250,24 @@
   (cl-remove-if 'kiss/internal--pkg-remote-eq-pkg-local-p
                 (cl-mapcar 'car (kiss/list))))
 
-(defun kiss/Upgrade ()
+(defun kiss/upgrade ()
   (interactive)
   (async-shell-command "KISS_PROMPT=0 kiss Upgrade"))
 
+(defun kiss/internal--pkgs-without-repo ()
+  "(I) Return all packages that are installed that are not in a remote repo."
+  (let ((pkgs-l (mapcar 'car (kiss/list))))
+    (cl-remove-if-not
+     (lambda (p)
+       ;; Naturally, anything that was only *installed* will have 0 other
+       ;; occurances.
+       (eq 0
+           (length
+            ;; Remove the installed-db-dir *repo* from the list.
+            (cl-remove-if
+             (lambda (repo) (string-match-p kiss/installed-db-dir repo))
+             (kiss/search p)))))
+     pkgs-l)))
 ;; -> version      Package manager version
 ;; SEE const.
 
