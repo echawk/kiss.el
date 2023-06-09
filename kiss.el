@@ -82,6 +82,12 @@
   "(I) Convert LST to a string."
   (mapconcat (lambda (s) (format "%s" s)) lst " "))
 
+(defun kiss/internal--sanitize-ver-str (str)
+  "(I) Sanitize a version string to be correctly compared against others."
+  (replace-regexp-in-string "\n$" ""
+                            (replace-regexp-in-string " " ""
+                                                      str)))
+
 ;; Public code below.
 
 ;; -> kiss [a|b|c|d|i|l|r|s|u|U|v] [pkg]...
@@ -231,12 +237,11 @@
 
 (defun kiss/internal--pkg-remote-eq-pkg-local-p (pkg)
   "(I) Return t if the version of PKG is the same locally and from the remotes."
-  ;; FIXME: need to ensure that we are only looking at non-whitespace for comparing
-  ;; versions
   (string=
-   (replace-regexp-in-string "\n$" ""
-                             (f-read-text (concat (car (kiss/search pkg)) "/version")))
-   (kiss/internal--get-installed-package-version pkg)))
+   (kiss/internal--sanitize-ver-str
+    (f-read-text (concat (car (kiss/search pkg)) "/version")))
+   (kiss/internal--sanitize-ver-str
+    (kiss/internal--get-installed-package-version pkg))))
 
 (defun kiss/Upgrade ()
   (interactive)
