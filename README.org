@@ -2,18 +2,20 @@
 
 This is an implementation of the kiss package manager in Emacs lisp.
 
+https://github.com/kiss-community/kiss
+
 Currently is very, very much WIP.
 
-Features Implemented:
+** Features Implemented:
 
 - [ ] alternatives
 - [ ] build
 - [ ] checksum
 - [ ] download
 - [ ] install
-- [x] list
+- [X] list
 - [ ] remove
-- [x] search
+- [X] search
 - [ ] update
 - [ ] upgrade
 - [ ] version
