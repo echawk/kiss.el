@@ -163,7 +163,9 @@
 (defun kiss/search (q)
   (interactive "sQuery: ")
   (cl-remove-if-not 'file-exists-p
-                    (mapcar (lambda (repo) (concat repo "/" q)) kiss/KISS_PATH)))
+                    (mapcar (lambda (repo) (concat repo "/" q))
+                            `(,@kiss/KISS_PATH
+                              ,kiss/installed-db-dir))))
 
 ;; -> update       Update the repositories
 ;; ===========================================================================
