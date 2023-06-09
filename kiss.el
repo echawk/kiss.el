@@ -228,6 +228,16 @@
 
 ;; -> upgrade      Update the system
 ;; ===========================================================================
+
+(defun kiss/internal--pkg-remote-eq-pkg-local-p (pkg)
+  "(I) Return t if the version of PKG is the same locally and from the remotes."
+  ;; FIXME: need to ensure that we are only looking at non-whitespace for comparing
+  ;; versions
+  (string=
+   (replace-regexp-in-string "\n$" ""
+                             (f-read-text (concat (car (kiss/search pkg)) "/version")))
+   (car (cdr (kiss/list pkg)))))
+
 (defun kiss/Upgrade ()
   (interactive)
   (async-shell-command "KISS_PROMPT=0 kiss Upgrade"))
