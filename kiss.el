@@ -243,6 +243,13 @@
    (kiss/internal--sanitize-ver-str
     (kiss/internal--get-installed-package-version pkg))))
 
+
+;; TODO: consider making this *not* internal.
+(defun kiss/internal--get-out-of-date-pkgs ()
+  "(I) Return a list of PKGS that are out of date."
+  (cl-remove-if 'kiss/internal--pkg-remote-eq-pkg-local-p
+                (cl-mapcar 'car (kiss/list))))
+
 (defun kiss/Upgrade ()
   (interactive)
   (async-shell-command "KISS_PROMPT=0 kiss Upgrade"))
