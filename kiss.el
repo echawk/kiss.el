@@ -236,7 +236,7 @@
   (string=
    (replace-regexp-in-string "\n$" ""
                              (f-read-text (concat (car (kiss/search pkg)) "/version")))
-   (car (cdr (kiss/list pkg)))))
+   (kiss/internal--get-installed-package-version pkg)))
 
 (defun kiss/Upgrade ()
   (interactive)
