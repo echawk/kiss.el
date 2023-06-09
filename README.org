@@ -1,0 +1,21 @@
+* kiss.el
+
+This is an implementation of the kiss package manager in Emacs lisp.
+
+Currently is very, very much WIP.
+
+Features Implemented:
+
+- [ ] alternatives
+- [ ] build
+- [ ] checksum
+- [ ] download
+- [ ] install
+- [x] list
+- [ ] remove
+- [x] search
+- [ ] update
+- [ ] upgrade
+- [ ] version
+
+Feel free to submit issues & PRs!
