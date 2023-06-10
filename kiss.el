@@ -100,9 +100,9 @@
    (lambda (s)
      (let ((d (split-string s ">")))
        (list (car d)
-             (concat "/" (string-join (cdr d) "/")))))
-   (cdr (cdr (directory-files kiss/choices-db-dir))))
-  )
+             (concat "/" (string-join (cdr d) "/"))
+             s)))
+   (cdr (cdr (directory-files kiss/choices-db-dir)))))
 
 ;; -> build        Build packages
 ;; ===========================================================================
