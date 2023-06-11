@@ -83,10 +83,23 @@
   (mapconcat (lambda (s) (format "%s" s)) lst " "))
 
 (defun kiss/internal--sanitize-ver-str (str)
-  "(I) Sanitize a version string to be correctly compared against others."
+  "(I) Sanitize a version string STR to be correctly compared against others."
   (replace-regexp-in-string "\n$" ""
                             (replace-regexp-in-string " " ""
                                                       str)))
+
+(defun kiss/internal--get-owner (file-path)
+  "(I) Return the owner of FILE-PATH."
+  (nth 2
+       (string-split
+        (shell-command-to-string (concat "ls -ld " file-path))
+        " ")))
+
+(defun kiss/internal--am-owner-p (file-path)
+  "(I) Return t if the current LOGNAME owns the FILE-PATH, nil otherwise."
+  (string=
+   (getenv "LOGNAME")
+   (kiss/internal--get-owner file-path)))
 
 ;; Public code below.
 
@@ -220,10 +233,13 @@
                                            (kiss/internal--kiss-path-git-repos)))))
     (dolist (repo git-repos)
       (message (concat "kiss/update: Updating " repo))
-      ;; FIXME: need to add in more appropriate priviledge escalation...
       ;; FIXME: prevent this from stalling Emacs.
-      (shell-command (concat kiss/KISS_SU " git -C " repo " pull"))
-      (shell-command (concat kiss/KISS_SU " git -C " repo " submodule update --remote --init -f")))))
+      (let ((su_cmd
+             (if (kiss/internal--am-owner-p repo)
+                 ""
+               (concat kiss/KISS_SU " -u " (kiss/internal--get-owner repo) " -- "))))
+        (shell-command (concat su_cmd " git -C " repo " pull"))
+        (shell-command (concat su_cmd " git -C " repo " submodule update --remote --init -f"))))))
 
 ;; TODO: Rethink how to integrate this.
 ;; (defun kiss/internal--print-git-repo-MOTD ()
