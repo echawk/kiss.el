@@ -115,7 +115,7 @@
        (list (car d)
              (concat "/" (string-join (cdr d) "/"))
              s)))
-   (cdr (cdr (directory-files kiss/choices-db-dir)))))
+   (nthcdr 2 (directory-files kiss/choices-db-dir))))
 
 ;; -> build        Build packages
 ;; ===========================================================================
@@ -170,7 +170,7 @@
 ;; TODO: add docstring.
 (defun kiss/list (&optional pkg-q)
   (if (eq nil pkg-q)
-      (let ((pkgs (cdr (cdr (directory-files kiss/installed-db-dir)))))
+      (let ((pkgs (nthcdr 2 (directory-files kiss/installed-db-dir))))
         (cl-mapcar (lambda (p)
                      (let ((pdir (concat kiss/installed-db-dir p)))
                        (list p (kiss/internal--get-installed-package-version p))))
