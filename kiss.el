@@ -62,6 +62,7 @@
   "The utility for computing SHA256 checksums."
   :type 'string)
 
+;; FIXME: Using 'su' is currently not supported by this package manager.
 (defcustom kiss/KISS_SU
   (car (cl-remove-if-not 'executable-find
                          '("ssu" "sudo" "doas" "su")))
