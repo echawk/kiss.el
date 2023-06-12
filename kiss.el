@@ -249,8 +249,10 @@
 
 (defun kiss/internal--git-subm-superproject-dir (dir)
   "(I) Return the directory for a git submodule's (DIR) superproject."
-  (replace-regexp-in-string "\n$" ""
-                            (shell-command-to-string (concat "git -C " dir " rev-parse --show-superproject-working-tree"))))
+  (replace-regexp-in-string
+   "\n$" ""
+   (shell-command-to-string
+    (concat "git -C " dir " rev-parse --show-superproject-working-tree"))))
 
 (defun kiss/internal--dir-is-git-subm-p (dir)
   "(I) Return t if DIR is a git submodule, nil otherwise."
@@ -265,8 +267,10 @@
          (repo (if dir-is-subm-p
                    (kiss/internal--git-subm-superproject-dir dir)
                  dir)))
-    (replace-regexp-in-string "\n$" ""
-                              (shell-command-to-string (concat "git -C " repo " rev-parse --show-toplevel")))))
+    (replace-regexp-in-string
+     "\n$" ""
+     (shell-command-to-string
+      (concat "git -C " repo " rev-parse --show-toplevel")))))
 
 (defun kiss/internal--kiss-path-git-repos ()
   "(I) Return only the repos in `kiss/KISS_PATH' that are git repos."
