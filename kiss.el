@@ -103,6 +103,10 @@
   (string=
    (getenv "LOGNAME")
    (kiss/internal--get-owner file-path)))
+(defun kiss/internal--shell-command-as-user (command user)
+  "(I) Run COMMAND as USER using `kiss/KISS_SU'."
+  (shell-command (concat kiss/KISS_SU " -u " user " -- " command)))
+
 (defun kiss/internal--decompress (file-path)
   "(I) Decompress FILE-PATH based on the file name."
   (let ((cmd
@@ -278,17 +282,23 @@
 
 (defun kiss/internal--update-git-repos ()
   "(I) Update all git repos in `kiss/KISS_PATH'."
-  (let ((git-repos (delete-dups (cl-mapcar 'kiss/internal--get-git-dir-toplevel
-                                           (kiss/internal--kiss-path-git-repos)))))
+  (let ((git-repos (delete-dups
+                    (cl-mapcar 'kiss/internal--get-git-dir-toplevel
+                               (kiss/internal--kiss-path-git-repos)))))
     (dolist (repo git-repos)
       (message (concat "kiss/update: Updating " repo))
       ;; FIXME: prevent this from stalling Emacs.
-      (let ((su_cmd
-             (if (kiss/internal--am-owner-p repo)
-                 ""
-               (concat kiss/KISS_SU " -u " (kiss/internal--get-owner repo) " -- "))))
-        (shell-command (concat su_cmd " git -C " repo " pull"))
-        (shell-command (concat su_cmd " git -C " repo " submodule update --remote --init -f"))))))
+      (let ((repo-owner   (kiss/internal--get-owner repo))
+            (am-owner-p   (kiss/internal--am-owner-p repo))
+            (git-pull-cmd (concat "git -C " repo " pull" ))
+            (git-subm-cmd (concat "git -C " repo " submodule update --remote --init -f")))
+        (if am-owner-p
+            (progn
+              (shell-command git-pull-cmd)
+              (shell-command git-subm-cmd))
+          (progn
+            (kiss/internal--shell-command-as-user git-pull-cmd repo-owner)
+            (kiss/internal--shell-command-as-user git-subm-cmd repo-owner)))))))
 
 ;; TODO: Rethink how to integrate this.
 ;; (defun kiss/internal--print-git-repo-MOTD ()
