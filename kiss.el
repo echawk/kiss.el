@@ -225,10 +225,11 @@
   "(I) Return the version string for PKG, nil if PKG is not installed."
   (if (kiss/internal--pkg-is-installed-p pkg)
       (let ((pdir (concat kiss/installed-db-dir pkg)))
-        (replace-regexp-in-string "\n$" ""
-                                  ;; TODO: see if there is a way to avoid
-                                  ;; depending on f.el
-                                  (f-read-text (concat pdir "/version"))))))
+        (replace-regexp-in-string
+         "\n$" ""
+         ;; TODO: see if there is a way to avoid
+         ;; depending on f.el
+         (f-read-text (concat pdir "/version"))))))
 
 ;; TODO: add docstring.
 (defun kiss/list (&optional pkg-q)
