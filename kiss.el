@@ -166,6 +166,20 @@
              s)))
    (nthcdr 2 (directory-files kiss/choices-db-dir))))
 
+(defun kiss/owns (file-path)
+  ;; TODO: See if this can be made a little less ugly.
+  (car
+   (string-split
+    (replace-regexp-in-string
+     kiss/installed-db-dir ""
+     (shell-command-to-string
+      (concat "grep ^" file-path "$ "
+              (kiss/internal--lst-to-str
+               (mapcar
+                '(lambda (pkg) (concat kiss/installed-db-dir pkg "/manifest"))
+                (mapcar 'car (kiss/list)))))))
+    "/")))
+
 ;; -> build        Build packages
 ;; ===========================================================================
 (defun kiss/build (pkgs-l)
