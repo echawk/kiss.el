@@ -105,16 +105,16 @@
    (kiss/internal--get-owner file-path)))
 (defun kiss/internal--decompress (file-path)
   "(I) Decompress FILE-PATH based on the file name."
-  (let* ((cmd
-          (cond
-           ((string-match-p (rx ".tar" eol)             file-path) "cat ")
-           ((string-match-p (rx (or ".tbz" ".bz2") eol) file-path) "bzip2 -dc ")
-           ((string-match-p (rx ".lz" eol)              file-path) "lzip -dc")
-           ((string-match-p (rx (or ".tgz" ".gz") eol)  file-path) "gzip -dc ")
-           ((string-match-p (rx ".lzma" eol)            file-path) "lzma -dcT0 ")
-           ((string-match-p (rx (or ".txz" ".xz") eol)  file-path) "xz -dcT0 ")
-           ((string-match-p (rx ".zst" eol)             file-path) "zstd -dcT0 ")
-           )))
+  (let ((cmd
+         (cond
+          ((string-match-p (rx ".tar" eol)             file-path) "cat ")
+          ((string-match-p (rx (or ".tbz" ".bz2") eol) file-path) "bzip2 -dc ")
+          ((string-match-p (rx ".lz" eol)              file-path) "lzip -dc")
+          ((string-match-p (rx (or ".tgz" ".gz") eol)  file-path) "gzip -dc ")
+          ((string-match-p (rx ".lzma" eol)            file-path) "lzma -dcT0 ")
+          ((string-match-p (rx (or ".txz" ".xz") eol)  file-path) "xz -dcT0 ")
+          ((string-match-p (rx ".zst" eol)             file-path) "zstd -dcT0 ")
+          )))
     ;; TODO: Add in error message/assertion.
     (if cmd
         (shell-command (concat cmd file-path)))))
