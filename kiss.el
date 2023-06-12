@@ -85,9 +85,11 @@
 
 (defun kiss/internal--sanitize-ver-str (str)
   "(I) Sanitize a version string STR to be correctly compared against others."
-  (replace-regexp-in-string "\n$" ""
-                            (replace-regexp-in-string " " ""
-                                                      str)))
+  (replace-regexp-in-string
+   "\n$" ""
+   (replace-regexp-in-string
+    " " ""
+    str)))
 
 (defun kiss/internal--get-owner (file-path)
   "(I) Return the owner of FILE-PATH."
@@ -101,6 +103,31 @@
   (string=
    (getenv "LOGNAME")
    (kiss/internal--get-owner file-path)))
+(defun kiss/internal--decompress (file-path)
+  "(I) Decompress FILE-PATH based on the file name."
+  (let* ((cmd
+          (cond
+           ((string-match-p (rx ".tar" eol)             file-path) "cat ")
+           ((string-match-p (rx (or ".tbz" ".bz2") eol) file-path) "bzip2 -dc ")
+           ((string-match-p (rx ".lz" eol)              file-path) "lzip -dc")
+           ((string-match-p (rx (or ".tgz" ".gz") eol)  file-path) "gzip -dc ")
+           ((string-match-p (rx ".lzma" eol)            file-path) "lzma -dcT0 ")
+           ((string-match-p (rx (or ".txz" ".xz") eol)  file-path) "xz -dcT0 ")
+           ((string-match-p (rx ".zst" eol)             file-path) "zstd -dcT0 ")
+           )))
+    ;; TODO: Add in error message/assertion.
+    (if cmd
+        (shell-command (concat cmd file-path)))))
+
+(defun kiss/internal--b3 (file-path)
+  "(I) Run b3sum on FILE-PATH."
+  (car
+   (string-split
+    (replace-regexp-in-string
+     "\n$" ""
+     ;; NOTE: b3sum is the only support BLAKE3 utility at this time.
+     (shell-command-to-string (concat "b3sum -l 33 " file-path)))
+    " ")))
 
 ;; Public code below.
 
