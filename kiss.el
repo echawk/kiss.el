@@ -129,6 +129,23 @@
      (shell-command-to-string (concat "b3sum -l 33 " file-path)))
     " ")))
 
+(defun kiss/internal--sh256 (file-path)
+  "(I) Run `kiss/KISS_CHK' with proper arguments on FILE-PATH."
+  (let ((args
+         (cond
+          ((string-match-p "openssl"   kiss/KISS_CHK) " dgst -sha256 -r ")
+          ((string-match-p "sha256sum" kiss/KISS_CHK) "")
+          ((string-match-p "sha256"    kiss/KISS_CHK) " -r ")
+          ((string-match-p "shasum"    kiss/KISS_CHK) " -a 256 ")
+          ((string-match-p "digest"    kiss/KISS_CHK) " -a sha256 ")
+          )))
+    (car
+     (string-split
+      (replace-regexp-in-string
+       "\n$" ""
+       (shell-command-to-string
+        (concat kiss/KISS_CHK args file-path)))))))
+
 ;; Public code below.
 
 ;; -> kiss [a|b|c|d|i|l|r|s|u|U|v] [pkg]...
