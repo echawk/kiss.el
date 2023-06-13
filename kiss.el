@@ -31,10 +31,10 @@
 ;; How to traverse directories.
 ;; http://xahlee.info/emacs/emacs/elisp_traverse_dir.html
 ;;; Code:
-
 (eval-when-compile
   (require 'cl-lib)
-  (require 'f))
+  (require 'f)
+  (require 'rx))
 
 ;; FIXME: Find out what the containing group should be...
 (defgroup kiss nil
