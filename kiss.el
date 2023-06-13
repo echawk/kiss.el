@@ -166,18 +166,23 @@
              s)))
    (nthcdr 2 (directory-files kiss/choices-db-dir))))
 
+(defun kiss/internal--get-installed-manifest-files ()
+  "(I) Return a list of all of the installed manifest files."
+  (mapcar
+   '(lambda (pkg) (concat kiss/installed-db-dir pkg "/manifest"))
+   (mapcar 'car (kiss/list))))
+
 (defun kiss/owns (file-path)
   ;; TODO: See if this can be made a little less ugly.
+  ;; FIXME: properly error out.
   (car
    (string-split
     (replace-regexp-in-string
      kiss/installed-db-dir ""
      (shell-command-to-string
-      (concat "grep ^" file-path "$ "
+      (concat "grep " (rx bol (literal file-path) eol) " "
               (kiss/internal--lst-to-str
-               (mapcar
-                '(lambda (pkg) (concat kiss/installed-db-dir pkg "/manifest"))
-                (mapcar 'car (kiss/list)))))))
+               (kiss/internal--get-installed-manifest-files)))))
     "/")))
 
 ;; -> build        Build packages
