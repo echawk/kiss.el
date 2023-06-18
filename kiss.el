@@ -248,6 +248,29 @@
   (interactive "sQuery: ")
   (async-shell-command (concat "kiss download " query)))
 
+(defun kiss/internal--get-pkg-sources (pkg)
+  "(I) Return a list of sources for PKG, or nil if PKG has no source file."
+  (let* ((pkg-repo    (car (kiss/search pkg)))
+         (pkg-sources (concat pkg-repo "/sources")))
+    (if (file-exists-p pkg-sources)
+        (progn
+          ;; Remove any non source lines.
+          (cl-remove-if
+           (lambda (lst) (string= (car lst) ""))
+           (mapcar
+            (lambda (pkg-dest-line)
+              ;; Sanitize each line
+              (string-split
+               (replace-regexp-in-string
+                (rx (one-or-more " ")) " "
+                pkg-dest-line)
+               " "))
+            (string-split
+             (f-read-text (concat pkg-repo "/sources"))
+             "\n"))))
+      ;; Return nil if there are no sources for the package.
+      ;; NOTE: This nil does not mean failure.
+      nil)))
 ;; -> install      Install packages
 ;; ===========================================================================
 (defun kiss/install (pkgs-l)
