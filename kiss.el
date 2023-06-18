@@ -271,6 +271,18 @@
       ;; Return nil if there are no sources for the package.
       ;; NOTE: This nil does not mean failure.
       nil)))
+
+(defun kiss/internal--get-pkg-sources-type (pkg-sources)
+  "(I) Return the type of PKG-SOURCES."
+  (let ((pkg-url (car pkg-sources)))
+    ;; TODO: need to ensure that this is the same expected behavior as
+    ;; upstream.
+    (cond
+     ((string-match-p (rx bol "git+") pkg-url) "git")
+     ((string-match-p (rx "://") pkg-url) "remote")
+     (t "local"))
+    ))
+
 ;; -> install      Install packages
 ;; ===========================================================================
 (defun kiss/install (pkgs-l)
