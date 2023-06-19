@@ -249,7 +249,7 @@
   (async-shell-command (concat "kiss download " query)))
 
 (defun kiss/internal--get-pkg-sources (pkg)
-  "(I) Return a list of sources for PKG, or nil if PKG has no source file."
+  "(I) Return a list of sources for PKG, or nil if PKG has no sources file."
   (let* ((pkg-repo    (car (kiss/search pkg)))
          (pkg-sources (concat pkg-repo "/sources")))
     (if (file-exists-p pkg-sources)
@@ -282,6 +282,33 @@
      ((string-match-p (rx "://") pkg-url) "remote")
      (t "local"))
     ))
+
+(defun kiss/internal--download-pkg-sources (pkg)
+  "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
+  (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg))
+         (type-pkg-sources
+          (let ((pkg-sources (kiss/internal--get-pkg-sources pkg)))
+            (-zip
+             (mapcar 'kiss/internal--get-pkg-sources-type
+                     pkg-sources)
+             pkg-sources))))
+    ;; FIXME: Actually implement the downloading.
+    (dolist (tps type-pkg-sources)
+      (cond
+       ((string-match-p (car tps) "git")
+        (print (cdr tps))
+
+        )
+       ((string-match-p (car tps) "remote")
+        (print (cdr tps))
+
+        )
+       ((string-match-p (car tps) "local")
+        (print (cdr tps))
+
+        )
+       )))
+  )
 
 ;; -> install      Install packages
 ;; ===========================================================================
