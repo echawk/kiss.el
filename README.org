@@ -16,8 +16,8 @@ Currently is very, very much WIP.
 - [X] list
 - [ ] remove
 - [X] search
-- [ ] update
+- [X] update
 - [ ] upgrade
-- [ ] version
+- [X] version
 
 Feel free to submit issues & PRs!
