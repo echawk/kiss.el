@@ -327,10 +327,15 @@
   (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg))
          (type-pkg-sources
           (let ((pkg-sources (kiss/internal--get-pkg-sources pkg)))
+            ;; Save the type as the car, with the cdr being the
+            ;; URL followed by the (optional) path. Hence the zip.
             (-zip
              (mapcar 'kiss/internal--get-pkg-sources-type
                      pkg-sources)
              pkg-sources))))
+    ;; Make the cache directory if it doesn't already exist.
+    (if (not (file-exists-p pkg-source-cache-dir))
+        (make-directory pkg-source-cache-dir))
     ;; FIXME: Actually implement the downloading.
     (dolist (tps type-pkg-sources)
       (cond
