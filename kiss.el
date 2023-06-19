@@ -283,6 +283,45 @@
      (t "local"))
     ))
 
+(defun kiss/internal--download-git-source (url dest)
+  "(I) Download URL to `kiss/KISS_SRCDIR' in the folder DEST."
+  ;; NOTE: This currently does not support sources like the following:
+  ;; git+https://github.com/user/project@somebranch#somecommit
+  ;; However, I have yet to see this combo out in the wild in kiss linux.
+  ;; So... It's not a bug (yet).
+  (let* ((u (replace-regexp-in-string
+             (rx bol "git+") ""
+             url))
+         (clean-url (car (string-split u (rx (or "#" "@")))))
+         (dest-folder
+          (concat dest "/"
+                  (car (reverse (string-split clean-url "/")))))
+         ;; Set branch/commit if it's specified.
+         (com (nth 1 (string-split u (rx (or "#" "@"))))))
+
+    ;; If a specific branch/commit isn't specified, default to FETCH_HEAD.
+    (if (eq com nil)
+        (setq com "HEAD"))
+    ;; Only make the directory if it doesn't exist.
+    (if (not (file-exists-p dest-folder))
+        (make-directory dest-folder))
+    ;; Initialize the git repo if it doesn't exist.
+    (if (not (file-exists-p (concat dest-folder ".git")))
+        (shell-command (concat "git init " dest-folder)))
+    ;; Save our current working directory.
+    (let ((opwd (getenv "PWD")))
+      (cd dest-folder)
+      (if (not
+           (eq 0
+               (shell-command
+                (concat "git remote set-url origin " clean-url " 2> /dev/null"))))
+          (shell-command
+           (concat "git remote add origin " clean-url)))
+      (shell-command (concat "git fetch --depth=1 origin " com))
+      (shell-command (concat "git reset --hard FETCH_HEAD"))
+      ;; Change back to our old working directory
+      (cd opwd))))
+
 (defun kiss/internal--download-pkg-sources (pkg)
   "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
   (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg))
