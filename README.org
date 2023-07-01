@@ -14,6 +14,7 @@ Currently is very, very much WIP.
 - [ ] download
 - [ ] install
 - [X] list
+- [X] preferred
 - [ ] remove
 - [X] search
 - [X] update
