@@ -135,7 +135,7 @@
    (string-split
     (replace-regexp-in-string
      "\n$" ""
-     ;; NOTE: b3sum is the only support BLAKE3 utility at this time.
+     ;; NOTE: b3sum is the only supported BLAKE3 utility at this time.
      (shell-command-to-string (concat "b3sum -l 33 " file-path)))
     " ")))
 
@@ -158,7 +158,7 @@
 
 ;; Public code below.
 
-;; -> kiss [a|b|c|d|i|l|r|s|u|U|v] [pkg]...
+;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
 ;; ===========================================================================
 (defun kiss/alternatives ()
@@ -290,7 +290,7 @@
     ))
 
 (defun kiss/internal--download-git-source (url dest)
-  "(I) Download URL to `kiss/KISS_SRCDIR' in the folder DEST."
+  "(I) Download git URL to `kiss/KISS_SRCDIR' in the folder DEST."
   ;; NOTE: This currently does not support sources like the following:
   ;; git+https://github.com/user/project@somebranch#somecommit
   ;; However, I have yet to see this combo out in the wild in kiss linux.
