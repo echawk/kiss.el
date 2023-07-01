@@ -45,6 +45,12 @@
 (defconst kiss/installed-db-dir (concat kiss/root "/var/db/kiss/installed/"))
 (defconst kiss/choices-db-dir (concat kiss/root "/var/db/kiss/choices/"))
 
+(defconst kiss/KISS_TMPDIR
+  (concat (getenv "HOME") "/.cache/kiss/proc/"))
+
+(defconst kiss/KISS_SRCDIR
+  (concat (getenv "HOME") "/.cache/kiss/sources/"))
+
 (defconst kiss/version "0.0.1"
   "The version of kiss.el.")
 (defconst kiss/compat-version "5.6.4"
