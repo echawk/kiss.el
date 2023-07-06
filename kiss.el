@@ -13,6 +13,8 @@
 ;; Anything else will be out of scope (for the time being).
 
 ;; TODO: support crux style usage???
+;; - Would require that this file could be ran as an Emacs script, argument
+;; parsing and all.
 
 ;; Hooks are currently on the back burner until a POC can be fleshed out.
 ;; However, I don't think that it will actually be all that difficult, since
@@ -75,6 +77,12 @@
   "The utility that will be used to elevate priviledges."
   :type 'string)
 
+;; Valid options:
+;; bz2, gz, lz, lzma, xz, zst
+(defcustom kiss/KISS_COMPRESS
+  "gz"
+  "The compression algorithm that should be used when making packages."
+  :type 'string)
 (defcustom kiss/KISS_PATH
   (split-string (getenv "KISS_PATH") ":")
   "A list of directories in decreasing precedence to look for packages in."
