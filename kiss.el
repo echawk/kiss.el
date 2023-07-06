@@ -133,6 +133,11 @@
           ((string-match-p (rx (or ".txz" ".xz") eol)  file-path) "xz -dcT0 ")
           ((string-match-p (rx ".zst" eol)             file-path) "zstd -dcT0 ")
           )))
+    ;; Also... Am I sure that I'm running this command here???
+    ;; My thinking is that I return the decompress command to be concatenated
+    ;; with the tar command all in one 'shell-command' that way I don't have to
+    ;; store random uncompressed tarballs everywhere.  I'll figure it out
+    ;; eventually.
     ;; TODO: Add in error message/assertion.
     (if cmd
         (shell-command (concat cmd file-path)))))
