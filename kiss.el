@@ -341,6 +341,26 @@
       ;; Change back to our old working directory
       (cd opwd))))
 
+(defun kiss/internal--make-temp-file ()
+  "(I) Make a temporary file using the `mktemp' utility."
+  (shell-command-to-string "mktemp"))
+
+(defun kiss/internal--get-download-utility-arguments ()
+  "(I) Get the proper arguments for the set `kiss/KISS_GET' utility appending ARG."
+  (cond
+   ((string= kiss/KISS_GET "aria2c") " -d / -o ")
+   ((string= kiss/KISS_GET "axel")   " -o ")
+   ((string= kiss/KISS_GET "curl")   " -fLo ")
+   ((or (string= kiss/KISS_GET "wget") (string= kiss/KISS_GET "wget2")) " -O ")))
+
+(defun kiss/internal--download-remote-source (url dest)
+  "(I) Download URL to DEST using `kiss/KISS_GET'."
+  (shell-command
+   (concat kiss/KISS_GET " "
+           url
+           (kiss/internal--get-download-utility-arguments)
+           dest)))
+
 (defun kiss/internal--download-pkg-sources (pkg)
   "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
   (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg))
