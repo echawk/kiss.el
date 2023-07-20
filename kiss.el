@@ -258,6 +258,29 @@
                        (shell-command-to-string
                         (concat "awk '{print $1}' < " depends-file))
                        "\n")))))
+
+(defun kiss/internal--get-pkg-dependency-graph (pkg)
+  "(I) Generate a graph of the dependencies for PKG."
+  (let* ((deps (kiss/internal--get-pkg-dependencies pkg))
+         (seen '())
+         (queue deps)
+         (res (list (list pkg deps))))
+    (progn
+      ;; FIXME: need to implement the seen list as a way to break the
+      ;; while loop, instead of just relying on the queue.
+      (while queue
+        ;; Only execute this block if we haven't already seen this pkg.
+        (when (not (member (car queue) seen))
+          (let* ((dep (car queue))
+                 (dep-deps (kiss/internal--get-pkg-dependencies dep)))
+            (let ((item (list dep dep-deps)))
+              (if (not (member item res))
+                  ;; Update our result to contain the dep and it's depends.
+                  (setq res (cons item res))))
+            ;; Make sure we only append to the cdr of the queue.
+            (setq queue (append dep-deps (cdr queue))))))
+      res)))
+
 ;; -> build        Build packages
 ;; ===========================================================================
 (defun kiss/build (pkgs-l)
