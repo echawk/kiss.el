@@ -247,6 +247,17 @@
         ))))
     "\n"))
   )
+
+(defun kiss/internal--get-pkg-dependencies (pkg)
+  "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies."
+  (let ((depends-file (concat (car (kiss/search pkg)) "/depends")))
+    ;; TODO: eventually make this all elisp w/ no reliance on awk.
+    (if (file-exists-p depends-file)
+        (cl-remove-if (lambda (i) (string= i ""))
+                      (split-string
+                       (shell-command-to-string
+                        (concat "awk '{print $1}' < " depends-file))
+                       "\n")))))
 ;; -> build        Build packages
 ;; ===========================================================================
 (defun kiss/build (pkgs-l)
