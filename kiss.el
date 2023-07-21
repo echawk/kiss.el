@@ -304,18 +304,56 @@
              (kiss/internal--get-pkg-dependency-graph pkg) "\n"))
 
 
+;; FIXME: There is a bug in this procedure where if two of the packages
+;; in PKG-LST share a dependency tree, tsort will freak out and repot
+;; that there is an odd number of dependencies in the tree.
+;; I'm not entirely sure on how to fix this bug atm, since the piece of sample
+;;  code that I have written does not report the correct packages (even though
+;; it produces the same dependency tree.)
 (defun kiss/internal--get-pkg-dependency-order (pkg-lst)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
   (cl-remove-if (lambda (s) (string= s ""))
                 (string-split
                  (shell-command-to-string
                   (concat "printf '"
-                          (mapconcat
-                           #'kiss/internal--get-pkg-tsort-graph pkg-lst)
+                          ;; (mapconcat
+                          ;;  #'kiss/internal--get-pkg-tsort-graph pkg-lst)
+                          ;; FIXME: test this code below to see if it
+                          ;; fixes the issues.
+                          (let ((s (mapcar
+                                    #'kiss/internal--get-pkg-tsort-graph
+                                    pkg-lst)))
+                            (mapconcat #'identity
+                                       (delete-dups
+                                        (split-string
+                                         (mapconcat #'identity s "\n")
+                                         "\n"))
+                                       "\n"))
                           "'"
                           " | "
                           " tsort "))
                  "\n")))
+;; (kiss/internal--get-pkg-dependency-order '("gcc" "clang"))
+;; (kiss/internal--get-pkg-dependency-order '("llvm" "rust"))
+
+;; As noted above, here is the code that I was testing out to try and
+;; figure out a different method.
+
+;; ;; Save our resulting depends in res
+;; (let ((res '()))
+;;   (mapcar
+;;    ;; Here we take a pkg, and go through all of its dependency
+;;    ;; graphs and add them to res only if they are not alreay present in
+;;    ;; res.
+;;    (lambda (pkg)
+;;      (let ((deps (kiss/internal--get-pkg-dependency-graph pkg)))
+;;        (mapcar (lambda (dep)
+;;                  (if (not (member dep res))
+;;                      (setq res (cons dep res))))
+;;                deps)))
+;;    ;; Our packages list
+;;    '("llvm"))
+;;   res)
 
 ;; -> build        Build packages
 ;; ===========================================================================
