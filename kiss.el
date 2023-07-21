@@ -268,14 +268,14 @@
          (queue deps)
          (res (list (list pkg deps))))
     (progn
-      ;; FIXME: need to implement the seen list as a way to break the
-      ;; while loop, instead of just relying on the queue.
+      ;; While there are still pkgs in the queue to look at.
       (while queue
         ;; Only execute this block if we haven't already seen this pkg.
         (when (not (member (car queue) seen))
           (let* ((dep (car queue))
                  (dep-deps (kiss/internal--get-pkg-dependencies dep)))
             (let ((item (list dep dep-deps)))
+              ;; Saves ourselves the headache of removing duplicates early.
               (if (not (member item res))
                   ;; Update our result to contain the dep and it's depends.
                   (setq res (cons item res))))
