@@ -304,6 +304,19 @@
              (kiss/internal--get-pkg-dependency-graph pkg) "\n"))
 
 
+(defun kiss/internal--get-pkg-dependency-order (pkg-lst)
+  "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
+  (cl-remove-if (lambda (s) (string= s ""))
+                (string-split
+                 (shell-command-to-string
+                  (concat "printf '"
+                          (mapconcat
+                           #'kiss/internal--get-pkg-tsort-graph pkg-lst)
+                          "'"
+                          " | "
+                          " tsort "))
+                 "\n")))
+
 ;; -> build        Build packages
 ;; ===========================================================================
 (defun kiss/build (pkgs-l)
