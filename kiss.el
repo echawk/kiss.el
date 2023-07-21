@@ -297,6 +297,13 @@
       (if pair-str pair-str ""))))
 
 
+;; NOTE: will likely be removed once a tsort implementation in elisp is written.
+(defun kiss/internal--get-pkg-tsort-graph (pkg)
+  "(I) Get a tsort(1) compatible representation of the dependencies for PKG."
+  (mapconcat #'kiss/internal--dependency-graph-to-tsort
+             (kiss/internal--get-pkg-dependency-graph pkg) "\n"))
+
+
 ;; -> build        Build packages
 ;; ===========================================================================
 (defun kiss/build (pkgs-l)
