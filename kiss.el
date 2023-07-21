@@ -251,14 +251,16 @@
 (defun kiss/internal--get-pkg-dependencies (pkg)
   "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies."
   (let ((depends-file (concat (car (kiss/search pkg)) "/depends")))
-    ;; TODO: eventually make this all elisp w/ no reliance on awk.
     (if (file-exists-p depends-file)
-        (cl-remove-if (lambda (i) (string= i ""))
-                      (split-string
-                       (shell-command-to-string
-                        (concat "awk '{print $1}' < " depends-file))
-                       "\n")))))
-
+        (cl-remove-if
+         (lambda (i) (string= i ""))
+         ;; All of this below is to emulate `awk '{print $1}' < file'
+         (mapcar (lambda (s) (car (string-split s " ")))
+                 (string-split
+                  (replace-regexp-in-string
+                   "#.*$" ""
+                   (f-read-text depends-file))
+                  "\n"))))))
 (defun kiss/internal--get-pkg-dependency-graph (pkg)
   "(I) Generate a graph of the dependencies for PKG."
   (let* ((deps (kiss/internal--get-pkg-dependencies pkg))
