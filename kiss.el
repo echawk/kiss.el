@@ -283,6 +283,20 @@
             (setq queue (append dep-deps (cdr queue))))))
       res)))
 
+(defun kiss/internal--dependency-graph-to-tsort (pkg-depgraph)
+  "(I) Convert a PKG-DEPGRAPH graph to a tsort compatible one."
+  (let ((print-pair
+         (lambda (pair)
+           (if (cadr pair)
+               (mapconcat (lambda (p) (message "%s %s" p (car pair)))
+                          (cadr pair) "\n")))))
+    (let ((pair-str
+           (funcall print-pair
+                    pkg-depgraph
+                    )))
+      (if pair-str pair-str ""))))
+
+
 ;; -> build        Build packages
 ;; ===========================================================================
 (defun kiss/build (pkgs-l)
