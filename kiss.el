@@ -666,6 +666,13 @@
              (lambda (repo) (string-match-p kiss/installed-db-dir repo))
              (kiss/search p)))))
      pkgs-l)))
+
+(defun kiss/internal--get-pkg-order (pkgs-lst)
+  "(I) Get the proper build order for the packages in PKGS-LST."
+  (cl-remove-if-not
+   (lambda (pkg) (member pkg pkgs-lst))
+   (kiss/internal--get-pkg-dependency-order pkgs-lst)))
+
 ;; -> version      Package manager version
 ;; SEE const.
 
