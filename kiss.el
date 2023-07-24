@@ -284,7 +284,7 @@
       res)))
 
 (defun kiss/internal--dependency-graph-to-tsort (pkg-depgraph)
-  "(I) Convert a PKG-DEPGRAPH graph to a tsort compatible one."
+  "(I) Convert a PKG-DEPGRAPH graph to a tsort(1) compatible one."
   (let ((print-pair
          (lambda (pair)
            (if (cadr pair)
@@ -323,6 +323,7 @@
                           (let ((s (mapcar
                                     #'kiss/internal--get-pkg-tsort-graph
                                     pkg-lst)))
+                            ;; Essentially just rms the duplicate lines.
                             (mapconcat #'identity
                                        (delete-dups
                                         (split-string
@@ -442,7 +443,7 @@
   ;; NOTE: This currently does not support sources like the following:
   ;; git+https://github.com/user/project@somebranch#somecommit
   ;; However, I have yet to see this combo out in the wild in kiss linux.
-  ;; So... It's not a bug (yet).
+  ;; So... It's not a bug (yet). Also, it just doesn't make sense to do anyways.
   (let* ((u (replace-regexp-in-string
              (rx bol "git+") ""
              url))
