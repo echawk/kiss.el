@@ -357,6 +357,42 @@
 ;;   res)
 
 
+;; TODO: make the output list prettier (ie, should be a list of pkgs,
+;; not depends files)
+(defun kiss/internal--get-pkg-make-dependents (pkg)
+  "(I) Return a list of installed packages that have a make dependency on PKG, nil if there are no dependents."
+  (cl-remove-if-not
+   (lambda (depfile)
+     (string-match (rx bol (literal pkg) (one-or-more " ") (literal "make"))
+                   (f-read-text depfile)))
+   (cl-remove-if-not
+    #'file-exists-p
+    (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
+            (nthcdr 2 (directory-files kiss/installed-db-dir))))))
+
+(defun kiss/internal--get-pkg-make-orphans ()
+  "(I) Return a list of installed packages that were only required as a make dependency."
+  ;; NOTE: This function is pretty slow at the moment.
+  (cl-remove-if-not
+   (lambda (pkg)
+     (and (eq (kiss/internal--get-pkg-hard-dependents pkg) nil)
+          (not
+           (eq (kiss/internal--get-pkg-make-dependents pkg) nil))))
+   (mapcar #'car (kiss/list))))
+
+;; TODO: make the output list prettier (ie, should be a list of pkgs,
+;; not depends files)
+(defun kiss/internal--get-pkg-hard-dependents (pkg)
+  "(I) Return a list of installed packages that have a runtime dependency on PKG, nil if there are no dependents."
+  (cl-remove-if-not
+   (lambda (depfile)
+     (string-match (rx bol (literal pkg) (zero-or-more " ") eol)
+                   (f-read-text depfile)))
+   (cl-remove-if-not
+    #'file-exists-p
+    (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
+            (nthcdr 2 (directory-files kiss/installed-db-dir))))))
+
 (defun kiss/internal--get-pkg-missing-dependencies (pkg)
   "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
   (let* ((deps (kiss/internal--get-pkg-dependencies pkg))
