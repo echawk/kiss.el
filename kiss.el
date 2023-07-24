@@ -372,6 +372,16 @@
 ;; (kiss/internal--get-pkg-missing-dependencies "gimp")
 ;; (kiss/internal--get-pkg-missing-dependencies "gcc")
 
+(defun kiss/internal--get-pkg-orphan-alternatives (pkg)
+  "(I) Return a list of orphaned alternatives that would result from removing PKG."
+  (let ((orphaned-alternatives
+         (cl-remove-if-not
+          (lambda (pair) (seq-contains-p pair pkg))
+          (kiss/preferred))))
+    ;; Return the files associated with PKG.
+    (if orphaned-alternatives
+        (mapcar #'cadr orphaned-alternatives))))
+
 ;; -> build        Build packages
 ;; ===========================================================================
 (defun kiss/build (pkgs-l)
