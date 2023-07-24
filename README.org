@@ -1,10 +1,8 @@
 * kiss.el
 
-This is an implementation of the kiss package manager in Emacs lisp.
+This is an implementation of the [kiss](https://codeberg.org/kiss-community/kiss) package manager in Emacs lisp.
 
-https://github.com/kiss-community/kiss
-
-Currently is very, very much WIP.
+Currently is very much WIP.
 
 ** Features Implemented:
 
@@ -20,5 +18,7 @@ Currently is very, very much WIP.
 - [X] update
 - [ ] upgrade
 - [X] version
+
+*NOTE*: Some of these features are /partially/ supported.
 
 Feel free to submit issues & PRs!
