@@ -419,6 +419,20 @@
     (if orphaned-alternatives
         (mapcar #'cadr orphaned-alternatives))))
 
+
+(defun kiss/internal--pkg-is-removable-p (pkg)
+  "(I) Return t if PKG is removable, nil otherwise."
+
+  ;; A package is removable when the following conditions are met:
+  ;; * the pkg is installed on the current system
+  ;; * nothing on the system depends on the package
+  ;; * the package does not leave any orphaned alternatives
+  (let ((pkg "shiboken2-pyside2"))
+    (and
+     (kiss/internal--pkg-is-installed-p pkg)
+     (eq (kiss/internal--get-pkg-hard-dependents pkg) nil)
+     (eq (kiss/internal--get-pkg-orphan-alternatives pkg) nil))))
+
 ;; -> build        Build packages
 ;; ===========================================================================
 (defun kiss/build (pkgs-l)
