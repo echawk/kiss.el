@@ -1,5 +1,13 @@
 ;;; kiss.el -- kiss package manager in ELisp
 
+;; Author: Ethan Hawk <ethan.hawk@valpo.edu>
+;; Maintainer: Ethan Hawk <ethan.hawk@valpo.edu>
+;; URL: https://github.com/ehawkvu/kiss.el
+;; Keywords: package-manager, tools
+;; Package-Requires: ((f))
+
+;; This file is under the MIT license.
+
 ;;; Commentary:
 
 ;; WHY??? - cuz it's good to have multiple implementations of kiss.
