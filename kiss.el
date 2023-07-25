@@ -369,14 +369,22 @@
 ;; not depends files)
 (defun kiss/internal--get-pkg-make-dependents (pkg)
   "(I) Return a list of installed packages that have a make dependency on PKG, nil if there are no dependents."
-  (cl-remove-if-not
-   (lambda (depfile)
-     (string-match (rx bol (literal pkg) (one-or-more " ") (literal "make"))
-                   (f-read-text depfile)))
+  (mapcar
+   (lambda (dep-file)
+     (replace-regexp-in-string
+      "/depends" ""
+      (replace-regexp-in-string
+       kiss/installed-db-dir ""
+       dep-file)))
    (cl-remove-if-not
-    #'file-exists-p
-    (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
-            (nthcdr 2 (directory-files kiss/installed-db-dir))))))
+    (lambda (depfile)
+      (string-match (rx bol (literal pkg) (one-or-more " ") (literal "make"))
+                    (f-read-text depfile)))
+    (cl-remove-if-not
+     #'file-exists-p
+     (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
+             (nthcdr 2 (directory-files kiss/installed-db-dir)))))))
+;; (kiss/internal--get-pkg-make-dependents "ant")
 
 (defun kiss/internal--get-pkg-make-orphans ()
   "(I) Return a list of installed packages that were only required as a make dependency."
@@ -392,14 +400,24 @@
 ;; not depends files)
 (defun kiss/internal--get-pkg-hard-dependents (pkg)
   "(I) Return a list of installed packages that have a runtime dependency on PKG, nil if there are no dependents."
-  (cl-remove-if-not
-   (lambda (depfile)
-     (string-match (rx bol (literal pkg) (zero-or-more " ") eol)
-                   (f-read-text depfile)))
+  (mapcar
+   (lambda (dep-file)
+     (replace-regexp-in-string
+      "/depends" ""
+      (replace-regexp-in-string
+       kiss/installed-db-dir ""
+       dep-file)))
    (cl-remove-if-not
-    #'file-exists-p
-    (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
-            (nthcdr 2 (directory-files kiss/installed-db-dir))))))
+    (lambda (depfile)
+      (string-match (rx bol (literal pkg) (zero-or-more " ") eol)
+                    (f-read-text depfile)))
+    (cl-remove-if-not
+     #'file-exists-p
+     (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
+             (nthcdr 2 (directory-files kiss/installed-db-dir)))))))
+
+;; (kiss/internal--get-pkg-hard-dependents "mpfr")
+
 
 (defun kiss/internal--get-pkg-missing-dependencies (pkg)
   "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
