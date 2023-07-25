@@ -431,11 +431,10 @@
   ;; * the pkg is installed on the current system
   ;; * nothing on the system depends on the package
   ;; * the package does not leave any orphaned alternatives
-  (let ((pkg "shiboken2-pyside2"))
-    (and
-     (kiss/internal--pkg-is-installed-p pkg)
-     (eq (kiss/internal--get-pkg-hard-dependents pkg) nil)
-     (eq (kiss/internal--get-pkg-orphan-alternatives pkg) nil))))
+  (and
+   (kiss/internal--pkg-is-installed-p pkg)
+   (eq (kiss/internal--get-pkg-hard-dependents pkg) nil)
+   (eq (kiss/internal--get-pkg-orphan-alternatives pkg) nil)))
 
 ;; -> build        Build packages
 ;; ===========================================================================
