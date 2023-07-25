@@ -395,17 +395,13 @@
 
 (defun kiss/internal--get-pkg-missing-dependencies (pkg)
   "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
-  (let* ((deps (kiss/internal--get-pkg-dependencies pkg))
-         (missing-pkgs
-          ;; If t is the first part of the pair, drop it.
-          (cl-remove-if-not
-           (lambda (pair) (eq (car pair) nil))
-           ;; Save the installed status of the pkg w/ pkg name.
-           (-zip (mapcar #'kiss/internal--pkg-is-installed-p deps)
-                 deps))))
-    ;; Return the list of pkgs.
-    (if missing-pkgs
-        (cl-mapcar #'cdr missing-pkgs))))
+  (cl-remove-if
+   #'kiss/internal--pkg-is-installed-p
+   (delete-dups
+    (flatten-list
+     (mapcar #'cadr
+             (kiss/internal--get-pkg-dependency-graph pkg))))))
+
 ;; (kiss/internal--get-pkg-missing-dependencies "gimp")
 ;; (kiss/internal--get-pkg-missing-dependencies "gcc")
 
