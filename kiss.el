@@ -456,10 +456,24 @@
 
 ;; -> build        Build packages
 ;; ===========================================================================
+
+(defun kiss/internal--build-pkg (pkg)
+  "(I) Build PKG."
+  (let ((pkg "clang"))
+    (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg)))
+      (if (not missing-deps)
+          (let ((build-script (concat (car (kiss/search pkg)) "/build")))
+            build-script
+
+            ))))
+  )
+
 (defun kiss/build (pkgs-l)
   (interactive)
-  (async-shell-command
-   (concat "kiss build " (kiss/internal--lst-to-str pkgs-l))))
+  (cond ((listp pkgs-l) nil)
+        ((atom pkgs-l) nil)))
+;; (async-shell-command
+;;  (concat "kiss build " (kiss/internal--lst-to-str pkgs-l))))
 
 ;; -> checksum     Generate checksums
 ;; ===========================================================================
