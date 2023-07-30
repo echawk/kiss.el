@@ -656,7 +656,7 @@
 ;; -> list         List installed packages
 ;; ===========================================================================
 
-(defun kiss/internal--get-installed-package-version (pkg)
+(defun kiss/internal--get-installed-pkg-version (pkg)
   "(I) Return the version string for PKG, nil if PKG is not installed."
   (if (kiss/internal--pkg-is-installed-p pkg)
       (let ((pdir (concat kiss/installed-db-dir pkg)))
@@ -672,9 +672,9 @@
       (let ((pkgs (nthcdr 2 (directory-files kiss/installed-db-dir))))
         (cl-mapcar (lambda (p)
                      (let ((pdir (concat kiss/installed-db-dir p)))
-                       (list p (kiss/internal--get-installed-package-version p))))
+                       (list p (kiss/internal--get-installed-pkg-version p))))
                    pkgs))
-    (list pkg-q (kiss/internal--get-installed-package-version pkg-q))))
+    (list pkg-q (kiss/internal--get-installed-pkg-version pkg-q))))
 
 ;; -> remove       Remove packages
 ;; ===========================================================================
@@ -773,7 +773,7 @@
    (kiss/internal--sanitize-ver-str
     (f-read-text (concat (car (kiss/search pkg)) "/version")))
    (kiss/internal--sanitize-ver-str
-    (kiss/internal--get-installed-package-version pkg))))
+    (kiss/internal--get-installed-pkg-version pkg))))
 
 
 ;; TODO: consider making this *not* internal.
