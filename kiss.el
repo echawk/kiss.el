@@ -457,6 +457,21 @@
 ;; -> build        Build packages
 ;; ===========================================================================
 
+(defun kiss/internal--get-pkg-version (pkg)
+  "(I) Get the version for PKG using the car of `kiss/search'."
+  (let ((pdir (car (kiss/search pkg))))
+    (replace-regexp-in-string
+     "\n$" ""
+     ;; TODO: see if there is a way to avoid
+     ;; depending on f.el
+     (f-read-text (concat pdir "/version")))))
+
+(defun kiss/internal--get-pkg-bin-name (pkg version)
+  "(I) Return the proper name for the binary for PKG at VERSION."
+  (concat pkg "@"
+          (replace-regexp-in-string " " "-" version)
+          ".tar." kiss/KISS_COMPRESS ))
+
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
   (let ((pkg "clang"))
