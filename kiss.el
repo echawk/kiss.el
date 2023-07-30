@@ -274,7 +274,7 @@
   (let* ((deps (kiss/internal--get-pkg-dependencies pkg))
          (seen '())
          (queue deps)
-         (res (list (list pkg deps))))
+         (res `((,pkg ,deps))))
     (progn
       ;; While there are still pkgs in the queue to look at.
       (while queue
@@ -282,7 +282,7 @@
         (when (not (member (car queue) seen))
           (let* ((dep (car queue))
                  (dep-deps (kiss/internal--get-pkg-dependencies dep)))
-            (let ((item (list dep dep-deps)))
+            (let ((item `(,dep ,dep-deps)))
               ;; Saves ourselves the headache of removing duplicates early.
               (if (not (member item res))
                   ;; Update our result to contain the dep and it's depends.
