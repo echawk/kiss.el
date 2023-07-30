@@ -582,6 +582,12 @@
            (kiss/internal--get-download-utility-arguments)
            dest)))
 
+(defun kiss/internal--download-local-source (file-path dest)
+  "(I) Copy FILE-PATH to DEST using cp(1)."
+  (if (file-exists-p file-path)
+      (shell-command
+       (concat "cp " file-path " " dest))))
+
 (defun kiss/internal--download-pkg-sources (pkg)
   "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
   (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg))
