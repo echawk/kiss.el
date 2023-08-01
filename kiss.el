@@ -5,10 +5,17 @@
 ;; URL: https://github.com/ehawkvu/kiss.el
 ;; Keywords: package-manager, tools
 ;; Package-Requires: ((f))
+;; Version: 0.0.1
 
 ;; This file is under the MIT license.
 
 ;;; Commentary:
+
+;; TODO: need to replace all slashes with something else, likely
+;; a hyphen?
+;; or could rename kiss/internal to kiss-i
+
+;; TODO: see if I can reduce the required Emacs version.
 
 ;; WHY??? - cuz it's good to have multiple implementations of kiss.
 ;; also, I don't want to leave Emacs, and this could lead to some
@@ -60,6 +67,9 @@
 
 (defconst kiss/KISS_SRCDIR
   (concat (getenv "HOME") "/.cache/kiss/sources/"))
+
+(defconst kiss/KISS_BINDIR
+  (concat (getenv "HOME") "/.cache/kiss/bin/"))
 
 (defconst kiss/version "0.0.1"
   "The version of kiss.el.")
@@ -447,7 +457,7 @@
 
   ;; A package is removable when the following conditions are met:
   ;; * the pkg is installed on the current system
-  ;; * nothing on the system depends on the package
+  ;; * nothing on the system hard depends on the package
   ;; * the package does not leave any orphaned alternatives
   (and
    (kiss/internal--pkg-is-installed-p pkg)
