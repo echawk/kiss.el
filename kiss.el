@@ -688,6 +688,16 @@
 
 ;; -> remove       Remove packages
 ;; ===========================================================================
+
+(defun kiss/internal--remove-file (file-path)
+  "(I) Remove FILE-PATH as the appropriate user using rm(1), t if successful, nil otherwise."
+  (if (file-exists-p file-path)
+      (let ((owner (kiss/internal--get-owner file-path))
+            (rmcmd (concat "rm -- " file-path)))
+        (eq 0
+            (if (kiss/internal--am-owner-p file-path)
+                (shell-command rmcmd)
+              (kiss/internal--shell-command-as-user rmcmd owner))))))
 (defun kiss/remove (pkgs-l)
   (interactive)
   (async-shell-command
