@@ -698,6 +698,18 @@
             (if (kiss/internal--am-owner-p file-path)
                 (shell-command rmcmd)
               (kiss/internal--shell-command-as-user rmcmd owner))))))
+
+(defun kiss/interal--remove-directory (dir-path)
+  "(I) Remove DIR-PATH as the appropriate user using rmdir(1), t if successful, nil otherwise."
+  (if (file-directory-p dir-path)
+      (let ((owner (kiss/internal--get-owner dir-path))
+            (rmcmd (concat "rmdir -- " dir-path)))
+        (eq 0
+            (if (kiss/internal--am-owner-p dir-path)
+                (shell-command rmcmd)
+              (kiss/internal--shell-command-as-user rmcmd owner))))))
+
+
 (defun kiss/remove (pkgs-l)
   (interactive)
   (async-shell-command
