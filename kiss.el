@@ -709,15 +709,54 @@
                 (shell-command rmcmd)
               (kiss/internal--shell-command-as-user rmcmd owner))))))
 
-(defun kiss/interal--remove-directory (dir-path)
+(defun kiss/internal--remove-directory (dir-path)
   "(I) Remove DIR-PATH as the appropriate user using rmdir(1), t if successful, nil otherwise."
-  (if (file-directory-p dir-path)
+  (if (and (file-directory-p dir-path)
+           (not (file-symlink-p dir-path)))
       (let ((owner (kiss/internal--get-owner dir-path))
             (rmcmd (concat "rmdir -- " dir-path)))
         (eq 0
             (if (kiss/internal--am-owner-p dir-path)
                 (shell-command rmcmd)
               (kiss/internal--shell-command-as-user rmcmd owner))))))
+(defun kiss/internal--remove-files (file-path-lst)
+  "(I) Remove all files and empty directories in FILE-PATH-LST."
+
+  ;; FIXME: does *not* take all cases into account yet, do NOT
+  ;; use
+
+  ;; This will return all of the /etc files/dirs.
+  ;; (cl-remove-if-not
+  ;;  (lambda (file-path) (string-match-p "/etc/" file-path))
+  ;;  file-path-lst)
+
+  ;; NOTE: I'm not entirely sure if it removing the files in the proper
+  ;; order since it should be removing all of the files in a dir first,
+  ;; then the dir itself, but when testing on 'xdo' it does not remove
+  ;; the actual directory in `kiss/installed-db-dir'.
+
+  (let ((symlink-queue '()))
+    (cl-mapcar
+     (lambda (file-path)
+       (cond ((file-exists-p file-path)
+              (kiss/internal--remove-file file-path))
+
+             ((and (file-directory-p file-path)
+                   (not (file-symlink-p)))
+              (kiss/internal--remove-directory file-path))
+
+             ((file-symlink-p file-path)
+              (setq symlink-queue (cons file-path symlink-queue)))
+             (t nil)))
+     file-path-lst)
+    ;; Now to cleanup broken symlinks.
+    )
+  )
+
+;; (let ((pkg "xdo"))
+;;   (if (kiss/internal--pkg-is-removable-p pkg)
+;;       (kiss/internal--remove-files
+;;        (kiss/manifest pkg))))
 
 
 (defun kiss/remove (pkgs-l)
