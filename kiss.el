@@ -773,6 +773,17 @@
 
 (defun kiss/remove (pkgs-l)
   (interactive)
+
+  (cond ((listp pkgs-l)
+         (cl-mapcar #'kiss/remove
+                    (reverse
+                     (kiss/internal--get-pkg-order pkgs-l))))
+        ((atom pkgs-l)
+         (if (kiss/internal--pkg-is-removable-p pkgs-l)
+             (kiss/internal--remove-files
+              (kiss/manifest pkgs-l))))
+        (t nil))
+
   (async-shell-command
    (concat "kiss remove " (kiss/internal--lst-to-str pkgs-l))))
 
