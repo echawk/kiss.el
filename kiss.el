@@ -608,11 +608,12 @@
              (kiss/internal--get-download-utility-arguments)
              (concat dest-dir "/" file-name)))))
 
-(defun kiss/internal--download-local-source (file-path dest)
-  "(I) Copy FILE-PATH to DEST using cp(1)."
+(defun kiss/internal--download-local-source (file-path dest-dir)
+  "(I) Copy FILE-PATH to DEST-DIR using cp(1)."
   (if (file-exists-p file-path)
       (shell-command
-       (concat "cp " file-path " " dest))))
+       (concat "cp " file-path " " dest-dir))))
+
 
 (defun kiss/internal--download-pkg-sources (pkg)
   "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
@@ -622,6 +623,7 @@
           (-zip
            (mapcar 'kiss/internal--get-pkg-sources-type pkg-sources)
            pkg-sources)))
+
     (cl-mapcar
      (lambda (tps)
        ;; Extract out each of the variables.
@@ -641,8 +643,13 @@
           ((string= type "git")
            (kiss/internal--download-git-source uri dest-dir))
           ((string= type "local")
-           "todo"))
-         ))
+           (if (not (string-match (rx bol "/") uri))
+               ;; Relative path.
+               (kiss/internal--download-local-source
+                (concat (car (kiss/search pkg)) "/" uri) dest-dir)
+             ;; Absolute path.
+             (kiss/internal--download-local-source uri dest-dir)))
+          )))
      type-pkg-sources)
     ))
 
