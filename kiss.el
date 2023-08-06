@@ -507,6 +507,41 @@
   (async-shell-command
    (concat "kiss checksum " (kiss/internal--lst-to-str pkgs-l))))
 
+;; Initial working impl of kiss/checksum below; need to refactor some of
+;; the functionality since kiss/download has similar needs.
+
+;; (let* ((pkg "godot")
+;;        (pkg-sources (kiss/internal--get-pkg-sources pkg))
+;;        (pkg-source-chache-dir (concat kiss/KISS_SRCDIR pkg "/")))
+
+;;   ;; FIXME: need to make sure that the file actual exists on disk.
+;;   (mapconcat
+;;    #'identity
+;;    (cl-mapcar
+;;     ;; TODO: make this dependent on KISS_CHK?
+;;     #'kiss/internal--b3
+;;     ;; TODO: refactor this code w/ kiss-download-sources.
+;;     (cl-mapcar
+;;      (lambda (tps)
+;;        ;; Extract out each of the variables.
+;;        (let* ((type     (car tps))
+;;               (uri      (car (cdr tps)))
+;;               (sub-dir  (cadr (cdr tps)))
+;;               (dest-dir (concat pkg-source-chache-dir sub-dir)))
+;;          ;; Get the path on disk for the file
+;;          (concat dest-dir (car (reverse (string-split uri "/") )))
+;;          ))
+;;      ;; Filter out any sources which are git sources.
+;;      ;; TODO: if multiple kinds of 'git' sources are supported in the
+;;      ;; future, we should do a lookup instead. (think mercurial sources.)
+;;      (cl-remove-if
+;;       (lambda (pair)
+;;         (string= "git" (car pair)))
+;;       (-zip
+;;        (cl-mapcar #'kiss/internal--get-pkg-sources-type pkg-sources)
+;;        pkg-sources))))
+;;    "\n"))
+
 ;; -> download     Download sources
 ;; ===========================================================================
 (defun kiss/download (query)
