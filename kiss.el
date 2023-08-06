@@ -203,6 +203,16 @@
              s)))
    (nthcdr 2 (directory-files kiss/choices-db-dir))))
 
+(defun kiss/manifest (pkg)
+  "Return a list of all files owned by PKG."
+  (cl-remove-if
+   (lambda (s) (string= "" s))
+   (string-split
+    (f-read-text
+     (concat kiss/installed-db-dir pkg "/manifest"))
+    "\n")))
+
+
 (defun kiss/internal--get-installed-manifest-files ()
   "(I) Return a list of all of the installed manifest files."
   (mapcar
