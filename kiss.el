@@ -735,23 +735,36 @@
   ;; then the dir itself, but when testing on 'xdo' it does not remove
   ;; the actual directory in `kiss/installed-db-dir'.
 
+  ;; Make this local variable since we need to rm the symlinks
+  ;; separately.
   (let ((symlink-queue '()))
     (cl-mapcar
      (lambda (file-path)
-       (cond ((file-exists-p file-path)
-              (kiss/internal--remove-file file-path))
+       (cond
+        ;; NOTE: This is a cond expression, so it is important that
+        ;; the directory check is *first*.
 
-             ((and (file-directory-p file-path)
-                   (not (file-symlink-p)))
-              (kiss/internal--remove-directory file-path))
+        ((and (file-directory-p file-path)
+              (not (file-symlink-p)))
+         (kiss/internal--remove-directory file-path))
 
-             ((file-symlink-p file-path)
-              (setq symlink-queue (cons file-path symlink-queue)))
-             (t nil)))
+        ((file-symlink-p file-path)
+         (setq symlink-queue (cons file-path symlink-queue)))
+
+        ((file-exists-p file-path)
+         (kiss/internal--remove-file file-path))
+
+        (t nil)))
      file-path-lst)
     ;; Now to cleanup broken symlinks.
-    )
-  )
+    (cl-mapcar
+     (lambda (sym)
+       (if (file-exits-p sym)
+           (kiss/internal--remove-file sym)))
+     symlink-queue)
+
+    ))
+
 
 ;; (let ((pkg "xdo"))
 ;;   (if (kiss/internal--pkg-is-removable-p pkg)
