@@ -744,7 +744,7 @@
         ;; the directory check is *first*.
 
         ((and (file-directory-p file-path)
-              (not (file-symlink-p)))
+              (not (file-symlink-p file-path)))
          (kiss/internal--remove-directory file-path))
 
         ((file-symlink-p file-path)
