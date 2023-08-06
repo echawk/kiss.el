@@ -599,13 +599,14 @@
    ((string= kiss/KISS_GET "curl")   " -fLo ")
    ((or (string= kiss/KISS_GET "wget") (string= kiss/KISS_GET "wget2")) " -O ")))
 
-(defun kiss/internal--download-remote-source (url dest)
-  "(I) Download URL to DEST using `kiss/KISS_GET'."
-  (shell-command
-   (concat kiss/KISS_GET " "
-           url
-           (kiss/internal--get-download-utility-arguments)
-           dest)))
+(defun kiss/internal--download-remote-source (url dest-dir)
+  "(I) Download URL to DEST-DIR using `kiss/KISS_GET'."
+  (let ((file-name (car (reverse (string-split url "/")))))
+    (shell-command
+     (concat kiss/KISS_GET " "
+             url
+             (kiss/internal--get-download-utility-arguments)
+             (concat dest-dir "/" file-name)))))
 
 (defun kiss/internal--download-local-source (file-path dest)
   "(I) Copy FILE-PATH to DEST using cp(1)."
@@ -615,35 +616,36 @@
 
 (defun kiss/internal--download-pkg-sources (pkg)
   "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
-  (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg))
+  (let* ((pkg-source-chache-dir (concat kiss/KISS_SRCDIR pkg "/"))
+         (pkg-sources (kiss/internal--get-pkg-sources pkg))
          (type-pkg-sources
-          (let ((pkg-sources (kiss/internal--get-pkg-sources pkg)))
-            ;; Save the type as the car, with the cdr being the
-            ;; URL followed by the (optional) path. Hence the zip.
-            (-zip
-             (mapcar 'kiss/internal--get-pkg-sources-type
-                     pkg-sources)
-             pkg-sources))))
-    ;; Make the cache directory if it doesn't already exist.
-    (if (not (file-exists-p pkg-source-cache-dir))
-        (make-directory pkg-source-cache-dir))
-    ;; FIXME: Actually implement the downloading.
-    (dolist (tps type-pkg-sources)
-      (cond
-       ((string-match-p (car tps) "git")
-        (print (cdr tps))
+          (-zip
+           (mapcar 'kiss/internal--get-pkg-sources-type pkg-sources)
+           pkg-sources)))
+    (cl-mapcar
+     (lambda (tps)
+       ;; Extract out each of the variables.
+       (let* ((type     (car tps))
+              (uri      (car (cdr tps)))
+              (sub-dir  (cadr (cdr tps)))
+              (dest-dir (concat pkg-source-chache-dir sub-dir)))
 
-        )
-       ((string-match-p (car tps) "remote")
-        (print (cdr tps))
+         ;; Make the cache directory if it doesn't already exist.
+         (if (not (file-exists-p dest-dir))
+             (make-directory dest-dir))
 
-        )
-       ((string-match-p (car tps) "local")
-        (print (cdr tps))
+         ;; Switch based on the type of source that it is.
+         (cond
+          ((string= type "remote")
+           (kiss/internal--download-remote-source uri dest-dir))
+          ((string= type "git")
+           (kiss/internal--download-git-source uri dest-dir))
+          ((string= type "local")
+           "todo"))
+         ))
+     type-pkg-sources)
+    ))
 
-        )
-       )))
-  )
 
 ;; -> install      Install packages
 ;; ===========================================================================
