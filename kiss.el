@@ -544,9 +544,16 @@
 
 ;; -> download     Download sources
 ;; ===========================================================================
-(defun kiss/download (query)
+(defun kiss/download (pkgs-l)
   (interactive "sQuery: ")
-  (async-shell-command (concat "kiss download " query)))
+  (cond ((listp pkgs-l)
+         (cl-mapcar #'kiss/download pkgs-l))
+        ((atom pkgs-l)
+         (kiss/internal--download-pkg-sources pkgs-l))
+        (t nil)))
+;; (async-shell-command (concat "kiss download " pkgs-l)))
+
+;; (kiss/download '("kiss" "gdb"))
 
 (defun kiss/internal--get-pkg-sources (pkg)
   "(I) Return a list of sources for PKG, or nil if PKG has no sources file."
@@ -572,9 +579,9 @@
       ;; NOTE: This nil does not mean failure.
       nil)))
 
-(defun kiss/internal--get-pkg-sources-type (pkg-sources)
-  "(I) Return the type of PKG-SOURCES."
-  (let ((pkg-url (car pkg-sources)))
+(defun kiss/internal--get-pkg-sources-type (pkg-source)
+  "(I) Return the type of PKG-SOURCE."
+  (let ((pkg-url (car pkg-source)))
     ;; TODO: need to ensure that this is the same expected behavior as
     ;; upstream.
     (cond
