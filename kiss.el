@@ -634,7 +634,7 @@
   (shell-command-to-string "mktemp"))
 
 (defun kiss/internal--get-download-utility-arguments ()
-  "(I) Get the proper arguments for the set `kiss/KISS_GET' utility appending ARG."
+  "(I) Get the proper arguments for the `kiss/KISS_GET' utility."
   (cond
    ((string= kiss/KISS_GET "aria2c") " -d / -o ")
    ((string= kiss/KISS_GET "axel")   " -o ")
