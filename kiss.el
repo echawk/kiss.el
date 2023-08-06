@@ -590,18 +590,19 @@
      (t "local"))
     ))
 
-(defun kiss/internal--download-git-source (url dest)
+(defun kiss/internal--download-git-source (url dest-dir)
   "(I) Download git URL to `kiss/KISS_SRCDIR' in the folder DEST."
   ;; NOTE: This currently does not support sources like the following:
   ;; git+https://github.com/user/project@somebranch#somecommit
   ;; However, I have yet to see this combo out in the wild in kiss linux.
   ;; So... It's not a bug (yet). Also, it just doesn't make sense to do anyways.
+  ;; TODO: consider moving this code out?
   (let* ((u (replace-regexp-in-string
              (rx bol "git+") ""
              url))
          (clean-url (car (string-split u (rx (or "#" "@")))))
          (dest-folder
-          (concat dest "/"
+          (concat dest-dir "/"
                   (car (reverse (string-split clean-url "/")))))
          ;; Set branch/commit if it's specified.
          (com (nth 1 (string-split u (rx (or "#" "@"))))))
@@ -652,19 +653,57 @@
 
 (defun kiss/internal--download-local-source (file-path dest-dir)
   "(I) Copy FILE-PATH to DEST-DIR using cp(1)."
-  (if (file-exists-p file-path)
-      (shell-command
-       (concat "cp " file-path " " dest-dir))))
+  (let ((file-name (car (reverse (string-split url "/")))))
+    (if (not (file-exists-p file-path))
+        (shell-command
+         (concat "cp " file-path
+                 " " (concat dest-dir file-name))))))
 
+(defun kiss/internal--get-pkg-sources-cache-path (pkg)
+  "(I) Return the cache path in `kiss/KISS_SRCDIR' for each of PKG's sources."
+  (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg "/"))
+         (type-pkg-sources (kiss/internal--get-type-pkg-sources pkg)))
+    (cl-mapcar
+     (lambda (tps)
+       ;; Extract out each of the variables.
+       (let* ((type     (car tps))
+              (uri      (car (cdr tps)))
+              (sub-dir  (cadr (cdr tps)))
+              (dest-dir (concat pkg-source-cache-dir sub-dir)))
+         (cond
+          ;; This one is a bit messy since we have to be able to parse
+          ;; out the useful information in a git source.
+          ((string= "git" type)
+           (let ((u (replace-regexp-in-string
+                     (rx bol "git+") ""
+                     uri)))
+             (concat
+              dest-dir "/"
+              (car
+               (reverse
+                (string-split
+                 (car (string-split u (rx (or "#" "@")))) "/"))))))
+
+          ((string= "remote" type)
+           (concat dest-dir (car (reverse (string-split uri "/")))))
+          ((string= "local" type)
+           (concat dest-dir (car (reverse (string-split uri "/")))))
+          )))
+     type-pkg-sources)
+    ))
+
+
+(defun kiss/internal--get-type-pkg-sources (pkg)
+  "(I) Return a list containing the source type, followed by the source for PKG."
+  (let ((pkg-sources (kiss/internal--get-pkg-sources pkg)))
+    (-zip
+     (mapcar 'kiss/internal--get-pkg-sources-type pkg-sources)
+     pkg-sources)))
 
 (defun kiss/internal--download-pkg-sources (pkg)
   "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
-  (let* ((pkg-source-chache-dir (concat kiss/KISS_SRCDIR pkg "/"))
-         (pkg-sources (kiss/internal--get-pkg-sources pkg))
-         (type-pkg-sources
-          (-zip
-           (mapcar 'kiss/internal--get-pkg-sources-type pkg-sources)
-           pkg-sources)))
+  (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg "/"))
+         (type-pkg-sources (kiss/internal--get-type-pkg-sources pkg)))
 
     (cl-mapcar
      (lambda (tps)
@@ -672,7 +711,7 @@
        (let* ((type     (car tps))
               (uri      (car (cdr tps)))
               (sub-dir  (cadr (cdr tps)))
-              (dest-dir (concat pkg-source-chache-dir sub-dir)))
+              (dest-dir (concat pkg-source-cache-dir sub-dir)))
 
          ;; Make the cache directory if it doesn't already exist.
          (if (not (file-exists-p dest-dir))
