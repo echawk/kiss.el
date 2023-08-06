@@ -905,4 +905,6 @@
 
 ;; Run "kiss [H|help-ext]" to see all actions
 
+(provide 'kiss)
+
 ;;; kiss.el ends here.
