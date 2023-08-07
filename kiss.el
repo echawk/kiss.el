@@ -538,7 +538,7 @@
    #'kiss/internal--b3
    (cl-mapcar
     (lambda (tps)
-      (tps-env pkg tps (concat dest-dir (car (reverse (string-split uri "/"))))))
+      (tps-env pkg tps (concat dest-dir "/" (car (reverse (string-split uri "/"))))))
 
     ;; Filter out any sources which are git sources.
     ;; TODO: if multiple kinds of 'git' sources are supported in the
@@ -548,12 +548,13 @@
      ))))
 
 (defun kiss/internal--pkg-verify-local-checksums (pkg)
-  "(I) Return nil if local checksums match up with the repo checksums for PKG."
-  (cl-remove-if
-   (lambda (pair) (string= (car pair) (cdr pair)))
-   (-zip
-    (kiss/internal--get-pkg-repo-checksums  pkg)
-    (kiss/internal--get-pkg-local-checksums pkg))))
+  "(I) Return t if local checksums match up with the repo checksums for PKG, nil otherwise."
+  (eq nil
+      (cl-remove-if
+       (lambda (pair) (string= (car pair) (cdr pair)))
+       (-zip
+        (kiss/internal--get-pkg-repo-checksums  pkg)
+        (kiss/internal--get-pkg-local-checksums pkg)))))
 
 
 ;; -> download     Download sources
