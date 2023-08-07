@@ -510,9 +510,14 @@
 ;; Initial working impl of kiss/checksum below; need to refactor some of
 ;; the functionality since kiss/download has similar needs.
 
-;; (let* ((pkg "godot")
-;;        (pkg-sources (kiss/internal--get-pkg-sources pkg))
-;;        (pkg-source-chache-dir (concat kiss/KISS_SRCDIR pkg "/")))
+(defun kiss/internal--get-pkg-repo-checksums (pkg)
+  "(I) Return the list of checksums for PKG from a repo or nil if checksums don't exist."
+  (let ((checksums-file (concat (car (kiss/search pkg)) "/checksums")))
+    (if (file-exists-p checksums-file)
+        (cl-remove-if
+         (lambda (chk) (string= chk ""))
+         (string-split
+          (f-read-text checksums-file) "\n")))))
 
 (defmacro tps-env (pkg tps expr)
   ;; "(I) Macro to aide in parsing TPS, and using the values in EXPR."
@@ -524,37 +529,38 @@
           (dest-dir             (concat pkg-source-cache-dir sub-dir)))
      ,expr))
 
-;;   ;; FIXME: need to make sure that the file actual exists on disk.
-;;   (mapconcat
-;;    #'identity
-;;    (cl-mapcar
-;;     ;; TODO: make this dependent on KISS_CHK?
-;;     #'kiss/internal--b3
-;;     ;; TODO: refactor this code w/ kiss-download-sources.
-;;     (cl-mapcar
-;;      (lambda (tps)
-;;        ;; Extract out each of the variables.
-;;        (let* ((type     (car tps))
-;;               (uri      (car (cdr tps)))
-;;               (sub-dir  (cadr (cdr tps)))
-;;               (dest-dir (concat pkg-source-chache-dir sub-dir)))
-;;          ;; Get the path on disk for the file
-;;          (concat dest-dir (car (reverse (string-split uri "/") )))
-;;          ))
-;;      ;; Filter out any sources which are git sources.
-;;      ;; TODO: if multiple kinds of 'git' sources are supported in the
-;;      ;; future, we should do a lookup instead. (think mercurial sources.)
-;;      (cl-remove-if
-;;       (lambda (pair)
-;;         (string= "git" (car pair)))
-;;       (-zip
-;;        (cl-mapcar #'kiss/internal--get-pkg-sources-type pkg-sources)
-;;        pkg-sources))))
-;;    "\n"))
+(defun kiss/internal--get-pkg-local-checksums (pkg)
+  "(I) Return the list of checksusm for PKG from the files on disk, or nil."
+
+  ;; FIXME: need to make sure that the file actual exists on disk.
+  (cl-mapcar
+   ;; TODO: make this dependent on KISS_CHK?
+   #'kiss/internal--b3
+   (cl-mapcar
+    (lambda (tps)
+      (tps-env pkg tps (concat dest-dir (car (reverse (string-split uri "/"))))))
+
+    ;; Filter out any sources which are git sources.
+    ;; TODO: if multiple kinds of 'git' sources are supported in the
+    ;; future, we should do a lookup instead. (think mercurial sources.)
+    (cl-remove-if
+     (lambda (pair) (string= "git" (car pair))) (kiss/internal--get-type-pkg-sources pkg)
+     ))))
+
+(defun kiss/internal--pkg-verify-local-checksums (pkg)
+  "(I) Return nil if local checksums match up with the repo checksums for PKG."
+  (cl-remove-if
+   (lambda (pair) (string= (car pair) (cdr pair)))
+   (-zip
+    (kiss/internal--get-pkg-repo-checksums  pkg)
+    (kiss/internal--get-pkg-local-checksums pkg))))
+
 
 ;; -> download     Download sources
 ;; ===========================================================================
 (defun kiss/download (pkgs-l)
+  ;; FIXME: need to implement cache checks - ie only download when we
+  ;; absolutely have to.
   (interactive "sQuery: ")
   (cond ((listp pkgs-l)
          (cl-mapcar #'kiss/download pkgs-l))
