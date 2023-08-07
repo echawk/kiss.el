@@ -556,6 +556,22 @@
         (kiss/internal--get-pkg-repo-checksums  pkg)
         (kiss/internal--get-pkg-local-checksums pkg)))))
 
+(defun kiss/checksum (pkgs-l)
+  (cond
+   ((listp pkgs-l)
+    (cl-mapcar #'kiss/checksum pkgs-l))
+   ((atom pkgs-l)
+    (let* ((pkg-path (car (kiss/search pkgs-l)))
+           (chk-path (concat pkg-path "/checksums"))
+           (chk-sums (mapconcat
+                      #'identity
+                      (kiss/internal--get-pkg-local-checksums pkgs-l) "\n")))
+      (if (and (kiss/internal--am-owner-p chk-path)
+               (not (string= chk-sums "")))
+          (f-write-text
+           chk-sums
+           'utf-8 chk-path))))))
+
 
 ;; -> download     Download sources
 ;; ===========================================================================
@@ -851,12 +867,10 @@
     ;; Now to cleanup broken symlinks.
     (cl-mapcar
      (lambda (sym)
-       (if (file-exits-p sym)
+       (if (file-exists-p sym)
            (kiss/internal--remove-file sym)))
      symlink-queue)
-
     ))
-
 
 ;; (let ((pkg "xdo"))
 ;;   (if (kiss/internal--pkg-is-removable-p pkg)
