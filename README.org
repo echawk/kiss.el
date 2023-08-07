@@ -8,8 +8,8 @@ Currently is very much WIP.
 
 - [ ] alternatives
 - [ ] build
-- [ ] checksum
-- [ ] download
+- [X] checksum
+- [X] download
 - [ ] install
 - [X] list
 - [X] preferred
