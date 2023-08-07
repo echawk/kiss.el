@@ -514,6 +514,16 @@
 ;;        (pkg-sources (kiss/internal--get-pkg-sources pkg))
 ;;        (pkg-source-chache-dir (concat kiss/KISS_SRCDIR pkg "/")))
 
+(defmacro tps-env (pkg tps expr)
+  ;; "(I) Macro to aide in parsing TPS, and using the values in EXPR."
+  ;; Extract out each of the variables.
+  `(let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR ,pkg "/"))
+          (type                 (car  ,tps))
+          (uri                  (car  (cdr ,tps)))
+          (sub-dir              (cadr (cdr ,tps)))
+          (dest-dir             (concat pkg-source-cache-dir sub-dir)))
+     ,expr))
+
 ;;   ;; FIXME: need to make sure that the file actual exists on disk.
 ;;   (mapconcat
 ;;    #'identity
@@ -651,10 +661,12 @@
              (kiss/internal--get-download-utility-arguments)
              (concat dest-dir "/" file-name)))))
 
-(defun kiss/internal--download-local-source (file-path dest-dir)
-  "(I) Copy FILE-PATH to DEST-DIR using cp(1)."
-  (let ((file-name (car (reverse (string-split url "/")))))
-    (if (not (file-exists-p file-path))
+(defun kiss/internal--download-local-source (uri dest-dir)
+  "(I) Copy URI to DEST-DIR using cp(1)."
+  (let ((file-name (car (reverse (string-split uri "/")))))
+    ;; FIXME: double check to make sure this is correct - I have a hunch
+    ;; that it's not.
+    (if (not (file-exists-p uri))
         (shell-command
          (concat "cp " file-path
                  " " (concat dest-dir file-name))))))
@@ -665,30 +677,27 @@
          (type-pkg-sources (kiss/internal--get-type-pkg-sources pkg)))
     (cl-mapcar
      (lambda (tps)
-       ;; Extract out each of the variables.
-       (let* ((type     (car tps))
-              (uri      (car (cdr tps)))
-              (sub-dir  (cadr (cdr tps)))
-              (dest-dir (concat pkg-source-cache-dir sub-dir)))
-         (cond
-          ;; This one is a bit messy since we have to be able to parse
-          ;; out the useful information in a git source.
-          ((string= "git" type)
-           (let ((u (replace-regexp-in-string
-                     (rx bol "git+") ""
-                     uri)))
-             (concat
-              dest-dir "/"
-              (car
-               (reverse
-                (string-split
-                 (car (string-split u (rx (or "#" "@")))) "/"))))))
+       (tps-env pkg tps
+                (progn
+                  (cond
+                   ;; This one is a bit messy since we have to be able to parse
+                   ;; out the useful information in a git source.
+                   ((string= "git" type)
+                    (let ((u (replace-regexp-in-string
+                              (rx bol "git+") ""
+                              uri)))
+                      (concat
+                       dest-dir "/"
+                       (car
+                        (reverse
+                         (string-split
+                          (car (string-split u (rx (or "#" "@")))) "/"))))))
 
-          ((string= "remote" type)
-           (concat dest-dir (car (reverse (string-split uri "/")))))
-          ((string= "local" type)
-           (concat dest-dir (car (reverse (string-split uri "/")))))
-          )))
+                   ((string= "remote" type)
+                    (concat dest-dir (car (reverse (string-split uri "/")))))
+                   ((string= "local" type)
+                    (concat dest-dir (car (reverse (string-split uri "/")))))
+                   ))))
      type-pkg-sources)
     ))
 
@@ -707,30 +716,26 @@
 
     (cl-mapcar
      (lambda (tps)
-       ;; Extract out each of the variables.
-       (let* ((type     (car tps))
-              (uri      (car (cdr tps)))
-              (sub-dir  (cadr (cdr tps)))
-              (dest-dir (concat pkg-source-cache-dir sub-dir)))
+       (tps-env pkg tps
+                (progn
+                  ;; Make the cache directory if it doesn't already exist.
+                  (if (not (file-exists-p dest-dir))
+                      (make-directory dest-dir))
 
-         ;; Make the cache directory if it doesn't already exist.
-         (if (not (file-exists-p dest-dir))
-             (make-directory dest-dir))
-
-         ;; Switch based on the type of source that it is.
-         (cond
-          ((string= type "remote")
-           (kiss/internal--download-remote-source uri dest-dir))
-          ((string= type "git")
-           (kiss/internal--download-git-source uri dest-dir))
-          ((string= type "local")
-           (if (not (string-match (rx bol "/") uri))
-               ;; Relative path.
-               (kiss/internal--download-local-source
-                (concat (car (kiss/search pkg)) "/" uri) dest-dir)
-             ;; Absolute path.
-             (kiss/internal--download-local-source uri dest-dir)))
-          )))
+                  ;; Switch based on the type of source that it is.
+                  (cond
+                   ((string= type "remote")
+                    (kiss/internal--download-remote-source uri dest-dir))
+                   ((string= type "git")
+                    (kiss/internal--download-git-source uri dest-dir))
+                   ((string= type "local")
+                    (if (not (string-match (rx bol "/") uri))
+                        ;; Relative path.
+                        (kiss/internal--download-local-source
+                         (concat (car (kiss/search pkg)) "/" uri) dest-dir)
+                      ;; Absolute path.
+                      (kiss/internal--download-local-source uri dest-dir)))
+                   ))))
      type-pkg-sources)
     ))
 
