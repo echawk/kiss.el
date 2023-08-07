@@ -531,21 +531,18 @@
 
 (defun kiss/internal--get-pkg-local-checksums (pkg)
   "(I) Return the list of checksusm for PKG from the files on disk, or nil."
-
-  ;; FIXME: need to make sure that the file actual exists on disk.
   (cl-mapcar
-   ;; TODO: make this dependent on KISS_CHK?
    #'kiss/internal--b3
    (cl-mapcar
-    (lambda (tps)
-      (tps-env pkg tps (concat dest-dir "/" (car (reverse (string-split uri "/"))))))
-
-    ;; Filter out any sources which are git sources.
-    ;; TODO: if multiple kinds of 'git' sources are supported in the
-    ;; future, we should do a lookup instead. (think mercurial sources.)
+    #'cdr
     (cl-remove-if
-     (lambda (pair) (string= "git" (car pair))) (kiss/internal--get-type-pkg-sources pkg)
-     ))))
+     ;; Filter out 'git' sources.
+     ;; TODO: implement a lookup for future mercurial sources.
+     (lambda (tps-cache)
+       (string= "git" (car (car tps-cache))))
+     (-zip
+      (kiss/internal--get-type-pkg-sources pkg)
+      (kiss/internal--get-pkg-sources-cache-path pkg))))))
 
 (defun kiss/internal--pkg-verify-local-checksums (pkg)
   "(I) Return t if local checksums match up with the repo checksums for PKG, nil otherwise."
@@ -575,9 +572,8 @@
 
 ;; -> download     Download sources
 ;; ===========================================================================
+
 (defun kiss/download (pkgs-l)
-  ;; FIXME: need to implement cache checks - ie only download when we
-  ;; absolutely have to.
   (interactive "sQuery: ")
   (cond ((listp pkgs-l)
          (cl-mapcar #'kiss/download pkgs-l))
@@ -677,12 +673,16 @@
 
 (defun kiss/internal--download-remote-source (url dest-dir)
   "(I) Download URL to DEST-DIR using `kiss/KISS_GET'."
-  (let ((file-name (car (reverse (string-split url "/")))))
-    (shell-command
-     (concat kiss/KISS_GET " "
-             url
-             (kiss/internal--get-download-utility-arguments)
-             (concat dest-dir "/" file-name)))))
+  ;; TODO: check and make sure this is the right way to create this file name.
+  (let* ((file-name (car (reverse (string-split url "/"))))
+         (dest-path (concat dest-dir "/" file-name)))
+    ;; Only download if the file doesn't already exist.
+    (if (not (file-exists-p dest-path))
+        (shell-command
+         (concat kiss/KISS_GET " "
+                 url
+                 (kiss/internal--get-download-utility-arguments)
+                 dest-path)))))
 
 (defun kiss/internal--download-local-source (uri dest-dir)
   "(I) Copy URI to DEST-DIR using cp(1)."
@@ -717,9 +717,14 @@
                           (car (string-split u (rx (or "#" "@")))) "/"))))))
 
                    ((string= "remote" type)
-                    (concat dest-dir (car (reverse (string-split uri "/")))))
+                    (concat dest-dir "/" (car (reverse (string-split uri "/")))))
                    ((string= "local" type)
-                    (concat dest-dir (car (reverse (string-split uri "/")))))
+                    ;; (if (string= (rx bol "/" (regexp ".*")) "/asdf")
+                    (if (string-match (rx bol "/") uri)
+                        ;; Absolute path.
+                        uri
+                      ;; Relative path.
+                      (concat (car (kiss/search pkg)) "/" uri)))
                    ))))
      type-pkg-sources)
     ))
@@ -752,12 +757,12 @@
                    ((string= type "git")
                     (kiss/internal--download-git-source uri dest-dir))
                    ((string= type "local")
-                    (if (not (string-match (rx bol "/") uri))
-                        ;; Relative path.
-                        (kiss/internal--download-local-source
-                         (concat (car (kiss/search pkg)) "/" uri) dest-dir)
-                      ;; Absolute path.
-                      (kiss/internal--download-local-source uri dest-dir)))
+                    (if (string-match (rx bol "/") uri)
+                        ;; Absolute path.
+                        (kiss/internal--download-local-source uri dest-dir))
+                    ;; Relative path.
+                    (kiss/internal--download-local-source
+                     (concat (car (kiss/search pkg)) "/" uri) dest-dir))
                    ))))
      type-pkg-sources)
     ))
