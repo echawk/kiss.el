@@ -500,6 +500,14 @@
           (replace-regexp-in-string " " "-" version)
           ".tar." kiss/KISS_COMPRESS ))
 
+
+(defun kiss/internal--get-pkg-cached-bin (pkg)
+  "(I) Return the path of the binary for PKG, nil if PKG has no binary in the cache."
+  (let* ((ver (kiss/internal--get-pkg-version pkg))
+         (bin (concat kiss/KISS_BINDIR
+                      (kiss/internal--get-pkg-bin-name pkg ver))))
+    (if (file-exists-p bin) bin)))
+
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
   (let ((pkg "clang"))
