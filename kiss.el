@@ -467,6 +467,24 @@
 ;; -> build        Build packages
 ;; ===========================================================================
 
+
+(defun kiss/internal--get-dir-manifest (dir)
+  "(I) Return a list that contains a kiss compatible manifest for DIR."
+  (reverse
+   ;; sort -ur
+   (cl-sort
+    (delete-dups
+     ;; find cmd
+     (cl-mapcar
+      (lambda (file-path)
+        (let ((cfp (replace-regexp-in-string dir "" file-path)))
+          (cond
+           ((f-dir? file-path) (concat cfp "/"))
+           (t cfp ))))
+      ;; FIXME: need to also filter out the same files that kiss does as well.
+      (directory-files-recursively dir "." t)))
+    'string-lessp)))
+
 (defun kiss/internal--get-pkg-version (pkg)
   "(I) Get the version for PKG using the car of `kiss/search'."
   (let ((pdir (car (kiss/search pkg))))
