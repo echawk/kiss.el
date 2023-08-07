@@ -510,14 +510,43 @@
 
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
-  (let ((pkg "clang"))
-    (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg)))
-      (if (not missing-deps)
-          (let ((build-script (concat (car (kiss/search pkg)) "/build")))
-            build-script
+  (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg)))
+    (if (not missing-deps)
+        (let ((build-script (concat (car (kiss/search pkg)) "/build")))
 
-            ))))
-  )
+          ;; Essentially, we want to build out a script that contains
+          ;; all of the info that we need.
+
+          ;; * Environment to build the package in
+          ;; * The package build script
+          ;; * The proper arguments to said pkg build script
+
+          ;; FIXME: pick up on the user's current env for these variables too.
+          (concat
+           "#!/bin/sh \n"
+           "AR=${AR:-ar} \n"
+           "CC=${CC:-cc} \n"
+           "CXX=${CXX:-c++} \n"
+           "NM=${NM:-nm} \n"
+           "RANLIB=${RANLIB:-ranlib} \n"
+           "RUSTFLAGS=--remap-path-prefix=" (getenv "PWD") "=. " (getenv "RUSTFLAGS") " \n"
+           "GOFLAGS=-trimpath -modcacherw " (getenv "GOFLAGS") " \n"
+           "GOPATH=" (getenv "PWD") "/go \n"
+           "KISS_ROOT=" (getenv "KISS_ROOT") "\n"
+
+           build-script
+           )
+
+
+          )
+      ;; NOTE: kiss/internal--try-install-build does not exist yet.
+      ;; It will take a list of pkgs and atempt to install them
+      ;; if there are binaries already available. Otherwise it will
+      ;; fall back to building the package and installing it.
+      (mapcar #'kiss/internal--try-install-build missing-deps)
+      )))
+
+;; (kiss/internal--build-pkg "xdo")
 
 (defun kiss/build (pkgs-l)
   (interactive)
