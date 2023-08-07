@@ -793,6 +793,32 @@
      type-pkg-sources)
     ))
 
+;; pkg_extract() in kiss
+(defun kiss/internal--extract-pkg-sources (pkg dir)
+  "(I) Extract the cached sources of PKG to DIR."
+  (let ((pkg "kiss"))
+    (cl-mapcar
+     (lambda (type-path)
+       (let ((type (car type-path))
+             (path (cdr type-path)))
+
+         (cond
+          ;; If the source type is a git repo:
+          ;; ((string= type "git")
+          ;; (shell-command (concat "cp -PRf " path "/." dir)))
+          (t
+           (if (kiss/internal--str-tarball-p path)
+               ;; pkg_source_tar() in kiss
+               1
+             ;; (shell-command (concat "cp -PRf " path " " dir))
+             2)
+           ;; path
+           ))))
+     ;; Get the type of each cached pkg source w/ the source itself.
+     (-zip
+      (cl-mapcar #'car (kiss/internal--get-type-pkg-sources pkg))
+      (kiss/internal--get-pkg-sources-cache-path pkg))))
+  )
 
 (defun kiss/internal--str-tarball-p (str)
   "(I) Predicate to determine if STR matches the regex for a tarball."
