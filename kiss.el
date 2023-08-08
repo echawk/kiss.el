@@ -490,12 +490,14 @@
 
 (defun kiss/internal--get-pkg-version (pkg)
   "(I) Get the version for PKG using the car of `kiss/search'."
-  (let ((pdir (car (kiss/search pkg))))
-    (replace-regexp-in-string
-     "\n$" ""
-     ;; TODO: see if there is a way to avoid
-     ;; depending on f.el
-     (f-read-text (concat pdir "/version")))))
+  (let ((ks (kiss/search pkg)))
+    (if ks
+        (let ((pdir (car ks)))
+          (replace-regexp-in-string
+           "\n$" ""
+           ;; TODO: see if there is a way to avoid
+           ;; depending on f.el
+           (f-read-text (concat pdir "/version")))))))
 
 (defun kiss/internal--get-pkg-bin-name (pkg version)
   "(I) Return the proper name for the binary for PKG at VERSION."
@@ -506,10 +508,11 @@
 
 (defun kiss/internal--get-pkg-cached-bin (pkg)
   "(I) Return the path of the binary for PKG, nil if PKG has no binary in the cache."
-  (let* ((ver (kiss/internal--get-pkg-version pkg))
-         (bin (concat kiss/KISS_BINDIR
-                      (kiss/internal--get-pkg-bin-name pkg ver))))
-    (if (file-exists-p bin) bin)))
+  (let ((ver (kiss/internal--get-pkg-version pkg)))
+    (if ver
+        (let ((bin (concat kiss/KISS_BINDIR
+                           (kiss/internal--get-pkg-bin-name pkg ver))))
+          (if (file-exists-p bin) bin)))))
 
 
 (defun kiss/internal--get-tmp-destdir ()
