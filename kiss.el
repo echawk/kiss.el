@@ -791,6 +791,13 @@
     ))
 
 
+(defun kiss/internal--pkg-sources-available-p (pkg)
+  "(I) Return t if all of the sources for PKG are available locally, nil otherwise."
+  (not (member nil (cl-mapcar
+                    #'file-exists-p
+                    (kiss/internal--get-pkg-sources-cache-path pkg)))))
+
+
 (defun kiss/internal--get-type-pkg-sources (pkg)
   "(I) Return a list containing the source type, followed by the source for PKG."
   (let ((pkg-sources (kiss/internal--get-pkg-sources pkg)))
