@@ -203,6 +203,17 @@
              s)))
    (nthcdr 2 (directory-files kiss/choices-db-dir))))
 
+;; FIXME: Either fix upstream Emacs/f.el or keep using this.
+;; NOTE: DO NOT USE THIS ANYWHERE THAT ISN'T ABSOLUTELY NECESSARY.
+(defun kiss/internal--file-exists-p (file-path)
+  "(I) This function should NOT exist.
+However, 'file-exists-p' and 'file-symlink-p' are fundamentally broken when it
+comes to broken symlinks.  Hence the need for this function.
+This function returns t if FILE-PATH exists and nil if it doesn't."
+  (eq 0
+      (shell-command-to-string (concat "ls " file-path))))
+
+
 (defun kiss/internal--manifest-to-string (pkg-manifest)
   "(I) Convert our internal representation of PKG-MANIFEST into a string."
   (concat (mapconcat #'identity pkg-manifest "\n") "\n"))
