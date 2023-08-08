@@ -565,6 +565,12 @@
 
 ;; (kiss/internal--build-pkg "xdo")
 
+(defun kiss/internal--try-install-build (pkg)
+  "(I) Attempt to install a binary of PKG, else build and install PKG."
+  (if (kiss/internal--get-pkg-cached-bin pkg)
+      (kiss/install pkg)
+    (kiss/internal--build-install pkg)))
+
 (defun kiss/build (pkgs-l)
   (interactive)
   (cond ((listp pkgs-l) nil)
