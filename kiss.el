@@ -511,6 +511,15 @@
                       (kiss/internal--get-pkg-bin-name pkg ver))))
     (if (file-exists-p bin) bin)))
 
+
+(defun kiss/internal--get-tmp-destdir ()
+  "(I) Return a directory that can be used as a temporary destdir."
+  (let ((rn (message "%s" (mod (abs (random)) 30000))))
+    (while (file-exists-p (concat kiss/KISS_TMPDIR rn))
+      (setq rn (message "%s" (mod (abs (random)) 30000))))
+    (make-directory (concat kiss/KISS_TMPDIR rn))
+    (concat kiss/KISS_TMPDIR rn)))
+
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
   (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg)))
