@@ -522,7 +522,9 @@
 
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
-  (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg)))
+  (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
+        (pkg-ver (car (string-split
+                       (kiss/internal--get-pkg-version pkg) " "))))
     (if (not missing-deps)
         (let ((build-script (concat (car (kiss/search pkg)) "/build")))
 
@@ -536,17 +538,17 @@
           ;; FIXME: pick up on the user's current env for these variables too.
           (concat
            "#!/bin/sh \n"
-           "AR=${AR:-ar} \n"
-           "CC=${CC:-cc} \n"
-           "CXX=${CXX:-c++} \n"
-           "NM=${NM:-nm} \n"
-           "RANLIB=${RANLIB:-ranlib} \n"
-           "RUSTFLAGS=--remap-path-prefix=" (getenv "PWD") "=. " (getenv "RUSTFLAGS") " \n"
-           "GOFLAGS=-trimpath -modcacherw " (getenv "GOFLAGS") " \n"
-           "GOPATH=" (getenv "PWD") "/go \n"
-           "KISS_ROOT=" (getenv "KISS_ROOT") "\n"
+           "export AR=${AR:-ar} \n"
+           "export CC=${CC:-cc} \n"
+           "export CXX=${CXX:-c++} \n"
+           "export NM=${NM:-nm} \n"
+           "export RANLIB=${RANLIB:-ranlib} \n"
+           "export RUSTFLAGS=--remap-path-prefix=" (getenv "PWD") "=. " (getenv "RUSTFLAGS") " \n"
+           "export GOFLAGS=-trimpath -modcacherw " (getenv "GOFLAGS") " \n"
+           "export GOPATH=" (getenv "PWD") "/go \n"
+           "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
 
-           build-script
+           build-script " " (kiss/internal--get-tmp-destdir) " " pkg-ver
            )
 
 
