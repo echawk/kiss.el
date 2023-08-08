@@ -226,16 +226,15 @@
 
 (defun kiss/owns (file-path)
   ;; TODO: See if this can be made a little less ugly.
-  ;; FIXME: properly error out.
-  (car
-   (string-split
-    (replace-regexp-in-string
-     kiss/installed-db-dir ""
-     (shell-command-to-string
-      (concat "grep " (rx bol (literal file-path) eol) " "
-              (kiss/internal--lst-to-str
-               (kiss/internal--get-installed-manifest-files)))))
-    "/")))
+  (let* ((cmd (concat "grep " (rx bol (literal file-path) eol) " "
+                      (kiss/internal--lst-to-str
+                       (kiss/internal--get-installed-manifest-files))))
+         (cmd-out (shell-command-to-string cmd)))
+    (if (not (string= cmd-out ""))
+        (car
+         (string-split
+          (replace-regexp-in-string kiss/installed-db-dir "" cmd-out) "/")))))
+
 
 (defun kiss/preferred ()
   (mapcar
