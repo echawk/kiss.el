@@ -319,9 +319,7 @@
                (mapconcat (lambda (p) (message "%s %s" p (car pair)))
                           (cadr pair) "\n")))))
     (let ((pair-str
-           (funcall print-pair
-                    pkg-depgraph
-                    )))
+           (funcall print-pair pkg-depgraph)))
       (if pair-str pair-str ""))))
 
 
@@ -373,7 +371,6 @@
 ;;    ;; Our packages list
 ;;    '("llvm"))
 ;;   res)
-
 
 ;; TODO: make the output list prettier (ie, should be a list of pkgs,
 ;; not depends files)
@@ -591,7 +588,7 @@
      ,expr))
 
 (defun kiss/internal--get-pkg-local-checksums (pkg)
-  "(I) Return the list of checksusm for PKG from the files on disk, or nil."
+  "(I) Return the list of checksums for PKG from the files on disk, or nil."
   (cl-mapcar
    #'kiss/internal--b3
    (cl-mapcar
