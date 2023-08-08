@@ -481,8 +481,14 @@
           (cond
            ((f-dir? file-path) (concat cfp "/"))
            (t cfp ))))
-      ;; FIXME: need to also filter out the same files that kiss does as well.
-      (directory-files-recursively dir "." t)))
+
+      ;; Filter out libtool .la files and charset.alias
+      (cl-remove-if
+       (lambda (fp)
+         (string-match-p
+          (rx (or (literal "charset.alias") (literal ".la")) eol)
+          fp))
+       (directory-files-recursively dir "." t))))
     'string-lessp)))
 
 (defun kiss/internal--get-pkg-version (pkg)
