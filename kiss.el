@@ -468,8 +468,8 @@
 ;; ===========================================================================
 
 
-(defun kiss/internal--get-dir-manifest (dir)
-  "(I) Return a list that contains a kiss compatible manifest for DIR."
+(defun kiss/internal--get-manifest-for-dir (dir)
+  "(I) Return a kiss compatible manifest for DIR."
   (reverse
    ;; sort -ur
    (cl-sort
