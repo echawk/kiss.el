@@ -1018,10 +1018,8 @@
          (if (kiss/internal--pkg-is-removable-p pkgs-l)
              (kiss/internal--remove-files
               (kiss/manifest pkgs-l))))
-        (t nil))
+        (t nil)))
 
-  (async-shell-command
-   (concat "kiss remove " (kiss/internal--lst-to-str pkgs-l))))
 
 ;; -> search       Search for packages
 ;; ===========================================================================
