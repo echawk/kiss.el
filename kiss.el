@@ -203,6 +203,11 @@
              s)))
    (nthcdr 2 (directory-files kiss/choices-db-dir))))
 
+(defun kiss/internal--manifest-to-string (pkg-manifest)
+  "(I) Convert our internal representation of PKG-MANIFEST into a string."
+  (concat (mapconcat #'identity pkg-manifest "\n") "\n"))
+
+
 (defun kiss/manifest (pkg)
   "Return a list of all files owned by PKG."
   (cl-remove-if
