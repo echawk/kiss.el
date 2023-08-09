@@ -572,6 +572,8 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
            ((f-dir? file-path) (concat cfp "/"))
            (t cfp ))))
 
+      ;; FIXME: add /var/db/kiss/installed/<pkg>/manifest
+      ;;        and /var/db/kiss/isntalled/<pkg>/etcsums
       ;; Filter out libtool .la files and charset.alias
       (cl-remove-if
        (lambda (fp)
@@ -610,6 +612,9 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 (defun kiss/internal--get-tmp-destdir ()
   "(I) Return a directory that can be used as a temporary destdir."
+  ;; NOTE: This is not a *perfect* system, however, it is not as easy to
+  ;; do the pid trick that the shell implementation of kiss does.
+  ;; So the compromise is to pick a random number from 1 to 30000.
   (let ((rn (message "%s" (mod (abs (random)) 30000))))
     (while (file-exists-p (concat kiss/KISS_TMPDIR rn))
       (setq rn (message "%s" (mod (abs (random)) 30000))))
@@ -664,6 +669,11 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
       (kiss/install pkg)
     (kiss/internal--build-install pkg)))
 
+;; Need to take into consideration outdated dependencies of packages.
+;; IE - we don't just install the missing dependencies during build time,
+;; but also out of date ones. Ergo, we need to check to make sure that
+;; all of pkg's dependencies are consistent with the repos.
+;; see (kiss/internal--pkg-remote-eq-pkg-local-p
 (defun kiss/build (pkgs-l)
   (interactive)
   (cond ((listp pkgs-l) nil)
@@ -786,8 +796,11 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
      (t "local"))
     ))
 
+;; FIXME: make a macro for parsing out the clean url, the dest folder & commit
+;; since that information would also be useful for other vc systems like
+;; fossil and hg.
 (defun kiss/internal--download-git-source (url dest-dir)
-  "(I) Download git URL to `kiss/KISS_SRCDIR' in the folder DEST."
+  "(I) Download git URL to `kiss/KISS_SRCDIR' in the folder DEST-DIR."
   ;; NOTE: This currently does not support sources like the following:
   ;; git+https://github.com/user/project@somebranch#somecommit
   ;; However, I have yet to see this combo out in the wild in kiss linux.
@@ -828,7 +841,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 (defun kiss/internal--make-temp-file ()
   "(I) Make a temporary file using the `mktemp' utility."
-  (shell-command-to-string "mktemp"))
+  (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
 
 (defun kiss/internal--get-download-utility-arguments ()
   "(I) Get the proper arguments for the `kiss/KISS_GET' utility."
@@ -1013,6 +1026,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
          (f-read-text (concat pdir "/version"))))))
 
 ;; TODO: add docstring.
+;; FIXME: comply w/ upstream kiss (this can take a list of packages.)
 (defun kiss/list (&optional pkg-q)
   (if (eq nil pkg-q)
       (let ((pkgs (nthcdr 2 (directory-files kiss/installed-db-dir))))
@@ -1025,6 +1039,9 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; -> remove       Remove packages
 ;; ===========================================================================
 
+;; TODO: need to account for symlinks w/ (file-symlink-p
+
+;; FIXME: I think the `-f' flag is required to be added to rm(1).
 (defun kiss/internal--remove-file (file-path)
   "(I) Remove FILE-PATH as the appropriate user using rm(1), t if successful, nil otherwise."
   (if (file-exists-p file-path)
