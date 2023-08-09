@@ -673,10 +673,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 ;; -> checksum     Generate checksums
 ;; ===========================================================================
-(defun kiss/checksum (pkgs-l)
-  (interactive)
-  (async-shell-command
-   (concat "kiss checksum " (kiss/internal--lst-to-str pkgs-l))))
 
 ;; Initial working impl of kiss/checksum below; need to refactor some of
 ;; the functionality since kiss/download has similar needs.
