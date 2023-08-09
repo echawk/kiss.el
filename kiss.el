@@ -250,6 +250,44 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   "(I) Add quotes around STR.  Useful when interacting with the cli."
   (concat "'" str "'"))
 
+(defun kiss/internal--pkg-swap (pkg path)
+  (if (kiss/internal--pkg-is-installed-p pkg)
+      ;; NOTE: The quotes surrounding the string are very important.
+      ;; This is because this string is only interpreted as a command argument.
+      ;; This means that the shell can mangle it if it is not properly
+      ;; esacped.
+      (let* ((alt      (string-replace "/" ">" path))
+             (alt-path (concat kiss/choices-db-dir pkg alt))
+             (path-own (kiss/owns path)))
+        (if (kiss/internal--file-exists-p
+             (kiss/internal--single-quote-string alt-path))
+            (progn
+              ;; If the file is owned by a package in the database.
+              (if path-own
+                  (progn
+                    (message (concat "Swapping " path
+                                     " from " path-own
+                                     " to " pkg))
+                    ;; 1
+                    ;; Save the path into kiss/choices-db-dir
+                    (kiss/internal--shell-command-as-user
+                     (concat "cp -Pf " path " "
+                             (kiss/internal--single-quote-string
+                              (concat kiss/choices-db-dir path-own alt)))
+                     (kiss/internal--get-owner path))
+
+                    ;; Update the manifest file to reflect the new version.
+                    (kiss/internal--pkg-manifest-replace
+                     path-own path (concat kiss/choices-db-dir path-own alt))))
+              ;; 2
+              ;; Move over our new desired alternative to the real file.
+              (kiss/internal--shell-command-as-user
+               (concat "mv -f " (kiss/internal--single-quote-string alt-path)
+                       " " path)
+               (kiss/internal--get-owner path))
+              (kiss/internal--pkg-manifest-replace pkg alt-path path)
+              )))))
+
 
 (defun kiss/internal--manifest-to-string (pkg-manifest)
   "(I) Convert our internal representation of PKG-MANIFEST into a string."
