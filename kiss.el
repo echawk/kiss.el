@@ -251,6 +251,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (concat "'" str "'"))
 
 (defun kiss/internal--pkg-swap (pkg path)
+  "(I) Swap the owner of PATH to PKG, modifying the relevant package manifests."
   (if (kiss/internal--pkg-is-installed-p pkg)
       ;; NOTE: The quotes surrounding the string are very important.
       ;; This is because this string is only interpreted as a command argument.
