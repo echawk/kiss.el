@@ -192,16 +192,20 @@
 ;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
 ;; ===========================================================================
-(defun kiss/alternatives ()
+
+
+(defun kiss/alternatives (&optional pkg path)
   (interactive)
-  ;; (async-shell-command "kiss alternatives")
-  (mapcar
-   (lambda (s)
-     (let ((d (split-string s ">")))
-       (list (car d)
-             (concat "/" (string-join (cdr d) "/"))
-             s)))
-   (nthcdr 2 (directory-files kiss/choices-db-dir))))
+  (if (or (eq nil pkg) (eq nil path))
+      (mapcar
+       (lambda (s)
+         (let ((d (split-string s ">")))
+           (list (car d)
+                 (concat "/" (string-join (cdr d) "/"))
+                 s)))
+       (nthcdr 2 (directory-files kiss/choices-db-dir)))
+    (kiss/internal--pkg-swap pkg path)))
+
 ;; pkg_manifest_replace() in kiss
 (defun kiss/internal--pkg-manifest-replace (pkg old new)
   "(I) Replace the line matching OLD in the manifest of PKG with NEW."
@@ -269,7 +273,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                     (message (concat "Swapping " path
                                      " from " path-own
                                      " to " pkg))
-                    ;; 1
                     ;; Save the path into kiss/choices-db-dir
                     (kiss/internal--shell-command-as-user
                      (concat "cp -Pf " path " "
@@ -280,14 +283,13 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                     ;; Update the manifest file to reflect the new version.
                     (kiss/internal--pkg-manifest-replace
                      path-own path (concat kiss/choices-db-dir path-own alt))))
-              ;; 2
               ;; Move over our new desired alternative to the real file.
               (kiss/internal--shell-command-as-user
                (concat "mv -f " (kiss/internal--single-quote-string alt-path)
                        " " path)
                (kiss/internal--get-owner path))
-              (kiss/internal--pkg-manifest-replace pkg alt-path path)
-              )))))
+              (kiss/internal--pkg-manifest-replace pkg alt-path path))))))
+
 
 
 (defun kiss/internal--manifest-to-string (pkg-manifest)
