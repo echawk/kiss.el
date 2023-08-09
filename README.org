@@ -6,7 +6,7 @@ Currently is very much WIP.
 
 ** Features Implemented:
 
-- [ ] alternatives
+- [X] alternatives
 - [ ] build
 - [X] checksum
 - [X] download
