@@ -202,6 +202,36 @@
              (concat "/" (string-join (cdr d) "/"))
              s)))
    (nthcdr 2 (directory-files kiss/choices-db-dir))))
+;; pkg_manifest_replace() in kiss
+(defun kiss/internal--pkg-manifest-replace (pkg old new)
+  "(I) Replace the line matching OLD in the manifest of PKG with NEW."
+  ;; Replace the matching line in the manifest w/ the desired
+  ;; replacement.
+  ;; TODO: test this to make sure it is correct.
+  (let* ((manifest-f (concat kiss/installed-db-dir pkg "/manifest"))
+         (temp-f     (kiss/internal--make-temp-file))
+         (owner      (kiss/internal--get-owner manifest-f))
+         (manifest-t (kiss/internal--manifest-to-string
+                      (reverse
+                       (cl-sort
+                        (cl-mapcar (lambda (s) (if (string= s old) new s))
+                                   (kiss/manifest pkg))
+                        'string-lessp)))))
+
+    (f-write-text manifest-t 'utf-8 temp-f)
+
+    ;; TODO: see if this can be avoided.
+    ;; Ensure the ownership is preserved.
+    (kiss/internal--shell-command-as-user
+     (concat "chown " owner ":" owner " " temp-f) owner)
+    ;; Ensure the permissions are set correctly.
+    (kiss/internal--shell-command-as-user
+     (concat "chmod 644 " temp-f) owner)
+    ;; Move it into place.
+    (kiss/internal--shell-command-as-user
+     (concat "mv -f " temp-f " " manifest-f)
+     owner)))
+
 
 ;; FIXME: Either fix upstream Emacs/f.el or keep using this.
 ;; NOTE: DO NOT USE THIS ANYWHERE THAT ISN'T ABSOLUTELY NECESSARY.
