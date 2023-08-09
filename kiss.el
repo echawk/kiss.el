@@ -59,8 +59,8 @@
 
 ;; TODO: cleanup these names, they're not consistent...
 (defconst kiss/root "/")
-(defconst kiss/installed-db-dir (concat kiss/root "/var/db/kiss/installed/"))
-(defconst kiss/choices-db-dir (concat kiss/root "/var/db/kiss/choices/"))
+(defconst kiss/installed-db-dir (concat kiss/root "var/db/kiss/installed/"))
+(defconst kiss/choices-db-dir (concat kiss/root "var/db/kiss/choices/"))
 
 (defconst kiss/KISS_TMPDIR
   (concat (getenv "HOME") "/.cache/kiss/proc/"))
@@ -237,11 +237,18 @@
 ;; NOTE: DO NOT USE THIS ANYWHERE THAT ISN'T ABSOLUTELY NECESSARY.
 (defun kiss/internal--file-exists-p (file-path)
   "(I) This function should NOT exist.
-However, 'file-exists-p' and 'file-symlink-p' are fundamentally broken when it
+However, `file-exists-p' and `file-symlink-p' are fundamentally broken when it
 comes to broken symlinks.  Hence the need for this function.
 This function returns t if FILE-PATH exists and nil if it doesn't."
-  (eq 0
-      (shell-command-to-string (concat "ls " file-path))))
+  (or
+   (eq 0
+       (shell-command (concat "test -f " file-path)))
+   (eq 0
+       (shell-command (concat "test -h " file-path)))))
+
+(defun kiss/internal--single-quote-string (str)
+  "(I) Add quotes around STR.  Useful when interacting with the cli."
+  (concat "'" str "'"))
 
 
 (defun kiss/internal--manifest-to-string (pkg-manifest)
