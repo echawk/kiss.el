@@ -964,20 +964,18 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     (shell-command (concat "tar xf " decomp-tarball " -C " dir))
     ;; Get all of the top level directories from the tarball.
     (cl-mapcar
-
      (lambda (tld)
        (let* ((temp-f (kiss/internal--make-temp-file))
               (temp-d (concat temp-f "-" tld)))
-         (make-directory temp-d)
-         (kiss/internal--shell-command-as-user
-          (concat "mv -f " tld " " temp-d) (kiss/internal--get-owner tld))
+         (message "%s" (eq 0
+                           (shell-command (concat "mv -f " (concat dir "/" tld) " " temp-d))))
 
          ;; NOTE: we need to call directory-files twice here, since
          ;; First do the mv's
          (cl-mapcar
           (lambda (f)
             (shell-command
-             (concat "mv -f " f " " dir)))
+             (concat "mv -f " (concat temp-d f) " " dir)))
           (nthcdr 2 (directory-files temp-d)))
 
          ;; Then do the cp's
@@ -986,7 +984,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                (cl-mapcar
                 (lambda (f)
                   (shell-command
-                   (concat "cp -fRPp " f " " dir)))
+                   (concat "cp -fRPp " (concat temp-d f) " " dir)))
                 files)))
 
          ;; Make sure to rm the temp file.
@@ -997,8 +995,13 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           (concat "rm -rf -- " temp-d) (kiss/internal--get-owner temp-d))
          ))
 
-     (shell-command-to-string
-      (concat "tar tf " tarball " | sort -ut / -k1,1")))
+     ;; Get a list of all of the top level directories in the tarball.
+     (cl-remove-if
+      (lambda (s) (string= s ""))
+      (string-split
+       (shell-command-to-string
+        (concat "tar tf " tarball " | sort -ut / -k1,1"))
+       "\n")))
 
     ;; Iterate over all of the directories that we just
     ;; extracted, each directories contents are moved up a level.
@@ -1044,7 +1047,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         (: "tar")
         (: "tar." any any)
         (: "tar." any any any)
-        (: "tar." any any any any))) str))
+        (: "tar." any any any any)) eol) str))
 
 ;; (kiss/internal--str-tarball-p "ball.tar.xz")
 
