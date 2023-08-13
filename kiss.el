@@ -962,7 +962,8 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
        (let* ((temp-f (kiss/internal--make-temp-file))
               (temp-d (concat temp-f "-" tld)))
          (message "%s" (eq 0
-                           (shell-command (concat "mv -f " (concat dir "/" tld) " " temp-d))))
+                           (shell-command
+                            (concat "mv -f " (concat dir "/" tld) " " temp-d))))
 
          ;; NOTE: we need to call directory-files twice here, since
          ;; First do the mv's
@@ -1010,25 +1011,24 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   "(I) Extract the cached sources of PKG to DIR."
   (cl-mapcar
    (lambda (type-path)
-     (let ((type (car type-path))
-           (path (cdr type-path)))
+     (let* ((type   (car  (car type-path)))
+            (subdir (cdr (car type-path)))
+            (cache  (cdr  type-path))
+            (outdir (concat dir "/" subdir)))
+       ;; Make the subdir if it does not exist already.
+       (if (not (file-directory-p outdir))
+           (make-directory outdir))
        (cond
         ;; If the source type is a git repo:
         ((string= type "git")
-         ;;(shell-command (concat "cp -PRf " path "/." dir)))
-         3
-         )
-        (t
-         (if (kiss/internal--str-tarball-p path)
-             ;; pkg_source_tar() in kiss
-             1
-           ;; (shell-command (concat "cp -PRf " path " " dir))
-           2)
-         ;; path
-         ))))
+         (shell-command (concat "cp -PRf " cache "/. " outdir)))
+
+        (t (if (kiss/internal--str-tarball-p cache)
+               (kiss/internal--extract-tarball cache outdir)
+             (shell-command (concat "cp -PRf " cache " " outdir)))))))
    ;; Get the type of each cached pkg source w/ the source itself.
    (-zip
-    (cl-mapcar #'car (kiss/internal--get-type-pkg-sources pkg))
+    (cl-mapcar (lambda (tps) (cons (car tps) (nth 2 tps))) (kiss/internal--get-type-pkg-sources pkg))
     (kiss/internal--get-pkg-sources-cache-path pkg))))
 
 
