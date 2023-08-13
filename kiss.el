@@ -954,6 +954,60 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
      type-pkg-sources)
     ))
 
+;; pkg_source_tar()
+(defun kiss/internal--extract-tarball (tarball dir)
+  "(I) Extract TARBALL to DIR.  Emulates GNU Tar's --strip-components=1."
+  (let ((decomp-tarball (kiss/internal--make-temp-file)))
+    ;; Decompress the tarball.
+    (kiss/internal--decompress tarball decomp-tarball)
+    ;; Extract the tarball.
+    (shell-command (concat "tar xf " decomp-tarball " -C " dir))
+    ;; Get all of the top level directories from the tarball.
+    (cl-mapcar
+
+     (lambda (tld)
+       (let* ((temp-f (kiss/internal--make-temp-file))
+              (temp-d (concat temp-f "-" tld)))
+         (make-directory temp-d)
+         (kiss/internal--shell-command-as-user
+          (concat "mv -f " tld " " temp-d) (kiss/internal--get-owner tld))
+
+         ;; NOTE: we need to call directory-files twice here, since
+         ;; First do the mv's
+         (cl-mapcar
+          (lambda (f)
+            (shell-command
+             (concat "mv -f " f " " dir)))
+          (nthcdr 2 (directory-files temp-d)))
+
+         ;; Then do the cp's
+         (let ((files (nthcdr 2 (directory-files temp-d))))
+           (if files
+               (cl-mapcar
+                (lambda (f)
+                  (shell-command
+                   (concat "cp -fRPp " f " " dir)))
+                files)))
+
+         ;; Make sure to rm the temp file.
+         (kiss/internal--shell-command-as-user
+          (concat "rm -- " temp-f) (kiss/internal--get-owner temp-f))
+         ;; Also rm the temp directory.
+         (kiss/internal--shell-command-as-user
+          (concat "rm -rf -- " temp-d) (kiss/internal--get-owner temp-d))
+         ))
+
+     (shell-command-to-string
+      (concat "tar tf " tarball " | sort -ut / -k1,1")))
+
+    ;; Iterate over all of the directories that we just
+    ;; extracted, each directories contents are moved up a level.
+
+    ;; Remove our decompressed tarball now that we are done with it.
+    (kiss/internal--shell-command-as-user
+     (concat "rm -f -- " decomp-tarball)
+     (kiss/internal--get-owner decomp-tarball))))
+
 ;; pkg_extract() in kiss
 (defun kiss/internal--extract-pkg-sources (pkg dir)
   "(I) Extract the cached sources of PKG to DIR."
