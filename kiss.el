@@ -139,8 +139,8 @@
   "(I) Run COMMAND as USER using `kiss/KISS_SU'."
   (shell-command (concat kiss/KISS_SU " -u " user " -- " command)))
 
-(defun kiss/internal--decompress (file-path)
-  "(I) Decompress FILE-PATH based on the file name."
+(defun kiss/internal--decompress (file-path out-path)
+  "(I) Decompress FILE-PATH to OUT-PATH based on the file name."
   (let ((cmd
          (cond
           ((string-match-p (rx ".tar" eol)             file-path) "cat ")
@@ -151,14 +151,8 @@
           ((string-match-p (rx (or ".txz" ".xz") eol)  file-path) "xz -dcT0 ")
           ((string-match-p (rx ".zst" eol)             file-path) "zstd -dcT0 ")
           )))
-    ;; Also... Am I sure that I'm running this command here???
-    ;; My thinking is that I return the decompress command to be concatenated
-    ;; with the tar command all in one 'shell-command' that way I don't have to
-    ;; store random uncompressed tarballs everywhere.  I'll figure it out
-    ;; eventually.
-    ;; TODO: Add in error message/assertion.
     (if cmd
-        (shell-command (concat cmd file-path)))))
+        (shell-command (concat cmd file-path " > " out-path)))))
 
 (defun kiss/internal--b3 (file-path)
   "(I) Run b3sum on FILE-PATH."
