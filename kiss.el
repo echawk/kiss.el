@@ -21,7 +21,6 @@
 ;; also, I don't want to leave Emacs, and this could lead to some
 ;; delcarative configurations of kiss.
 
-;; TODO: need to make multiple versions of these fucntions.
 ;; Need to figure out what exactly to support - I'm thinking of
 ;; having a subset of kiss' features supported, primarily enough
 ;; for interactive use, as well as to support a delcarative configuration.
@@ -30,6 +29,12 @@
 ;; TODO: support crux style usage???
 ;; - Would require that this file could be ran as an Emacs script, argument
 ;; parsing and all.
+
+;; Long term I would like to have a tui/gui for managing kiss
+;; packages - something similar to how guix and list-packages works.
+;; This would be pretty nice, and ideally I'd like to support the same
+;; type of ux as list-packages - mapping all of the common actions to
+;; keybinds and whatnot.
 
 ;; Hooks are currently on the back burner until a POC can be fleshed out.
 ;; However, I don't think that it will actually be all that difficult, since
@@ -42,11 +47,16 @@
 ;; the ability to export the settings in here to a shell file that you
 ;; can use with standard kiss, etc.
 
-;; Useful info on files:
-;; http://xahlee.info/emacs/emacs/elisp_file_name_dir_name.html
+;; META-TODO: Need to go through every function and add much more
+;; detailed documentation - ideally examples as well as why you
+;; might care about the function as well.
 
-;; How to traverse directories.
-;; http://xahlee.info/emacs/emacs/elisp_traverse_dir.html
+;; Also, need to go through this code once I get a fully working POC done
+;; and ruthlessly remove all duplicated code, since rn there are many
+;; little redundancies spread about the current source.
+
+;; https://www.emacswiki.org/emacs/UnitTesting
+
 ;;; Code:
 (eval-when-compile
   (require 'cl-lib)
