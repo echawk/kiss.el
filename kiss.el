@@ -612,7 +612,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (let ((rn (message "%s" (mod (abs (random)) 30000))))
     (while (file-exists-p (concat kiss/KISS_TMPDIR rn))
       (setq rn (message "%s" (mod (abs (random)) 30000))))
-    (make-directory (concat kiss/KISS_TMPDIR rn))
+    (make-directory (concat kiss/KISS_TMPDIR rn) t)
     (concat kiss/KISS_TMPDIR rn)))
 
 (defun kiss/internal--build-pkg (pkg)
@@ -621,8 +621,14 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         (pkg-ver (car (string-split
                        (kiss/internal--get-pkg-version pkg) " "))))
     (if (not missing-deps)
-        (let ((build-script (concat (car (kiss/search pkg)) "/build")))
+        (let* ((build-script (concat (car (kiss/search pkg)) "/build"))
+               (proc-dir     (kiss/internal--get-tmp-destdir))
+               (build-dir    (concat proc-dir "/build/" pkg "/"))
+               (install-dir  (concat proc-dir "/pkg/" pkg "/"))
+               (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el")))
 
+          ;; Extract pkg's sources to the build directory.
+          (kiss/internal--extract-pkg-sources pkg build-dir)
           ;; Essentially, we want to build out a script that contains
           ;; all of the info that we need.
 
@@ -631,21 +637,42 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           ;; * The proper arguments to said pkg build script
 
           ;; FIXME: pick up on the user's current env for these variables too.
-          (concat
-           "#!/bin/sh \n"
-           "export AR=${AR:-ar} \n"
-           "export CC=${CC:-cc} \n"
-           "export CXX=${CXX:-c++} \n"
-           "export NM=${NM:-nm} \n"
-           "export RANLIB=${RANLIB:-ranlib} \n"
-           "export RUSTFLAGS=--remap-path-prefix=" (getenv "PWD") "=. " (getenv "RUSTFLAGS") " \n"
-           "export GOFLAGS=-trimpath -modcacherw " (getenv "GOFLAGS") " \n"
-           "export GOPATH=" (getenv "PWD") "/go \n"
-           "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
+          (f-write-text
+           (concat
+            "#!/bin/sh \n"
 
-           build-script " " (kiss/internal--get-tmp-destdir) " " pkg-ver
-           )
+            ;; cd into the build dir so our env is correct.
+            "cd " build-dir " \n"
 
+            "export AR=${AR:-ar} \n"
+            "export CC=${CC:-cc} \n"
+            "export CXX=${CXX:-c++} \n"
+            "export NM=${NM:-nm} \n"
+            "export RANLIB=${RANLIB:-ranlib} \n"
+            "export RUSTFLAGS=\"--remap-path-prefix=$PWD=. $RUSTFLAGS\" \n"
+            "export GOFLAGS=\"-trimpath -modcacherw $GOFLAGS\" \n"
+            "export GOPATH=\"$PWD/go\" \n"
+            "export DESTDIR=\"" install-dir "\" \n"
+            ;; TODO: this might not be explicitly needed at this part?
+            ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
+
+            build-script " " install-dir " " pkg-ver
+            )
+           ;; Write this script to a temporary location.
+           'utf-8 k-el-build)
+
+
+
+          ;; Now actually execute the script.
+          ;;(if (eq 0
+          ;; NOTE: this is not actually running the script atm
+          ;;(shell-command "sh -xe " k-el-build)
+          ;;)
+          ;; Success
+          ;;1
+          ;; Build failure
+          ;;2)
+          ;; Save the tarball of the now built pkg
 
           )
       ;; NOTE: kiss/internal--try-install-build does not exist yet.
@@ -1017,7 +1044,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
             (outdir (concat dir "/" subdir)))
        ;; Make the subdir if it does not exist already.
        (if (not (file-directory-p outdir))
-           (make-directory outdir))
+           (make-directory outdir t))
        (cond
         ;; If the source type is a git repo:
         ((string= type "git")
