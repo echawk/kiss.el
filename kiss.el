@@ -4,7 +4,7 @@
 ;; Maintainer: Ethan Hawk <ethan.hawk@valpo.edu>
 ;; URL: https://github.com/ehawkvu/kiss.el
 ;; Keywords: package-manager, tools
-;; Package-Requires: ((f))
+;; Package-Requires: ((f) (emacs "29.1"))
 ;; Version: 0.0.1
 
 ;; This file is under the MIT license.
