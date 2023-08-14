@@ -672,6 +672,17 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
            'utf-8 k-el-build)
 
 
+          ;; NOTE: will need to be somewhat more clever when
+          ;; executing the build script, since I would like to be able
+          ;; to see the build as it is occurring, like in
+          ;; async-shell-command
+          ;; however, there is a need for more granular control using
+          ;; sentinels , since async-shell-command will not return the
+          ;; proper exit after finishing.
+          ;; I should be able to use the default sentinel function
+
+          ;; Further reading:
+          ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Asynchronous-Processes.html
 
           ;; Now actually execute the script.
           ;;(if (eq 0
