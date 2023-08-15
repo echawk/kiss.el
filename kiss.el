@@ -671,6 +671,8 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
            ;; Write this script to a temporary location.
            'utf-8 k-el-build)
 
+          ;; Mark the script as executable.
+          (shell-command (concat "chmod +x " k-el-build))
 
           ;; NOTE: will need to be somewhat more clever when
           ;; executing the build script, since I would like to be able
@@ -683,6 +685,17 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
           ;; Further reading:
           ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Asynchronous-Processes.html
+
+          ;; Food for thought:
+          ;; Or, alternatively, I could just implement a file watcher.....
+          ;; But that seems *too* simple.
+          ;; Actually, I could even save the exit code of the script
+          ;; in said file watcher so that way it can be properly
+          ;; error handled.
+
+          ;; While the build isn't done, sleep for .5s
+          ;; (while (not (file-exists-p file-to-watch))
+          ;;   (sleep-for 0 500))
 
           ;; Now actually execute the script.
           ;;(if (eq 0
