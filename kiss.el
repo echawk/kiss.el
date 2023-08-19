@@ -564,28 +564,41 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 (defun kiss/internal--get-manifest-for-dir (dir)
   "(I) Return a kiss compatible manifest for DIR."
-  (reverse
-   ;; sort -ur
-   (cl-sort
-    (delete-dups
-     ;; find cmd
-     (cl-mapcar
-      (lambda (file-path)
-        (let ((cfp (replace-regexp-in-string dir "" file-path)))
-          (cond
-           ((f-dir? file-path) (concat cfp "/"))
-           (t cfp ))))
+  (let ((files-and-dirs
+         ;; find cmd
+         (cl-mapcar
+          (lambda (file-path)
+            (let ((cfp (replace-regexp-in-string dir "" file-path)))
+              (cond
+               ((f-dir? file-path) (concat cfp "/"))
+               (t cfp ))))
 
-      ;; FIXME: add /var/db/kiss/installed/<pkg>/manifest
-      ;;        and /var/db/kiss/isntalled/<pkg>/etcsums
-      ;; Filter out libtool .la files and charset.alias
-      (cl-remove-if
-       (lambda (fp)
-         (string-match-p
-          (rx (or (literal "charset.alias") (literal ".la")) eol)
-          fp))
-       (directory-files-recursively dir "." t))))
-    'string-lessp)))
+          ;; Filter out libtool .la files and charset.alias
+          (cl-remove-if
+           (lambda (fp)
+             (string-match-p
+              (rx (or (literal "charset.alias") (literal ".la")) eol)
+              fp))
+           (directory-files-recursively dir "." t)))))
+
+    ;; Admittedly I'm not a huge fan of the below code, but it does work.
+    (if (member "/var/db/kiss/installed/" files-and-dirs)
+        (let ((pkg-db-dir
+               (car (cl-remove-if-not
+                     (lambda (s) (string-match-p (rx "/var/db/kiss/installed/" (1+ any) "/" eol) s))
+                     files-and-dirs))))
+          ;; add /var/db/kiss/installed/<pkg>/manifest
+          ;; and /var/db/kiss/isntalled/<pkg>/etcsums
+          (if (member "/etc" files-and-dirs)
+              (setq files-and-dirs
+                    (cons (concat pkg-db-dir "etcsums") files-and-dirs)))
+          (setq files-and-dirs
+                (cons (concat pkg-db-dir "manifest") files-and-dirs))))
+
+    ;; sort -ur
+    (reverse
+     (cl-sort (delete-dups files-and-dirs) 'string-lessp))))
+
 
 (defun kiss/internal--get-pkg-version (pkg)
   "(I) Get the version for PKG using the car of `kiss/search'."
