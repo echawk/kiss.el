@@ -638,6 +638,11 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     (make-directory (concat kiss/KISS_TMPDIR rn) t)
     (concat kiss/KISS_TMPDIR rn)))
 
+(defun kiss/fork (pkg dir)
+  "Fork PKG to DIR."
+  (eq 0 (shell-command
+         (concat "cp -Lrf " (car (kiss/search pkg)) " " dir))))
+
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
   (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
