@@ -667,7 +667,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           ;; FIXME: pick up on the user's current env for these variables too.
           (f-write-text
            (concat
-            "#!/bin/sh \n"
+            "#!/bin/sh -xe\n"
 
             ;; cd into the build dir so our env is correct.
             "cd " build-dir " \n"
@@ -716,16 +716,28 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           ;;   (sleep-for 0 500))
 
           ;; Now actually execute the script.
-          ;;(if (eq 0
-          ;; NOTE: this is not actually running the script atm
-          ;;(shell-command "sh -xe " k-el-build)
-          ;;)
-          ;; Success
-          ;;1
-          ;; Build failure
-          ;;2)
-          ;; Save the tarball of the now built pkg
+          (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
+              ;; Success
+              (progn
+                ;; Now we have to fork over the package files that we
+                ;; used to the repo dir.
+                (kiss/fork pkg (concat install-dir "var/db/kiss/installed/"))
 
+                ;; Need to compute etcsums if they exist.
+                ;; FIXME: impl
+
+                ;; Next, create the manifest
+                ;; FIXME: need to save this into the proper file.
+                (kiss/internal--get-manifest-for-dir install-dir)
+
+
+                ;; Finally create the tarball
+                ;; FIXME: impl
+
+
+                )
+            ;; Failure
+            2)
           )
       ;; NOTE: kiss/internal--try-install-build does not exist yet.
       ;; It will take a list of pkgs and atempt to install them
