@@ -659,7 +659,9 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                (kiss/internal--get-compression-command)
                " > " file-path))))
 
-
+;; FIXME: rm missing-deps check here and move that up to the caller.
+;; FIXME: need to return a signifier on whether the build was successful or
+;; not, t if yes, and nil if a failure.
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
   (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
@@ -734,9 +736,11 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           ;;   (sleep-for 0 500))
 
           ;; Now actually execute the script.
+          (message (concat "Building " pkg " at version: " pkg-ver))
           (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
               ;; Success
               (progn
+                (message (concat "Successful Build!"))
                 ;; Now we have to fork over the package files that we
                 ;; used to the repo dir.
                 (let ((pkg-install-db
@@ -744,6 +748,8 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                   (make-directory pkg-install-db t)
                   (kiss/fork pkg pkg-install-db)
 
+                  ;; FIXME: look over kiss code & implement /dev/null
+                  ;; for symlinks
                   ;; Need to compute etcsums if they exist.
                   (let* ((manifest-lst
                           (kiss/internal--get-manifest-for-dir install-dir))
@@ -769,22 +775,31 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                      'utf-8 (concat pkg-install-db pkg "/manifest"))))
 
                 ;; Finally create the tarball
-                ;; FIXME: impl
+                (message (concat "Creating tarball for " pkg))
                 (kiss/internal--make-tarball-of-dir
                  install-dir
                  (concat kiss/KISS_BINDIR
-                         (kiss/internal--get-pkg-bin-name pkg pkg-ver)))))
-          ;; Failure
-          2)
+                         (kiss/internal--get-pkg-bin-name pkg pkg-ver)))
+
+                ;; rm the build directory
+                (message (concat "Removing the build directory (" proc-dir ")"))
+                (shell-command (concat "rm -rf -- " proc-dir)))
+            ;; Failure
+            2))
       )
     ;; NOTE: kiss/internal--try-install-build does not exist yet.
     ;; It will take a list of pkgs and atempt to install them
     ;; if there are binaries already available. Otherwise it will
     ;; fall back to building the package and installing it.
-    (mapcar #'kiss/internal--try-install-build missing-deps)
-    ))
+    (mapcar #'kiss/internal--try-install-build missing-deps)))
 
 ;; (kiss/internal--build-pkg "xdo")
+
+;; FIXME: add in checks to the appropriate places.
+(defun kiss/internal--build-install (pkg)
+  "(I) Attempt to build and install PKG, nil if unsuccessful."
+  (if (kiss/internal--build-pkg)
+      (kiss/install pkg)))
 
 (defun kiss/internal--try-install-build (pkg)
   "(I) Attempt to install a binary of PKG, else build and install PKG."
@@ -799,8 +814,12 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; see (kiss/internal--pkg-remote-eq-pkg-local-p
 (defun kiss/build (pkgs-l)
   (interactive)
-  (cond ((listp pkgs-l) nil)
-        ((atom pkgs-l) nil)))
+  (cond ((listp pkgs-l)
+         (mapcar #'kiss/internal--build-pkg
+                 (kiss/internal--get-pkg-order pkgs-l)))
+        ((atom pkgs-l)
+         (kiss/internal--build-pkg pkgs-l))))
+
 ;; (async-shell-command
 ;;  (concat "kiss build " (kiss/internal--lst-to-str pkgs-l))))
 
