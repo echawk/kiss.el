@@ -662,6 +662,9 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: need to return a signifier on whether the build was successful or
 ;; not, t if yes, and nil if a failure.
+;; FIXME: when building hugs baseline kiss errors with the error
+;; "hugs manifest contains 1 non-existent files"
+;; Need to figure out which file that is...
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
   (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
