@@ -51,6 +51,11 @@
 ;; detailed documentation - ideally examples as well as why you
 ;; might care about the function as well.
 
+;; TODO: add in (message) everywhere!!! This will be espescially
+;; useful when there is a cli wrapper for this program.  Having these
+;; messages is also useful more generally as it allows you to see what
+;; exactly the package manager is doing at any given time.
+
 ;; Also, need to go through this code once I get a fully working POC done
 ;; and ruthlessly remove all duplicated code, since rn there are many
 ;; little redundancies spread about the current source.
@@ -643,11 +648,24 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (eq 0 (shell-command
          (concat "cp -Lrf " (car (kiss/search pkg)) " " dir))))
 
+
+(defun kiss/internal--make-tarball-of-dir (dir file-path)
+  "(I) Make a compressed tarball of DIR saved into FILE-PATH."
+  ;; FIXME: need to remove the reliance on tar's -C flag, since it
+  ;; is noted in upstream kiss as being a source of portability issues.
+  (eq 0
+      (shell-command
+       (concat "tar -cf - -C " dir " . | "
+               (kiss/internal--get-compression-command)
+               " > " file-path))))
+
+
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
   (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
-        (pkg-ver (car (string-split
-                       (kiss/internal--get-pkg-version pkg) " "))))
+        (pkg-ver (replace-regexp-in-string
+                  " " "-"
+                  (kiss/internal--get-pkg-version pkg))))
     (if (not missing-deps)
         (let* ((build-script (concat (car (kiss/search pkg)) "/build"))
                (proc-dir     (kiss/internal--get-tmp-destdir))
@@ -664,7 +682,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           ;; * The package build script
           ;; * The proper arguments to said pkg build script
 
-          ;; FIXME: pick up on the user's current env for these variables too.
+          ;; FIXME: need to also save a log of the build...
           (f-write-text
            (concat
             "#!/bin/sh -xe\n"
@@ -721,43 +739,41 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
               (progn
                 ;; Now we have to fork over the package files that we
                 ;; used to the repo dir.
-                (kiss/fork pkg (concat install-dir "/var/db/kiss/installed/"))
+                (let ((pkg-install-db
+                       (concat install-dir "/var/db/kiss/installed/")))
+                  (make-directory pkg-install-db t)
+                  (kiss/fork pkg pkg-install-db)
 
-                ;; Need to compute etcsums if they exist.
-                ;; FIXME: impl
-                (let* ((manifest-lst
-                        (kiss/internal--get-manifest-for-dir install-dir))
-                       (etc-files
-                        (cl-remove-if-not
-                         (lambda (s)
-                           (and (string-match-p (rx bol "/etc")s)
-                                (f-file? (concat install-dir "/" s))))
-                         manifest-lst)))
+                  ;; Need to compute etcsums if they exist.
+                  (let* ((manifest-lst
+                          (kiss/internal--get-manifest-for-dir install-dir))
+                         (etc-files
+                          (cl-remove-if-not
+                           (lambda (s)
+                             (and (string-match-p (rx bol "/etc")s)
+                                  (f-file? (concat install-dir "/" s))))
+                           manifest-lst)))
 
-                  ;; Need to check for etc files.
-                  (if etc-files
-                      (f-write-text
-                       (mapconcat
-                        #'identity
-                        (mapcar #'kiss/internal--b3 etc-files)
-                        "\n")
-                       'utf-8 (concat
-                               install-dir
-                               "/var/db/kiss/installed/" pkg "/etcsums")))
+                    ;; If we have any etcfiles, create etcsums
+                    (if etc-files
+                        (f-write-text
+                         (mapconcat
+                          #'identity
+                          (mapcar #'kiss/internal--b3 etc-files)
+                          "\n")
+                         'utf-8 (concat pkg-install-db pkg "/etcsums")))
 
-                  ;; Next, create the manifest
-                  (f-write-text
-                   (mapconcat #'identity manifest-lst "\n")
-                   'utf-8 (concat
-                           install-dir
-                           "/var/db/kiss/installed/" pkg "/manifest")))
+                    ;; Next, create the manifest
+                    (f-write-text
+                     (mapconcat #'identity manifest-lst "\n")
+                     'utf-8 (concat pkg-install-db pkg "/manifest"))))
 
                 ;; Finally create the tarball
                 ;; FIXME: impl
-                )
-
-
-            )
+                (kiss/internal--make-tarball-of-dir
+                 install-dir
+                 (concat kiss/KISS_BINDIR
+                         (kiss/internal--get-pkg-bin-name pkg pkg-ver)))))
           ;; Failure
           2)
       )
