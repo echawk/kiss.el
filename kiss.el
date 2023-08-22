@@ -622,6 +622,15 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           (replace-regexp-in-string " " "-" version)
           ".tar." kiss/KISS_COMPRESS ))
 
+(defun kiss/internal--get-compression-command ()
+  "(I) Return the proper command for the compression specified by `kiss/KISS_COMPRESS'."
+  (cond ((string= "bz2" kiss/KISS_COMPRESS) "bzip2 -z")
+        ((string= "gz" kiss/KISS_COMPRESS) "gzip -6")
+        ((string= "lzma" kiss/KISS_COMPRESS) "lzma -z")
+        ((string= "lz" kiss/KISS_COMPRESS) "lzip -z")
+        ((string= "xz" kiss/KISS_COMPRESS) "xz -z")
+        ((string= "zstd" kiss/KISS_COMPRESS) "zstd -z")
+        (t nil)))
 
 (defun kiss/internal--get-pkg-cached-bin (pkg)
   "(I) Return the path of the binary for PKG, nil if PKG has no binary in the cache."
