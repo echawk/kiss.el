@@ -652,7 +652,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         (let* ((build-script (concat (car (kiss/search pkg)) "/build"))
                (proc-dir     (kiss/internal--get-tmp-destdir))
                (build-dir    (concat proc-dir "/build/" pkg "/"))
-               (install-dir  (concat proc-dir "/pkg/" pkg "/"))
+               (install-dir  (concat proc-dir "/pkg/" pkg))
                (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el")))
 
           ;; Extract pkg's sources to the build directory.
@@ -721,30 +721,52 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
               (progn
                 ;; Now we have to fork over the package files that we
                 ;; used to the repo dir.
-                (kiss/fork pkg (concat install-dir "var/db/kiss/installed/"))
+                (kiss/fork pkg (concat install-dir "/var/db/kiss/installed/"))
 
                 ;; Need to compute etcsums if they exist.
                 ;; FIXME: impl
+                (let* ((manifest-lst
+                        (kiss/internal--get-manifest-for-dir install-dir))
+                       (etc-files
+                        (cl-remove-if-not
+                         (lambda (s)
+                           (and (string-match-p (rx bol "/etc")s)
+                                (f-file? (concat install-dir "/" s))))
+                         manifest-lst)))
 
-                ;; Next, create the manifest
-                ;; FIXME: need to save this into the proper file.
-                (kiss/internal--get-manifest-for-dir install-dir)
+                  ;; Need to check for etc files.
+                  (if etc-files
+                      (f-write-text
+                       (mapconcat
+                        #'identity
+                        (mapcar #'kiss/internal--b3 etc-files)
+                        "\n")
+                       'utf-8 (concat
+                               install-dir
+                               "/var/db/kiss/installed/" pkg "/etcsums")))
 
+                  ;; Next, create the manifest
+                  (f-write-text
+                   (mapconcat #'identity manifest-lst "\n")
+                   'utf-8 (concat
+                           install-dir
+                           "/var/db/kiss/installed/" pkg "/manifest")))
 
                 ;; Finally create the tarball
                 ;; FIXME: impl
-
-
                 )
-            ;; Failure
-            2)
-          )
-      ;; NOTE: kiss/internal--try-install-build does not exist yet.
-      ;; It will take a list of pkgs and atempt to install them
-      ;; if there are binaries already available. Otherwise it will
-      ;; fall back to building the package and installing it.
-      (mapcar #'kiss/internal--try-install-build missing-deps)
-      )))
+
+
+            )
+          ;; Failure
+          2)
+      )
+    ;; NOTE: kiss/internal--try-install-build does not exist yet.
+    ;; It will take a list of pkgs and atempt to install them
+    ;; if there are binaries already available. Otherwise it will
+    ;; fall back to building the package and installing it.
+    (mapcar #'kiss/internal--try-install-build missing-deps)
+    ))
 
 ;; (kiss/internal--build-pkg "xdo")
 
