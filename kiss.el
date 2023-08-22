@@ -391,6 +391,16 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                    "#.*$" ""
                    (f-read-text depends-file))
                   "\n"))))))
+
+;; NOTE: I would like to revisit this function to see if it
+;; could be written in a more functional style, so as to allow
+;; eaiser porting of the logic to other functional programming
+;; languages.
+;; FIXME: add in the ability to support passing in a list of
+;; packages to this function, since it would *greatly* reduce
+;; the amount of time spent checking for dependencies.
+;; Also it should be somewhat easy to implement + make the code
+;; that depends on this code simpler. win-win
 (defun kiss/internal--get-pkg-dependency-graph (pkg)
   "(I) Generate a graph of the dependencies for PKG."
   (let* ((deps (kiss/internal--get-pkg-dependencies pkg))
