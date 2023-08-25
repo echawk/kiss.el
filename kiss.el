@@ -796,7 +796,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
                     ;; Next, create the manifest
                     (f-write-text
-                     (mapconcat #'identity manifest-lst "\n")
+                     (kiss/internal--manifest-to-string manifest-lst)
                      'utf-8 (concat pkg-install-db pkg "/manifest"))))
 
                 ;; Finally create the tarball
