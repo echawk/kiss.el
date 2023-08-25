@@ -600,7 +600,10 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     (if (member "/var/db/kiss/installed/" files-and-dirs)
         (let ((pkg-db-dir
                (car (cl-remove-if-not
-                     (lambda (s) (string-match-p (rx "/var/db/kiss/installed/" (1+ any) "/" eol) s))
+                     (lambda (s)
+                       (string-match-p
+                        (rx "/var/db/kiss/installed/" (1+ (not "/")) "/" eol)
+                        s))
                      files-and-dirs))))
           ;; add /var/db/kiss/installed/<pkg>/manifest
           ;; and /var/db/kiss/isntalled/<pkg>/etcsums
