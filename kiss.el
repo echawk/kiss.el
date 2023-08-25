@@ -684,15 +684,19 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: need to return a signifier on whether the build was successful or
 ;; not, t if yes, and nil if a failure.
-;; FIXME: when building hugs baseline kiss errors with the error
-;; "hugs manifest contains 1 non-existent files"
-;; Need to figure out which file that is...
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG."
   (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
         (pkg-ver (replace-regexp-in-string
                   " " "-"
                   (kiss/internal--get-pkg-version pkg))))
+    ;; Install/build missing dependencies
+    (if missing-deps
+        (mapcar #'kiss/internal--try-install-build missing-deps))
+
+    ;; Recheck to make sure that we aren't missing any deps.
+    (setq missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
+
     (if (not missing-deps)
         (let* ((build-script (concat (car (kiss/search pkg)) "/build"))
                (proc-dir     (kiss/internal--get-tmp-destdir))
@@ -710,6 +714,9 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           ;; * The proper arguments to said pkg build script
 
           ;; FIXME: need to also save a log of the build...
+          ;; ^^ do this using 'tee(1)' or just piping directly into the
+          ;; log itself
+          ;; ~/.cache/kiss/logs/$(date +%Y-%m-%d)/<pkg>-$(date +%Y-%m-%d-%H:%M)-<procnum>
           (f-write-text
            (concat
             "#!/bin/sh -xe\n"
@@ -729,8 +736,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
             ;; TODO: this might not be explicitly needed at this part?
             ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
 
-            build-script " " install-dir " " pkg-ver
-            )
+            build-script " " install-dir " " pkg-ver)
            ;; Write this script to a temporary location.
            'utf-8 k-el-build)
 
@@ -741,24 +747,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           ;; executing the build script, since I would like to be able
           ;; to see the build as it is occurring, like in
           ;; async-shell-command
-          ;; however, there is a need for more granular control using
-          ;; sentinels , since async-shell-command will not return the
-          ;; proper exit after finishing.
-          ;; I should be able to use the default sentinel function
-
-          ;; Further reading:
-          ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Asynchronous-Processes.html
-
-          ;; Food for thought:
-          ;; Or, alternatively, I could just implement a file watcher.....
-          ;; But that seems *too* simple.
-          ;; Actually, I could even save the exit code of the script
-          ;; in said file watcher so that way it can be properly
-          ;; error handled.
-
-          ;; While the build isn't done, sleep for .5s
-          ;; (while (not (file-exists-p file-to-watch))
-          ;;   (sleep-for 0 500))
 
           ;; Now actually execute the script.
           (message (concat "Building " pkg " at version: " pkg-ver))
@@ -808,15 +796,14 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
                 ;; rm the build directory
                 (message (concat "Removing the build directory (" proc-dir ")"))
-                (shell-command (concat "rm -rf -- " proc-dir)))
+                (shell-command (concat "rm -rf -- " proc-dir))
+                ;; Have the expr eval to t.
+                t)
             ;; Failure
-            2))
-      )
-    ;; NOTE: kiss/internal--try-install-build does not exist yet.
-    ;; It will take a list of pkgs and atempt to install them
-    ;; if there are binaries already available. Otherwise it will
-    ;; fall back to building the package and installing it.
-    (mapcar #'kiss/internal--try-install-build missing-deps)))
+            (progn
+              (message "Build failed")
+              ;; Have the expr eval to nil.
+              nil))))))
 
 ;; (kiss/internal--build-pkg "xdo")
 
