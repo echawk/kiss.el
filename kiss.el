@@ -819,18 +819,17 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
       (kiss/install pkg)
     (kiss/internal--build-install pkg)))
 
-;; Need to take into consideration outdated dependencies of packages.
-;; IE - we don't just install the missing dependencies during build time,
-;; but also out of date ones. Ergo, we need to check to make sure that
-;; all of pkg's dependencies are consistent with the repos.
-;; see (kiss/internal--pkg-remote-eq-pkg-local-p
 (defun kiss/build (pkgs-l)
   (interactive)
   (cond ((listp pkgs-l)
-         (mapcar #'kiss/internal--build-pkg
-                 (kiss/internal--get-pkg-order pkgs-l)))
+         (progn
+           (mapcar #'kiss/internal--build-pkg pkgs-l)
+           (mapcar #'kiss/internal--build-pkg
+                   (kiss/internal--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
-         (kiss/internal--build-pkg pkgs-l))))
+         (progn
+           (kiss/download pkgs-l)
+           (kiss/internal--build-pkg pkgs-l)))))
 
 ;; (async-shell-command
 ;;  (concat "kiss build " (kiss/internal--lst-to-str pkgs-l))))
