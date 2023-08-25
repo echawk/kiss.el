@@ -685,7 +685,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; FIXME: need to return a signifier on whether the build was successful or
 ;; not, t if yes, and nil if a failure.
 (defun kiss/internal--build-pkg (pkg)
-  "(I) Build PKG."
+  "(I) Build PKG, return t if PKG was built successfully, nil otherwise."
   (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
         (pkg-ver (replace-regexp-in-string
                   " " "-"
