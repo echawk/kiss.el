@@ -401,12 +401,16 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; the amount of time spent checking for dependencies.
 ;; Also it should be somewhat easy to implement + make the code
 ;; that depends on this code simpler. win-win
-(defun kiss/internal--get-pkg-dependency-graph (pkg)
-  "(I) Generate a graph of the dependencies for PKG."
-  (let* ((deps (kiss/internal--get-pkg-dependencies pkg))
+(defun kiss/internal--get-pkg-dependency-graph (pkg-lst)
+  "(I) Generate a graph of the dependencies for PKG-LST."
+  (let* ((deps '())
          (seen '())
-         (queue deps)
-         (res `((,pkg ,deps))))
+         (queue
+          (cond
+           ((atom pkg-lst) `(,pkg-lst))
+           ((listp pkg-lst) pkg-lst)
+           (t nil)))
+         (res '()))
     (progn
       ;; While there are still pkgs in the queue to look at.
       (while queue
