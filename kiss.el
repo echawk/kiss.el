@@ -440,10 +440,10 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 
 ;; NOTE: will likely be removed once a tsort implementation in elisp is written.
-(defun kiss/internal--get-pkg-tsort-graph (pkg)
-  "(I) Get a tsort(1) compatible representation of the dependencies for PKG."
+(defun kiss/internal--get-pkg-tsort-graph (pkg-lst)
+  "(I) Get a tsort(1) compatible representation of the dependencies for PKG-LST."
   (mapconcat #'kiss/internal--dependency-graph-to-tsort
-             (kiss/internal--get-pkg-dependency-graph pkg) "\n"))
+             (kiss/internal--get-pkg-dependency-graph pkg-lst) "\n"))
 
 
 (defun kiss/internal--get-pkg-dependency-order (pkg-lst)
@@ -452,16 +452,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                 (string-split
                  (shell-command-to-string
                   (concat "printf '"
-                          (let ((s (mapcar
-                                    #'kiss/internal--get-pkg-tsort-graph
-                                    pkg-lst)))
-                            ;; Essentially just rms the duplicate lines.
-                            (mapconcat #'identity
-                                       (delete-dups
-                                        (split-string
-                                         (mapconcat #'identity s "\n")
-                                         "\n"))
-                                       "\n"))
+                          (kiss/internal--get-pkg-tsort-graph pkg-lst)
                           "'"
                           " | "
                           " tsort "))
