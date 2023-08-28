@@ -1200,6 +1200,108 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; ===========================================================================
 (defun kiss/install (pkgs-l)
   (interactive)
+
+  ;; FIXME: support installing via a mapcar
+  ;; Need to check what our arguments are.
+
+  ;; If a path to a tarball, install said tarball.
+  ;; Otherwise, look it up.
+  (let* ((tarball
+          (cond ((file-exists-p pkgs-l) pkgs-l)
+                (t (kiss/internal--get-pkg-cached-bin pkgs-l)))))
+
+    ;; Make sure a tarball actually exists for the pkg.
+    (if (not tarball)
+        (error (concat "kiss/install: tarball does not exist for " pkgs-l)))
+
+    ;; First need to decompress the tarball to a temp directory
+    (let ((proc-dir       (kiss/internal--get-tmp-destdir))
+          (decomp-tarball (kiss/internal--make-temp-file)))
+
+      ;; (let ((tarball "/tmp/z/xdo@0.5.7-1.tar.gz")
+      ;;       (decomp-tarball "/tmp/z/xdo@0.5.7-1.tar")
+      ;;       (pkgs-l "xdo")
+      ;;       (proc-dir "/tmp/z/proc-dir"))
+
+      (make-directory proc-dir t)
+
+      ;; NOTE: I would like to switch to using my already written
+      ;; extract-tarball function instead of having to spell it out
+      ;; manually here, however when attempting to use it I end
+      ;; up getting odd errors likely due to the extra processing that
+      ;; occurs.
+      ;; (kiss/internal--extract-tarball tarball proc-dir)
+
+      (kiss/internal--decompress tarball decomp-tarball)
+      (shell-command
+       (concat "tar xf " decomp-tarball " -C " proc-dir))
+
+      ;; assume that the existence of the manifest file is all that
+      ;; makes a valid KISS pkg.
+
+      ;; FIXME: need to make this far far far more bullet proof than
+      ;; how it is at present, since this will not work for installing
+      ;; tarball's directly.
+      (if (not (file-exists-p
+                (concat
+                 proc-dir "/var/db/kiss/installed/" pkgs-l "/manifest" )))
+          ;; FIXME: make this an error? also need to cleanup by this point
+          (message "kiss/install: Not a valid kiss package!"))
+
+
+      ;; Now that the pkg is verified to be a kiss pkg, we need
+      ;; to validate the manifest that was shipped with the pkg.
+
+      (if (not
+           ;; Remove all of the t values, since it will result in the
+           ;; list being empty if it was successful.
+           (cl-remove-if
+            #'identity
+            (cl-mapcar
+
+             ;; Test if the file is either a directory -or- a file/symlink
+             (lambda (fp)
+               (or (file-directory-p
+                    (concat proc-dir fp))
+                   (kiss/internal--file-exists-p
+                    (concat proc-dir fp))))
+
+             ;; Yes this code is copied straight from `kiss/manifest',
+             ;; I'm hoping to factor it out.
+             (cl-remove-if
+              (lambda (s) (string= "" s))
+              (string-split
+               (f-read-text
+                (concat proc-dir "/var/db/kiss/installed/" pkgs-l "/manifest"))
+               "\n")))))
+
+          (message "kiss/install: manifest is valid!")
+        )
+
+      ;; )
+      )
+    )
+
+
+  ;; (not (cl-remove-if #'identity '(nil nil nil)))
+  ;; (not (cl-remove-if #'identity '(t t t)))
+
+  ;; pkg_conflicts()
+
+  ;; If the pkg is already installed (and this is an upgrade)
+  ;; make a backup fo the manifest and etcsum files
+
+  ;; generate a list of files which exist in the current (installed) manifest
+  ;; that do not exist in the new (to be installed) manifest.
+
+  ;; Reverse the manifest file so that we start shallow, and go deeper
+  ;; as we iterate through each item. This is needed so that directories
+  ;; are created in the proper order
+
+
+  ;; FIXME: see pkg_install() in kiss - will need a few more
+  ;; helper functions for the final install.
+
   (async-shell-command
    (concat "kiss install " (kiss/internal--lst-to-str pkgs-l))))
 ;; (kiss/install '("R"))
@@ -1264,6 +1366,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
             (if (kiss/internal--am-owner-p dir-path)
                 (shell-command rmcmd)
               (kiss/internal--shell-command-as-user rmcmd owner))))))
+
 (defun kiss/internal--remove-files (file-path-lst)
   "(I) Remove all files and empty directories in FILE-PATH-LST."
 
