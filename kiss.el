@@ -816,7 +816,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (interactive)
   (cond ((listp pkgs-l)
          (progn
-           (mapcar #'kiss/internal--build-pkg pkgs-l)
            (mapcar #'kiss/internal--build-pkg
                    (kiss/internal--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
