@@ -403,29 +403,27 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; that depends on this code simpler. win-win
 (defun kiss/internal--get-pkg-dependency-graph (pkg-lst)
   "(I) Generate a graph of the dependencies for PKG-LST."
-  (let* ((deps '())
-         (seen '())
+  (let* ((seen '())
          (queue
           (cond
            ((atom pkg-lst) `(,pkg-lst))
            ((listp pkg-lst) pkg-lst)
            (t nil)))
          (res '()))
-    (progn
-      ;; While there are still pkgs in the queue to look at.
-      (while queue
-        ;; Only execute this block if we haven't already seen this pkg.
-        (when (not (member (car queue) seen))
-          (let* ((dep (car queue))
-                 (dep-deps (kiss/internal--get-pkg-dependencies dep)))
-            (let ((item `(,dep ,dep-deps)))
-              ;; Saves ourselves the headache of removing duplicates early.
-              (if (not (member item res))
-                  ;; Update our result to contain the dep and it's depends.
-                  (setq res (cons item res))))
-            ;; Make sure we only append to the cdr of the queue.
-            (setq queue (append dep-deps (cdr queue))))))
-      res)))
+    ;; While there are still pkgs in the queue to look at.
+    (while queue
+      ;; Only execute this block if we haven't already seen this pkg.
+      (when (not (member (car queue) seen))
+        (let* ((dep (car queue))
+               (dep-deps (kiss/internal--get-pkg-dependencies dep)))
+          (let ((item `(,dep ,dep-deps)))
+            ;; Saves ourselves the headache of removing duplicates early.
+            (if (not (member item res))
+                ;; Update our result to contain the dep and it's depends.
+                (setq res (cons item res))))
+          ;; Make sure we only append to the cdr of the queue.
+          (setq queue (append dep-deps (cdr queue))))))
+    res))
 
 (defun kiss/internal--dependency-graph-to-tsort (pkg-depgraph)
   "(I) Convert a PKG-DEPGRAPH graph to a tsort(1) compatible one."
