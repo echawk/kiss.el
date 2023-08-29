@@ -13,7 +13,7 @@
 
 ;; TODO: need to replace all slashes with something else, likely
 ;; a hyphen?
-;; or could rename kiss/internal to kiss-i
+;; or could rename kiss/internal to kiss-i or just kiss--
 
 ;; TODO: see if I can reduce the required Emacs version.
 
