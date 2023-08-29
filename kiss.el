@@ -1245,72 +1245,77 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
      (concat "tar xf " decomp-tarball " -C " extr-dir))
     (kiss/internal--remove-file decomp-tarball)
 
-    ;; assume that the existence of the manifest file is all that
-    ;; makes a valid KISS pkg.
+    (let ((pkg
+           ;; FIXME: this code is ugly
+           (car (reverse
+                 (cl-remove-if
+                  #'string-empty-p
+                  (string-split
+                   (cl-remove-if-not
+                    (lambda (str)
+                      (string-match
+                       (rx "/var/db/kiss/installed/" (1+ (not "/")) "/" eol) str))
+                    (kiss/internal--get-manifest-for-dir extr-dir)) "/"))
+                 ))))
 
-    ;; FIXME: need to make this far far far more bullet proof than
-    ;; how it is at present, since this will not work for installing
-    ;; tarball's directly.
-    (if (not (file-exists-p
-              (concat
-               ;; FIXME: rm pkgs-l
-               extr-dir "/var/db/kiss/installed/" pkgs-l "/manifest" )))
-        ;; FIXME: make this an error? also need to cleanup by this point
-        (message "kiss/install: Not a valid kiss package!"))
+      (if (not pkg)
+          (error "unable to detemine the package"))
 
+      ;; assume that the existence of the manifest file is all that
+      ;; makes a valid KISS pkg.
+      (if (not (file-exists-p
+                (concat "/var/db/kiss/installed/" pkg "/manifest")))
+          (message "kiss/install: Not a valid kiss package!"))
 
-    ;; Now that the pkg is verified to be a kiss pkg, we need
-    ;; to validate the manifest that was shipped with the pkg.
+      ;; Now that the pkg is verified to be a kiss pkg, we need
+      ;; to validate the manifest that was shipped with the pkg.
 
-    (if (not
-         ;; Remove all of the t values, since it will result in the
-         ;; list being empty if it was successful.
-         (cl-remove-if
-          #'identity
-          (cl-mapcar
+      (if (not
+           ;; Remove all of the t values, since it will result in the
+           ;; list being empty if it was successful.
+           (cl-remove-if
+            #'identity
+            (cl-mapcar
 
-           ;; Test if the file is either a directory -or- a file/symlink
-           (lambda (fp)
-             (or (file-directory-p
-                  (concat extr-dir fp))
-                 (kiss/internal--file-exists-p
-                  (concat extr-dir fp))))
+             ;; Test if the file is either a directory -or- a file/symlink
+             (lambda (fp)
+               (or (file-directory-p
+                    (concat extr-dir fp))
+                   (kiss/internal--file-exists-p
+                    (concat extr-dir fp))))
 
-           ;; Yes this code is copied straight from `kiss/manifest',
-           ;; I'm hoping to factor it out.
-           (kiss/internal--read-file
-            ;; FIXME: rm pkgs-l
-            (concat extr-dir "/var/db/kiss/installed/" pkgs-l "/manifest")))))
+             ;; Yes this code is copied straight from `kiss/manifest',
+             ;; I'm hoping to factor it out.
+             (kiss/internal--read-file
+              (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))))
+          (message "kiss/install: manifest is valid!"))
 
-        (message "kiss/install: manifest is valid!"))
+      ;; (not (cl-remove-if #'identity '(nil nil nil)))
+      ;; (not (cl-remove-if #'identity '(t t t)))
 
-    ;; (not (cl-remove-if #'identity '(nil nil nil)))
-    ;; (not (cl-remove-if #'identity '(t t t)))
+      ;; pkg_conflicts()
+      ;; FIXME: impl
 
-    ;; pkg_conflicts()
-    ;; FIXME: impl
+      ;; If the pkg is already installed (and this is an upgrade)
+      ;; make a backup of the manifest and etcsum files
+      (if (kiss/internal--pkg-is-installed-p pkg)
+          (progn
+            (shell-command
+             (concat "cp " kiss/installed-db-dir pkg "/manifest"
+                     " " proc-dir "/manifest-copy"))
+            (if (file-exists-p kiss/installed-db-dir pkg "/etcsums")
+                (shell-command
+                 (concat "cp " kiss/installed-db-dir pkg "/etcsums"
+                         " " proc-dir "/etcsums-copy")))))
 
-    ;; If the pkg is already installed (and this is an upgrade)
-    ;; make a backup of the manifest and etcsum files
-    ;; FIXME: rm pkgs-l
-    (if (kiss/internal--pkg-is-installed-p pkgs-l)
-        (progn
-          (shell-command
-           (concat "cp " kiss/installed-db-dir pkgs-l "/manifest"
-                   " " proc-dir "/manifest-copy"))
-          (if (file-exists-p kiss/installed-db-dir pkgs-l "/etcsums")
-              (shell-command
-               (concat "cp " kiss/installed-db-dir pkgs-l "/etcsums"
-                       " " proc-dir "/etcsums-copy")))
-          ))
+      ;; generate a list of files which exist in the current (installed)
+      ;; manifest that do not exist in the new (to be installed) manifest.
 
-    ;; generate a list of files which exist in the current (installed)
-    ;; manifest that do not exist in the new (to be installed) manifest.
+      ;; Reverse the manifest file so that we start shallow, and go deeper
+      ;; as we iterate through each item. This is needed so that directories
+      ;; are created in the proper order
 
-    ;; Reverse the manifest file so that we start shallow, and go deeper
-    ;; as we iterate through each item. This is needed so that directories
-    ;; are created in the proper order
-
+      )
     )
   )
 
