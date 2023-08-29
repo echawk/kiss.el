@@ -438,6 +438,30 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           (setq queue (append dep-deps (cdr queue))))))
     res))
 
+
+(defun kiss/internal--invert-pkg-dependency-graph (pkg-depgraph)
+  "(I) Change the direction of the edges in PKG-DEPGRAPH.
+
+The current `kiss/internal--get-pkg-dependency-graph' will
+return a graph which will return each package as the car and its
+depends as the cdr.  This function can take a graph that is in
+that format and convert it to be a graph that has a package
+as the car, and the packages that depend on it as the cdr."
+  (mapcar
+   (lambda (pair)
+     (let ((pkg (car pair)))
+       (list
+        pkg
+        (cl-remove-if-not
+         #'identity
+         (cl-mapcar
+          (lambda (pair) (if (member pkg (cadr pair)) (car pair)))
+          (cl-remove-if (lambda (e) (equal pair e))
+                        pkg-depgraph))))))
+   pkg-depgraph))
+
+
+
 (defun kiss/internal--dependency-graph-to-tsort (pkg-depgraph)
   "(I) Convert a PKG-DEPGRAPH graph to a tsort(1) compatible one."
   (let ((print-pair
