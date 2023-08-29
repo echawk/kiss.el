@@ -341,7 +341,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                       (kiss/internal--lst-to-str
                        (kiss/internal--get-installed-manifest-files))))
          (cmd-out (shell-command-to-string cmd)))
-    (if (not (string= cmd-out ""))
+    (if (not (string-empty-p cmd-out))
         (car
          (string-split
           (replace-regexp-in-string kiss/installed-db-dir "" cmd-out) "/")))))
@@ -396,7 +396,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (let ((depends-file (concat (car (kiss/search pkg)) "/depends")))
     (if (file-exists-p depends-file)
         (cl-remove-if
-         (lambda (i) (string= i ""))
+         #'string-empty-p
          ;; All of this below is to emulate `awk '{print $1}' < file'
          (mapcar (lambda (s) (car (string-split s " ")))
                  (string-split
@@ -483,7 +483,7 @@ as the car, and the packages that depend on it as the cdr."
 
 (defun kiss/internal--get-pkg-dependency-order (pkg-lst)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
-  (cl-remove-if (lambda (s) (string= s ""))
+  (cl-remove-if #'string-empty-p
                 (string-split
                  (shell-command-to-string
                   (concat "printf '"
@@ -879,7 +879,7 @@ as the car, and the packages that depend on it as the cdr."
   (let ((checksums-file (concat (car (kiss/search pkg)) "/checksums")))
     (if (file-exists-p checksums-file)
         (cl-remove-if
-         (lambda (chk) (string= chk ""))
+         #'string-empty-p
          (string-split
           (f-read-text checksums-file) "\n")))))
 
@@ -928,7 +928,7 @@ as the car, and the packages that depend on it as the cdr."
                       #'identity
                       (kiss/internal--get-pkg-local-checksums pkgs-l) "\n")))
       (if (and (kiss/internal--am-owner-p chk-path)
-               (not (string= chk-sums "")))
+               (not (string-empty-p chk-sums)))
           (f-write-text
            chk-sums
            'utf-8 chk-path))))))
@@ -956,7 +956,7 @@ as the car, and the packages that depend on it as the cdr."
         (progn
           ;; Remove any non source lines.
           (cl-remove-if
-           (lambda (lst) (string= (car lst) ""))
+           (lambda (lst) (string-empty-p (car lst)))
            (mapcar
             (lambda (pkg-dest-line)
               ;; Sanitize each line
@@ -1185,7 +1185,7 @@ as the car, and the packages that depend on it as the cdr."
 
      ;; Get a list of all of the top level directories in the tarball.
      (cl-remove-if
-      (lambda (s) (string= s ""))
+      #'string-empty-p
       (string-split
        (shell-command-to-string
         (concat "tar tf " tarball " | sort -ut / -k1,1"))
@@ -1509,7 +1509,7 @@ as the car, and the packages that depend on it as the cdr."
 
 (defun kiss/internal--dir-is-git-subm-p (dir)
   "(I) Return t if DIR is a git submodule, nil otherwise."
-  (not (string= "" (kiss/internal--git-subm-superproject-dir dir))))
+  (not (string-empty-p (kiss/internal--git-subm-superproject-dir dir))))
 
 ;; (kiss/internal--dir-is-git-subm-p "/home/ethan/git/uni/fbsd-repo/repo-xorg")
 ;; (kiss/internal--dir-is-git-subm-p "/home/ethan/git/uni/fbsd-repo/core")
