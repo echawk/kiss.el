@@ -1211,113 +1211,116 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 ;; -> install      Install packages
 ;; ===========================================================================
+
+(defun kiss/internal--install-tarball (tarball)
+  "(I) Install TARBALL if it is a valid kiss package."
+  ;; FIXME: maybe error out here?
+  (if (not (f-exists? tarball))
+      nil)
+
+  (let ((proc-dir       (kiss/internal--get-tmp-destdir))
+        (extr-dir       (concat proc-dir "/extracted"))
+        (decomp-tarball (kiss/internal--make-temp-file)))
+
+    ;; (split-string
+    ;;  (shell-command-to-string (concat "tar tf " tarball)) "\n")
+
+
+    (make-directory extr-dir t)
+
+    ;; NOTE: I would like to switch to using my already written
+    ;; extract-tarball function instead of having to spell it out
+    ;; manually here, however when attempting to use it I end
+    ;; up getting odd errors likely due to the extra processing that
+    ;; occurs.
+    ;; (kiss/internal--extract-tarball tarball proc-dir)
+
+    (kiss/internal--decompress tarball decomp-tarball)
+    (shell-command
+     (concat "tar xf " decomp-tarball " -C " extr-dir))
+    (kiss/internal--remove-file decomp-tarball)
+
+    ;; assume that the existence of the manifest file is all that
+    ;; makes a valid KISS pkg.
+
+    ;; FIXME: need to make this far far far more bullet proof than
+    ;; how it is at present, since this will not work for installing
+    ;; tarball's directly.
+    (if (not (file-exists-p
+              (concat
+               ;; FIXME: rm pkgs-l
+               extr-dir "/var/db/kiss/installed/" pkgs-l "/manifest" )))
+        ;; FIXME: make this an error? also need to cleanup by this point
+        (message "kiss/install: Not a valid kiss package!"))
+
+
+    ;; Now that the pkg is verified to be a kiss pkg, we need
+    ;; to validate the manifest that was shipped with the pkg.
+
+    (if (not
+         ;; Remove all of the t values, since it will result in the
+         ;; list being empty if it was successful.
+         (cl-remove-if
+          #'identity
+          (cl-mapcar
+
+           ;; Test if the file is either a directory -or- a file/symlink
+           (lambda (fp)
+             (or (file-directory-p
+                  (concat extr-dir fp))
+                 (kiss/internal--file-exists-p
+                  (concat extr-dir fp))))
+
+           ;; Yes this code is copied straight from `kiss/manifest',
+           ;; I'm hoping to factor it out.
+           (kiss/internal--read-file
+            ;; FIXME: rm pkgs-l
+            (concat extr-dir "/var/db/kiss/installed/" pkgs-l "/manifest")))))
+
+        (message "kiss/install: manifest is valid!"))
+
+    ;; (not (cl-remove-if #'identity '(nil nil nil)))
+    ;; (not (cl-remove-if #'identity '(t t t)))
+
+    ;; pkg_conflicts()
+    ;; FIXME: impl
+
+    ;; If the pkg is already installed (and this is an upgrade)
+    ;; make a backup of the manifest and etcsum files
+    ;; FIXME: rm pkgs-l
+    (if (kiss/internal--pkg-is-installed-p pkgs-l)
+        (progn
+          (shell-command
+           (concat "cp " kiss/installed-db-dir pkgs-l "/manifest"
+                   " " proc-dir "/manifest-copy"))
+          (if (file-exists-p kiss/installed-db-dir pkgs-l "/etcsums")
+              (shell-command
+               (concat "cp " kiss/installed-db-dir pkgs-l "/etcsums"
+                       " " proc-dir "/etcsums-copy")))
+          ))
+
+    ;; generate a list of files which exist in the current (installed)
+    ;; manifest that do not exist in the new (to be installed) manifest.
+
+    ;; Reverse the manifest file so that we start shallow, and go deeper
+    ;; as we iterate through each item. This is needed so that directories
+    ;; are created in the proper order
+
+    )
+  )
+
 (defun kiss/install (pkgs-l)
   (interactive)
-
-  ;; FIXME: support installing via a mapcar
-  ;; Need to check what our arguments are.
-
-  ;; If a path to a tarball, install said tarball.
-  ;; Otherwise, look it up.
-  (let* ((tarball
-          (cond ((file-exists-p pkgs-l) pkgs-l)
-                (t (kiss/internal--get-pkg-cached-bin pkgs-l)))))
-
-    ;; Make sure a tarball actually exists for the pkg.
-    (if (not tarball)
-        (error (concat "kiss/install: tarball does not exist for " pkgs-l)))
-
-    ;; First need to decompress the tarball to a temp directory
-    (let ((proc-dir       (kiss/internal--get-tmp-destdir))
-          (decomp-tarball (kiss/internal--make-temp-file)))
-
-      ;; (let ((tarball "/tmp/z/xdo@0.5.7-1.tar.gz")
-      ;;       (decomp-tarball "/tmp/z/xdo@0.5.7-1.tar")
-      ;;       (pkgs-l "xdo")
-      ;;       (proc-dir "/tmp/z/proc-dir"))
-
-      (make-directory proc-dir t)
-
-      ;; NOTE: I would like to switch to using my already written
-      ;; extract-tarball function instead of having to spell it out
-      ;; manually here, however when attempting to use it I end
-      ;; up getting odd errors likely due to the extra processing that
-      ;; occurs.
-      ;; (kiss/internal--extract-tarball tarball proc-dir)
-
-      (kiss/internal--decompress tarball decomp-tarball)
-      (shell-command
-       (concat "tar xf " decomp-tarball " -C " proc-dir))
-
-      ;; assume that the existence of the manifest file is all that
-      ;; makes a valid KISS pkg.
-
-      ;; FIXME: need to make this far far far more bullet proof than
-      ;; how it is at present, since this will not work for installing
-      ;; tarball's directly.
-      (if (not (file-exists-p
-                (concat
-                 proc-dir "/var/db/kiss/installed/" pkgs-l "/manifest" )))
-          ;; FIXME: make this an error? also need to cleanup by this point
-          (message "kiss/install: Not a valid kiss package!"))
-
-
-      ;; Now that the pkg is verified to be a kiss pkg, we need
-      ;; to validate the manifest that was shipped with the pkg.
-
-      (if (not
-           ;; Remove all of the t values, since it will result in the
-           ;; list being empty if it was successful.
-           (cl-remove-if
-            #'identity
-            (cl-mapcar
-
-             ;; Test if the file is either a directory -or- a file/symlink
-             (lambda (fp)
-               (or (file-directory-p
-                    (concat proc-dir fp))
-                   (kiss/internal--file-exists-p
-                    (concat proc-dir fp))))
-
-             ;; Yes this code is copied straight from `kiss/manifest',
-             ;; I'm hoping to factor it out.
-             (cl-remove-if
-              (lambda (s) (string= "" s))
-              (string-split
-               (f-read-text
-                (concat proc-dir "/var/db/kiss/installed/" pkgs-l "/manifest"))
-               "\n")))))
-
-          (message "kiss/install: manifest is valid!")
-        )
-
-      ;; )
-      )
-    )
-
-
-  ;; (not (cl-remove-if #'identity '(nil nil nil)))
-  ;; (not (cl-remove-if #'identity '(t t t)))
-
-  ;; pkg_conflicts()
-
-  ;; If the pkg is already installed (and this is an upgrade)
-  ;; make a backup fo the manifest and etcsum files
-
-  ;; generate a list of files which exist in the current (installed) manifest
-  ;; that do not exist in the new (to be installed) manifest.
-
-  ;; Reverse the manifest file so that we start shallow, and go deeper
-  ;; as we iterate through each item. This is needed so that directories
-  ;; are created in the proper order
-
-
-  ;; FIXME: see pkg_install() in kiss - will need a few more
-  ;; helper functions for the final install.
-
-  (async-shell-command
-   (concat "kiss install " (kiss/internal--lst-to-str pkgs-l))))
-;; (kiss/install '("R"))
+  (cond
+   ((listp pkgs-l)
+    (mapcar #'kiss/install pkgs-l))
+   ((atom pkgs-l)
+    ((let* ((tarball
+             (cond ((file-exists-p pkgs-l) pkgs-l)
+                   (t (kiss/internal--get-pkg-cached-bin pkgs-l)))))
+       (if (not tarball)
+           (error (concat "kiss/install: tarball does not exist for " pkgs-l)))
+       (kiss/internal--install-tarball tarball))))))
 
 (defun kiss/internal--pkg-is-installed-p (pkg)
   "(I) Return t if PKG is installed, nil otherwise."
