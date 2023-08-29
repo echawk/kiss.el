@@ -319,12 +319,14 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 (defun kiss/manifest (pkg)
   "Return a list of all files owned by PKG."
-  (cl-remove-if
-   (lambda (s) (string= "" s))
-   (string-split
-    (f-read-text
-     (concat kiss/installed-db-dir pkg "/manifest"))
-    "\n")))
+  (kiss/internal--read-file
+   (concat kiss/installed-db-dir pkg "/manifest")))
+;; (cl-remove-if
+;;  (lambda (s) (string= "" s))
+;;  (string-split
+;;   (f-read-text
+;;    (concat kiss/installed-db-dir pkg "/manifest"))
+;;   "\n")))
 
 
 (defun kiss/internal--get-installed-manifest-files ()
