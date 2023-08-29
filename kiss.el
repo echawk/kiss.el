@@ -138,6 +138,17 @@
     " " ""
     str)))
 
+;; FIXME: potentially change this function
+;; to simply remove the final newline at the end of the text
+;; and to then split on the newlines - it should result in the same
+;; code as the following for kiss/manifest, but would allow this
+;; code to be used other places too
+(defun kiss/internal--read-file (file-path)
+  "(I) Read FILE-PATH as a list of lines, with empty newlines removed."
+  (cl-remove-if
+   (lambda (s) (string= "" s))
+   (string-split (f-read-text file-path) "\n")))
+
 (defun kiss/internal--get-owner (file-path)
   "(I) Return the owner of FILE-PATH."
   (nth 2
