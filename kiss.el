@@ -688,8 +688,8 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                " > " file-path))))
 
 ;; FIXME: rm missing-deps check here and move that up to the caller.
-;; FIXME: need to return a signifier on whether the build was successful or
-;; not, t if yes, and nil if a failure.
+;; FIXME: should try to see what functionality I can move out of this
+;; function
 (defun kiss/internal--build-pkg (pkg)
   "(I) Build PKG, return t if PKG was built successfully, nil otherwise."
   (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
@@ -792,6 +792,11 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                     (f-write-text
                      (kiss/internal--manifest-to-string manifest-lst)
                      'utf-8 (concat pkg-install-db pkg "/manifest"))))
+
+                ;; FIXME: need to optionally strip the binaries based off
+                ;; of the KISS_STRIP env variable.
+
+                ;; FIXME: also need to do dependency fixing
 
                 ;; Finally create the tarball
                 (message (concat "Creating tarball for " pkg))
