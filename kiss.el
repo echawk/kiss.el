@@ -150,7 +150,7 @@
    (string-split (f-read-text file-path) "\n")))
 
 (defun kiss/internal--get-user-from-uid (uid)
-  "(I) Return the name for UID.  /etc/passwd is parsed for the information."
+  "(I) Return the name for UID.  `$ getent passwd' is parsed for the information."
   (car
    (remove
     nil
@@ -163,8 +163,11 @@
                 (literal (number-to-string uid)) ":")
             str)
            (car (string-split str ":"))))
+     ;; NOTE: there is a portability penalty here for using getent(1).
+     ;; This will work fine on Linux and the *BSDs, but not on macOS.
      (string-split
-      (f-read-text "/etc/passwd") "\n" t)))))
+      (shell-command-to-string "getent passwd") "\n" t)))))
+
 
 ;; FIXME: use below instead of 'ls -ld' command
 ;; (file-attribute-user-id (file-attributes file-path)) -> uid of the path owner
