@@ -466,45 +466,44 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; that depends on this code simpler. win-win
 (defun kiss--get-pkg-dependency-graph (pkg-lst)
   "(I) Generate a graph of the dependencies for PKG-LST."
-  (let* ((seen '())
-         (queue
-          (cond
-           ((atom pkg-lst) `(,pkg-lst))
-           ((listp pkg-lst) pkg-lst)
-           (t nil)))
-         (res '()))
-    ;; While there are still pkgs in the queue to look at.
+  (let ((queue
+         (cond
+          ((atom pkg-lst) `(,pkg-lst))
+          ((listp pkg-lst) pkg-lst)))
+        (seen '())
+        (res '()))
     (while queue
-      ;; Only execute this block if we haven't already seen this pkg.
-      (when (not (member (car queue) seen))
-        (let* ((dep (car queue))
-               (dep-deps (kiss--get-pkg-dependencies dep)))
-          (let ((item `(,dep ,dep-deps)))
-            ;; Saves ourselves the headache of removing duplicates early.
-            (if (not (member item res))
-                ;; Update our result to contain the dep and it's depends.
-                (setq res (cons item res))))
-          ;; Make sure we only append to the cdr of the queue.
-          (setq queue (append dep-deps (cdr queue))))))
+      (setq queue (cl-remove-if (lambda (e) (member e seen)) queue))
+      (if (car queue)
+          (progn
+            (setq seen (cons (car queue) seen))
+            (let* ((dep (car queue))
+                   (dep-deps (kiss--get-pkg-dependencies dep))
+                   (item `(,dep ,dep-deps)))
+              (if (not (member item res))
+                  (setq res (cons item res)))
+              (setq queue (append dep-deps (cdr queue)))))))
     res))
 
+;; FIXME: incorrect atm.
 (defun kiss--get-pkg-dependency-graph-rec (queue seen res)
   "(I) Recursive implementation of `kiss--get-pkg-dependency-graph', may replace it."
-  (flatten-list
-   (if queue
-       (if (not (member (car queue) seen))
-           (let* ((dep (car queue))
-                  (dep-deps (kiss--get-pkg-dependencies dep)))
-             (let ((item `(,dep ,dep-deps)))
-               (if (not (member item res))
-                   (kiss--get-pkg-dependency-graph-rec
-                    (append dep-deps (cdr queue))
-                    (cons dep seen)
-                    (cons item res)))))
-         res))))
+  (message "%s" res)
+  (if queue
+      (if (not (member (car queue) seen))
+          (let* ((dep (car queue))
+                 (dep-deps (kiss--get-pkg-dependencies dep)))
+            (let ((item `(,dep ,dep-deps)))
+              (if (not (member item res))
+                  (kiss--get-pkg-dependency-graph-rec
+                   (append dep-deps (cdr queue))
+                   (cons dep seen)
+                   (cons item res))))))
+    res))
 
-;; (kiss--invert-pkg-dependency-graph
-;;  (kiss--get-pkg-dependency-graph-rec '("kiss") '() '()))
+
+;; (length  (kiss--get-pkg-dependency-graph '("gcc")))
+;; (length  (kiss--get-pkg-dependency-graph-rec '("gcc") '() '()))
 
 ;; (kiss--get-pkg-dependency-graph '("kiss" "cmake"))
 ;; (kiss--get-pkg-dependency-order "cmake")
