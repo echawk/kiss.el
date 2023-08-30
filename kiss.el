@@ -149,6 +149,27 @@
    (lambda (s) (string= "" s))
    (string-split (f-read-text file-path) "\n")))
 
+(defun kiss/internal--get-user-from-uid (uid)
+  "(I) Return the name for UID.  /etc/passwd is parsed for the information."
+  (car
+   (remove
+    nil
+    (cl-mapcar
+     (lambda (str)
+       (if (string-match
+            (rx bol
+                (1+ (not ":")) ":"
+                (0+ (not ":")) ":"
+                (literal (number-to-string uid)) ":")
+            str)
+           (car (string-split str ":"))))
+     (string-split
+      (f-read-text "/etc/passwd") "\n" t)))))
+
+;; FIXME: use below instead of 'ls -ld' command
+;; (file-attribute-user-id (file-attributes file-path)) -> uid of the path owner
+;; (user-real-uid) -> get the current uid
+
 (defun kiss/internal--get-owner (file-path)
   "(I) Return the owner of FILE-PATH."
   (nth 2
@@ -156,11 +177,14 @@
         (shell-command-to-string (concat "ls -ld " file-path))
         " ")))
 
+;; FIXME: will need to update w/ using the userid instead of
+;; using LOGNAME
 (defun kiss/internal--am-owner-p (file-path)
   "(I) Return t if the current LOGNAME owns the FILE-PATH, nil otherwise."
   (string=
    (getenv "LOGNAME")
    (kiss/internal--get-owner file-path)))
+
 (defun kiss/internal--shell-command-as-user (command user)
   "(I) Run COMMAND as USER using `kiss/KISS_SU'."
   (shell-command (concat kiss/KISS_SU " -u " user " -- " command)))
@@ -864,9 +888,6 @@ as the car, and the packages that depend on it as the cdr."
          (progn
            (kiss/download pkgs-l)
            (kiss/internal--build-pkg pkgs-l)))))
-
-;; (async-shell-command
-;;  (concat "kiss build " (kiss/internal--lst-to-str pkgs-l))))
 
 ;; -> checksum     Generate checksums
 ;; ===========================================================================
