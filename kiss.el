@@ -1,4 +1,4 @@
-;;; kiss.el -- kiss package manager in ELisp
+;;; kiss.el --- KISS package manager in ELisp
 
 ;; Author: Ethan Hawk <ethan.hawk@valpo.edu>
 ;; Maintainer: Ethan Hawk <ethan.hawk@valpo.edu>
@@ -56,6 +56,9 @@
 ;; messages is also useful more generally as it allows you to see what
 ;; exactly the package manager is doing at any given time.
 
+;; FIXME: in addition to these messages, there also needs to be
+;; assertions/error checking done throughout the code.
+
 ;; Also, need to go through this code once I get a fully working POC done
 ;; and ruthlessly remove all duplicated code, since rn there are many
 ;; little redundancies spread about the current source.
@@ -66,7 +69,8 @@
 (eval-when-compile
   (require 'cl-lib)
   (require 'f)
-  (require 'rx))
+  (require 'rx)
+  (require 'subp))
 
 ;; FIXME: Find out what the containing group should be...
 (defgroup kiss nil
@@ -116,6 +120,7 @@
   "gz"
   "The compression algorithm that should be used when making packages."
   :type 'string)
+
 (defcustom kiss/KISS_PATH
   (split-string (getenv "KISS_PATH") ":")
   "A list of directories in decreasing precedence to look for packages in."
@@ -126,11 +131,11 @@
 ;; Internal function definitions, these are considered to not be stable.
 ;; It's best not to rely on them outside of this file.
 
-(defun kiss/internal--lst-to-str (lst)
+(defun kiss--lst-to-str (lst)
   "(I) Convert LST to a string."
   (mapconcat (lambda (s) (format "%s" s)) lst " "))
 
-(defun kiss/internal--sanitize-ver-str (str)
+(defun kiss--sanitize-ver-str (str)
   "(I) Sanitize a version string STR to be correctly compared against others."
   (replace-regexp-in-string
    "\n$" ""
@@ -143,13 +148,13 @@
 ;; and to then split on the newlines - it should result in the same
 ;; code as the following for kiss/manifest, but would allow this
 ;; code to be used other places too
-(defun kiss/internal--read-file (file-path)
+(defun kiss--read-file (file-path)
   "(I) Read FILE-PATH as a list of lines, with empty newlines removed."
   (cl-remove-if
    (lambda (s) (string= "" s))
    (string-split (f-read-text file-path) "\n")))
 
-(defun kiss/internal--get-user-from-uid (uid)
+(defun kiss--get-user-from-uid (uid)
   "(I) Return the name for UID.  `$ getent passwd' is parsed for the information."
   (car
    (remove
@@ -168,31 +173,26 @@
      (string-split
       (shell-command-to-string "getent passwd") "\n" t)))))
 
-
-;; FIXME: use below instead of 'ls -ld' command
-;; (file-attribute-user-id (file-attributes file-path)) -> uid of the path owner
-;; (user-real-uid) -> get the current uid
-
-(defun kiss/internal--get-owner (file-path)
+(defun kiss--get-owner (file-path)
   "(I) Return the owner uid of FILE-PATH."
   (file-attribute-user-id (file-attributes file-path)))
 
-(defun kiss/internal--get-owner-name (file-path)
+(defun kiss--get-owner-name (file-path)
   "(I) Return the owner name of FILE-PATH."
-  (kiss/internal--get-user-from-uid
-   (kiss/internal--get-owner file-path)))
+  (kiss--get-user-from-uid
+   (kiss--get-owner file-path)))
 
-(defun kiss/internal--am-owner-p (file-path)
+(defun kiss--am-owner-p (file-path)
   "(I) Return t if the current LOGNAME owns the FILE-PATH, nil otherwise."
   (eql
    (user-real-uid)
-   (kiss/internal--get-owner file-path)))
+   (kiss--get-owner file-path)))
 
-(defun kiss/internal--shell-command-as-user (command user)
+(defun kiss--shell-command-as-user (command user)
   "(I) Run COMMAND as USER using `kiss/KISS_SU'."
   (shell-command (concat kiss/KISS_SU " -u " user " -- " command)))
 
-(defun kiss/internal--decompress (file-path out-path)
+(defun kiss--decompress (file-path out-path)
   "(I) Decompress FILE-PATH to OUT-PATH based on the file name."
   (let ((cmd
          (cond
@@ -202,12 +202,11 @@
           ((string-match-p (rx (or ".tgz" ".gz") eol)  file-path) "gzip -dc ")
           ((string-match-p (rx ".lzma" eol)            file-path) "lzma -dcT0 ")
           ((string-match-p (rx (or ".txz" ".xz") eol)  file-path) "xz -dcT0 ")
-          ((string-match-p (rx ".zst" eol)             file-path) "zstd -dcT0 ")
-          )))
+          ((string-match-p (rx ".zst" eol)             file-path) "zstd -dcT0 "))))
     (if cmd
         (shell-command (concat cmd file-path " > " out-path)))))
 
-(defun kiss/internal--b3 (file-path)
+(defun kiss--b3 (file-path)
   "(I) Run b3sum on FILE-PATH."
   (car
    (string-split
@@ -217,7 +216,7 @@
      (shell-command-to-string (concat "b3sum -l 33 " file-path)))
     " ")))
 
-(defun kiss/internal--sh256 (file-path)
+(defun kiss--sh256 (file-path)
   "(I) Run `kiss/KISS_CHK' with proper arguments on FILE-PATH."
   (let ((args
          (cond
@@ -225,8 +224,7 @@
           ((string-match-p "sha256sum" kiss/KISS_CHK) "")
           ((string-match-p "sha256"    kiss/KISS_CHK) " -r ")
           ((string-match-p "shasum"    kiss/KISS_CHK) " -a 256 ")
-          ((string-match-p "digest"    kiss/KISS_CHK) " -a sha256 ")
-          )))
+          ((string-match-p "digest"    kiss/KISS_CHK) " -a sha256 "))))
     (car
      (string-split
       (replace-regexp-in-string
@@ -240,7 +238,6 @@
 ;; -> alternatives List and swap alternatives
 ;; ===========================================================================
 
-
 (defun kiss/alternatives (&optional pkg path)
   (interactive)
   (if (or (eq nil pkg) (eq nil path))
@@ -251,18 +248,26 @@
                  (concat "/" (string-join (cdr d) "/"))
                  s)))
        (nthcdr 2 (directory-files kiss/choices-db-dir)))
-    (kiss/internal--pkg-swap pkg path)))
+    (kiss--pkg-swap pkg path)))
 
+;; (benchmark-elapse (kiss/alternatives))
+;; (kiss/alternatives "util-linux" "/usr/bin/mkswap")
+;; (kiss/alternatives "busybox" "/usr/bin/mkswap")
+;; (kiss/alternatives)
+
+;; FIXME?: may need to have this code take in a general path
+;; for pkg - this is so that this code can be reused to implement
+;; the conflicts system.
 ;; pkg_manifest_replace() in kiss
-(defun kiss/internal--pkg-manifest-replace (pkg old new)
+(defun kiss--pkg-manifest-replace (pkg old new)
   "(I) Replace the line matching OLD in the manifest of PKG with NEW."
   ;; Replace the matching line in the manifest w/ the desired
   ;; replacement.
   ;; TODO: test this to make sure it is correct.
   (let* ((manifest-f (concat kiss/installed-db-dir pkg "/manifest"))
-         (temp-f     (kiss/internal--make-temp-file))
-         (owner      (kiss/internal--get-owner-name manifest-f))
-         (manifest-t (kiss/internal--manifest-to-string
+         (temp-f     (kiss--make-temp-file))
+         (owner      (kiss--get-owner-name manifest-f))
+         (manifest-t (kiss--manifest-to-string
                       (reverse
                        (cl-sort
                         (cl-mapcar (lambda (s) (if (string= s old) new s))
@@ -274,20 +279,21 @@
     ;; TODO: see if this can be avoided.
     ;; Ensure the ownership is preserved.
     ;; NOTE: chown can work with uids instead of names
-    (kiss/internal--shell-command-as-user
+    (kiss--shell-command-as-user
      (concat "chown " owner ":" owner " " temp-f) owner)
     ;; Ensure the permissions are set correctly.
-    (kiss/internal--shell-command-as-user
+    (kiss--shell-command-as-user
      (concat "chmod 644 " temp-f) owner)
     ;; Move it into place.
-    (kiss/internal--shell-command-as-user
+    (kiss--shell-command-as-user
      (concat "mv -f " temp-f " " manifest-f)
      owner)))
 
+;; (kiss--manifest-to-string (kiss/manifest "xdo"))
 
 ;; FIXME: Either fix upstream Emacs/f.el or keep using this.
 ;; NOTE: DO NOT USE THIS ANYWHERE THAT ISN'T ABSOLUTELY NECESSARY.
-(defun kiss/internal--file-exists-p (file-path)
+(defun kiss--file-exists-p (file-path)
   "(I) This function should NOT exist.
 However, `file-exists-p' and `file-symlink-p' are fundamentally broken when it
 comes to broken symlinks.  Hence the need for this function.
@@ -298,13 +304,13 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
    (eq 0
        (shell-command (concat "test -h " file-path)))))
 
-(defun kiss/internal--single-quote-string (str)
+(defun kiss--single-quote-string (str)
   "(I) Add quotes around STR.  Useful when interacting with the cli."
   (concat "'" str "'"))
 
-(defun kiss/internal--pkg-swap (pkg path)
+(defun kiss--pkg-swap (pkg path)
   "(I) Swap the owner of PATH to PKG, modifying the relevant package manifests."
-  (if (kiss/internal--pkg-is-installed-p pkg)
+  (if (kiss--pkg-is-installed-p pkg)
       ;; NOTE: The quotes surrounding the string are very important.
       ;; This is because this string is only interpreted as a command argument.
       ;; This means that the shell can mangle it if it is not properly
@@ -312,8 +318,8 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
       (let* ((alt      (string-replace "/" ">" path))
              (alt-path (concat kiss/choices-db-dir pkg alt))
              (path-own (kiss/owns path)))
-        (if (kiss/internal--file-exists-p
-             (kiss/internal--single-quote-string alt-path))
+        (if (kiss--file-exists-p
+             (kiss--single-quote-string alt-path))
             (progn
               ;; If the file is owned by a package in the database.
               (if path-own
@@ -322,33 +328,44 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                                      " from " path-own
                                      " to " pkg))
                     ;; Save the path into kiss/choices-db-dir
-                    (kiss/internal--shell-command-as-user
+                    (kiss--shell-command-as-user
                      (concat "cp -Pf " path " "
-                             (kiss/internal--single-quote-string
+                             (kiss--single-quote-string
                               (concat kiss/choices-db-dir path-own alt)))
-                     (kiss/internal--get-owner-name path))
+                     (kiss--get-owner-name path))
 
                     ;; Update the manifest file to reflect the new version.
-                    (kiss/internal--pkg-manifest-replace
+                    (kiss--pkg-manifest-replace
                      path-own path (concat kiss/choices-db-dir path-own alt))))
               ;; Move over our new desired alternative to the real file.
-              (kiss/internal--shell-command-as-user
-               (concat "mv -f " (kiss/internal--single-quote-string alt-path)
+              (kiss--shell-command-as-user
+               (concat "mv -f " (kiss--single-quote-string alt-path)
                        " " path)
-               (kiss/internal--get-owner-name path))
-              (kiss/internal--pkg-manifest-replace pkg alt-path path))))))
+               (kiss--get-owner-name path))
+              (kiss--pkg-manifest-replace pkg alt-path path))))))
 
 
 
-(defun kiss/internal--manifest-to-string (pkg-manifest)
+;; (f-symlink-p "/var/db/kiss/choices/gawk\\>usr\\>bin\\>awk")
+;; (f-exists?  "/var/db/kiss/choices/busybox\\>usr\\>bin\\>sh")
+;; (kiss--file-exists-p "/var/db/kiss/choices/gawk\\>usr\\>bin\\>awk")
+;; (if (kiss/owns "/usr/bin/awk") 1)
+;; (cl-remove-if-not
+;;  (lambda (s) (string= "gawk" s))
+;;  (cl-mapcar #'car (kiss/alternatives)))
+;; (concat "mawk" (string-replace "/" ">" "/usr/bin/awk"))
+
+(defun kiss--manifest-to-string (pkg-manifest)
   "(I) Convert our internal representation of PKG-MANIFEST into a string."
   (concat (mapconcat #'identity pkg-manifest "\n") "\n"))
 
+;; (kiss--manifest-to-string (kiss/manifest "xdo"))
 
 (defun kiss/manifest (pkg)
   "Return a list of all files owned by PKG."
-  (kiss/internal--read-file
+  (kiss--read-file
    (concat kiss/installed-db-dir pkg "/manifest")))
+
 ;; (cl-remove-if
 ;;  (lambda (s) (string= "" s))
 ;;  (string-split
@@ -356,8 +373,9 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;;    (concat kiss/installed-db-dir pkg "/manifest"))
 ;;   "\n")))
 
+;; (benchmark-elapse (kiss/manifest "kiss"))
 
-(defun kiss/internal--get-installed-manifest-files ()
+(defun kiss--get-installed-manifest-files ()
   "(I) Return a list of all of the installed manifest files."
   (mapcar
    '(lambda (pkg) (concat kiss/installed-db-dir pkg "/manifest"))
@@ -366,14 +384,20 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 (defun kiss/owns (file-path)
   ;; TODO: See if this can be made a little less ugly.
   (let* ((cmd (concat "grep " (rx bol (literal file-path) eol) " "
-                      (kiss/internal--lst-to-str
-                       (kiss/internal--get-installed-manifest-files))))
+                      (kiss--lst-to-str
+                       (kiss--get-installed-manifest-files))))
          (cmd-out (shell-command-to-string cmd)))
     (if (not (string-empty-p cmd-out))
         (car
          (string-split
           (replace-regexp-in-string kiss/installed-db-dir "" cmd-out) "/")))))
 
+;; (cl-mapcar
+;;  (lambda (file)
+;;    (list (kiss/owns file) file))
+;;  (delete-dups (cl-mapcar #'cadr (kiss/alternatives))))
+
+;; (rgrep "/usr/bin/awk$" "manifest" "/var/db/kiss/installed/")
 
 (defun kiss/preferred ()
   (mapcar
@@ -412,14 +436,12 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         ;; Now for the piping into grep.
         " | "
         "grep -Fxf - "
-        (kiss/internal--lst-to-str
-         (kiss/internal--get-installed-manifest-files))
-        " /dev/null"
-        ))))
-    "\n"))
-  )
+        (kiss--lst-to-str
+         (kiss--get-installed-manifest-files))
+        " /dev/null"))))
+    "\n")))
 
-(defun kiss/internal--get-pkg-dependencies (pkg)
+(defun kiss--get-pkg-dependencies (pkg)
   "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies."
   (let ((depends-file (concat (car (kiss/search pkg)) "/depends")))
     (if (file-exists-p depends-file)
@@ -442,7 +464,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; the amount of time spent checking for dependencies.
 ;; Also it should be somewhat easy to implement + make the code
 ;; that depends on this code simpler. win-win
-(defun kiss/internal--get-pkg-dependency-graph (pkg-lst)
+(defun kiss--get-pkg-dependency-graph (pkg-lst)
   "(I) Generate a graph of the dependencies for PKG-LST."
   (let* ((seen '())
          (queue
@@ -456,7 +478,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
       ;; Only execute this block if we haven't already seen this pkg.
       (when (not (member (car queue) seen))
         (let* ((dep (car queue))
-               (dep-deps (kiss/internal--get-pkg-dependencies dep)))
+               (dep-deps (kiss--get-pkg-dependencies dep)))
           (let ((item `(,dep ,dep-deps)))
             ;; Saves ourselves the headache of removing duplicates early.
             (if (not (member item res))
@@ -466,11 +488,32 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
           (setq queue (append dep-deps (cdr queue))))))
     res))
 
+(defun kiss--get-pkg-dependency-graph-rec (queue seen res)
+  "(I) Recursive implementation of `kiss--get-pkg-dependency-graph', may replace it."
+  (flatten-list
+   (if queue
+       (if (not (member (car queue) seen))
+           (let* ((dep (car queue))
+                  (dep-deps (kiss--get-pkg-dependencies dep)))
+             (let ((item `(,dep ,dep-deps)))
+               (if (not (member item res))
+                   (kiss--get-pkg-dependency-graph-impl
+                    (append dep-deps (cdr queue))
+                    (cons dep seen)
+                    (cons item res)))))
+         res))))
 
-(defun kiss/internal--invert-pkg-dependency-graph (pkg-depgraph)
+;; (kiss--invert-pkg-dependency-graph
+;;  (kiss--get-pkg-dependency-graph-rec '("kiss") '() '()))
+
+;; (kiss--get-pkg-dependency-graph '("kiss" "cmake"))
+;; (kiss--get-pkg-dependency-order "cmake")
+;; TODO: consider moving invert-pkg-dependency-graph to tsort.el
+
+(defun kiss--invert-pkg-dependency-graph (pkg-depgraph)
   "(I) Change the direction of the edges in PKG-DEPGRAPH.
 
-The current `kiss/internal--get-pkg-dependency-graph' will
+The current `kiss--get-pkg-dependency-graph' will
 return a graph which will return each package as the car and its
 depends as the cdr.  This function can take a graph that is in
 that format and convert it to be a graph that has a package
@@ -488,9 +531,7 @@ as the car, and the packages that depend on it as the cdr."
                         pkg-depgraph))))))
    pkg-depgraph))
 
-
-
-(defun kiss/internal--dependency-graph-to-tsort (pkg-depgraph)
+(defun kiss--dependency-graph-to-tsort (pkg-depgraph)
   "(I) Convert a PKG-DEPGRAPH graph to a tsort(1) compatible one."
   (let ((print-pair
          (lambda (pair)
@@ -501,50 +542,27 @@ as the car, and the packages that depend on it as the cdr."
            (funcall print-pair pkg-depgraph)))
       (if pair-str pair-str ""))))
 
-
 ;; NOTE: will likely be removed once a tsort implementation in elisp is written.
-(defun kiss/internal--get-pkg-tsort-graph (pkg-lst)
+(defun kiss--get-pkg-tsort-graph (pkg-lst)
   "(I) Get a tsort(1) compatible representation of the dependencies for PKG-LST."
-  (mapconcat #'kiss/internal--dependency-graph-to-tsort
-             (kiss/internal--get-pkg-dependency-graph pkg-lst) "\n"))
+  (mapconcat #'kiss--dependency-graph-to-tsort
+             (kiss--get-pkg-dependency-graph pkg-lst) "\n"))
 
-
-(defun kiss/internal--get-pkg-dependency-order (pkg-lst)
+(defun kiss--get-pkg-dependency-order (pkg-lst)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
   (cl-remove-if #'string-empty-p
                 (string-split
                  (shell-command-to-string
                   (concat "printf '"
-                          (kiss/internal--get-pkg-tsort-graph pkg-lst)
+                          (kiss--get-pkg-tsort-graph pkg-lst)
                           "'"
                           " | "
                           " tsort "))
                  "\n")))
-;; (kiss/internal--get-pkg-dependency-order '("gcc" "clang"))
-;; (kiss/internal--get-pkg-dependency-order '("llvm" "rust"))
-
-;; As noted above, here is the code that I was testing out to try and
-;; figure out a different method.
-
-;; ;; Save our resulting depends in res
-;; (let ((res '()))
-;;   (mapcar
-;;    ;; Here we take a pkg, and go through all of its dependency
-;;    ;; graphs and add them to res only if they are not alreay present in
-;;    ;; res.
-;;    (lambda (pkg)
-;;      (let ((deps (kiss/internal--get-pkg-dependency-graph pkg)))
-;;        (mapcar (lambda (dep)
-;;                  (if (not (member dep res))
-;;                      (setq res (cons dep res))))
-;;                deps)))
-;;    ;; Our packages list
-;;    '("llvm"))
-;;   res)
 
 ;; TODO: make the output list prettier (ie, should be a list of pkgs,
 ;; not depends files)
-(defun kiss/internal--get-pkg-make-dependents (pkg)
+(defun kiss--get-pkg-make-dependents (pkg)
   "(I) Return a list of installed packages that have a make dependency on PKG, nil if there are no dependents."
   (mapcar
    (lambda (dep-file)
@@ -561,21 +579,24 @@ as the car, and the packages that depend on it as the cdr."
      #'file-exists-p
      (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
              (nthcdr 2 (directory-files kiss/installed-db-dir)))))))
-;; (kiss/internal--get-pkg-make-dependents "ant")
+;; (kiss--get-pkg-make-dependents "ant")
 
-(defun kiss/internal--get-pkg-make-orphans ()
+(defun kiss--get-pkg-make-orphans ()
   "(I) Return a list of installed packages that were only required as a make dependency."
   ;; NOTE: This function is pretty slow at the moment.
   (cl-remove-if-not
    (lambda (pkg)
-     (and (eq (kiss/internal--get-pkg-hard-dependents pkg) nil)
+     (and (eq (kiss--get-pkg-hard-dependents pkg) nil)
           (not
-           (eq (kiss/internal--get-pkg-make-dependents pkg) nil))))
+           (eq (kiss--get-pkg-make-dependents pkg) nil))))
    (mapcar #'car (kiss/list))))
+
+;; (kiss--get-pkg-make-orphans)
+;; (length (kiss--get-pkg-make-orphans))
 
 ;; TODO: make the output list prettier (ie, should be a list of pkgs,
 ;; not depends files)
-(defun kiss/internal--get-pkg-hard-dependents (pkg)
+(defun kiss--get-pkg-hard-dependents (pkg)
   "(I) Return a list of installed packages that have a runtime dependency on PKG, nil if there are no dependents."
   (mapcar
    (lambda (dep-file)
@@ -593,22 +614,21 @@ as the car, and the packages that depend on it as the cdr."
      (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
              (nthcdr 2 (directory-files kiss/installed-db-dir)))))))
 
-;; (kiss/internal--get-pkg-hard-dependents "mpfr")
+;; (kiss--get-pkg-hard-dependents "mpfr")
 
-
-(defun kiss/internal--get-pkg-missing-dependencies (pkg)
+(defun kiss--get-pkg-missing-dependencies (pkg)
   "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
   (cl-remove-if
-   #'kiss/internal--pkg-is-installed-p
+   #'kiss--pkg-is-installed-p
    (delete-dups
     (flatten-list
      (mapcar #'cadr
-             (kiss/internal--get-pkg-dependency-graph pkg))))))
+             (kiss--get-pkg-dependency-graph pkg))))))
 
-;; (kiss/internal--get-pkg-missing-dependencies "gimp")
-;; (kiss/internal--get-pkg-missing-dependencies "gcc")
+;; (kiss--get-pkg-missing-dependencies "gimp")
+;; (kiss--get-pkg-missing-dependencies "gcc")
 
-(defun kiss/internal--get-pkg-orphan-alternatives (pkg)
+(defun kiss--get-pkg-orphan-alternatives (pkg)
   "(I) Return a list of orphaned alternatives that would result from removing PKG."
   (let ((orphaned-alternatives
          (cl-remove-if-not
@@ -618,8 +638,9 @@ as the car, and the packages that depend on it as the cdr."
     (if orphaned-alternatives
         (mapcar #'cadr orphaned-alternatives))))
 
+;; (benchmark-elapse (kiss--get-pkg-make-dependents "meson"))
 
-(defun kiss/internal--pkg-is-removable-p (pkg)
+(defun kiss--pkg-is-removable-p (pkg)
   "(I) Return t if PKG is removable, nil otherwise."
 
   ;; A package is removable when the following conditions are met:
@@ -627,15 +648,30 @@ as the car, and the packages that depend on it as the cdr."
   ;; * nothing on the system hard depends on the package
   ;; * the package does not leave any orphaned alternatives
   (and
-   (kiss/internal--pkg-is-installed-p pkg)
-   (eq (kiss/internal--get-pkg-hard-dependents pkg) nil)
-   (eq (kiss/internal--get-pkg-orphan-alternatives pkg) nil)))
+   (kiss--pkg-is-installed-p pkg)
+   (eq (kiss--get-pkg-hard-dependents pkg) nil)
+   (eq (kiss--get-pkg-orphan-alternatives pkg) nil)))
+
+;; (length
+;;  (cl-remove-if-not
+;;   #'f-dir?
+;;   (string-split
+;;    (f-read-text (concat kiss/installed-db-dir "gcc" "/manifest"))
+;;    "\n")))
 
 ;; -> build        Build packages
 ;; ===========================================================================
 
+;; Just some testing code to get all of the missing dependencies for the
+;; pkgs to be updated.
+;;(kiss--get-pkg-order
+;; (flatten-list
+;; (cl-remove-if
+;;  (lambda (i) (eq i nil))
+;;  (mapcar #'kiss--get-pkg-missing-dependencies
+;;          (cons "freecad" (cons "gimp" (kiss--get-out-of-date-pkgs))))))
 
-(defun kiss/internal--get-manifest-for-dir (dir)
+(defun kiss--get-manifest-for-dir (dir)
   "(I) Return a kiss compatible manifest for DIR."
   (let ((files-and-dirs
          ;; find cmd
@@ -675,8 +711,7 @@ as the car, and the packages that depend on it as the cdr."
     (reverse
      (cl-sort (delete-dups files-and-dirs) 'string-lessp))))
 
-
-(defun kiss/internal--get-pkg-version (pkg)
+(defun kiss--get-pkg-version (pkg)
   "(I) Get the version for PKG using the car of `kiss/search'."
   (let ((ks (kiss/search pkg)))
     (if ks
@@ -687,13 +722,13 @@ as the car, and the packages that depend on it as the cdr."
            ;; depending on f.el
            (f-read-text (concat pdir "/version")))))))
 
-(defun kiss/internal--get-pkg-bin-name (pkg version)
+(defun kiss--get-pkg-bin-name (pkg version)
   "(I) Return the proper name for the binary for PKG at VERSION."
   (concat pkg "@"
           (replace-regexp-in-string " " "-" version)
           ".tar." kiss/KISS_COMPRESS ))
 
-(defun kiss/internal--get-compression-command ()
+(defun kiss--get-compression-command ()
   "(I) Return the proper command for the compression specified by `kiss/KISS_COMPRESS'."
   (cond ((string= "bz2" kiss/KISS_COMPRESS) "bzip2 -z")
         ((string= "gz" kiss/KISS_COMPRESS) "gzip -6")
@@ -703,16 +738,15 @@ as the car, and the packages that depend on it as the cdr."
         ((string= "zstd" kiss/KISS_COMPRESS) "zstd -z")
         (t nil)))
 
-(defun kiss/internal--get-pkg-cached-bin (pkg)
+(defun kiss--get-pkg-cached-bin (pkg)
   "(I) Return the path of the binary for PKG, nil if PKG has no binary in the cache."
-  (let ((ver (kiss/internal--get-pkg-version pkg)))
+  (let ((ver (kiss--get-pkg-version pkg)))
     (if ver
         (let ((bin (concat kiss/KISS_BINDIR
-                           (kiss/internal--get-pkg-bin-name pkg ver))))
+                           (kiss--get-pkg-bin-name pkg ver))))
           (if (file-exists-p bin) bin)))))
 
-
-(defun kiss/internal--get-tmp-destdir ()
+(defun kiss--get-tmp-destdir ()
   "(I) Return a directory that can be used as a temporary destdir."
   ;; NOTE: This is not a *perfect* system, however, it is not as easy to
   ;; do the pid trick that the shell implementation of kiss does.
@@ -729,41 +763,41 @@ as the car, and the packages that depend on it as the cdr."
          (concat "cp -Lrf " (car (kiss/search pkg)) " " dir))))
 
 
-(defun kiss/internal--make-tarball-of-dir (dir file-path)
+(defun kiss--make-tarball-of-dir (dir file-path)
   "(I) Make a compressed tarball of DIR saved into FILE-PATH."
   ;; FIXME: need to remove the reliance on tar's -C flag, since it
   ;; is noted in upstream kiss as being a source of portability issues.
   (eq 0
       (shell-command
        (concat "tar -cf - -C " dir " . | "
-               (kiss/internal--get-compression-command)
+               (kiss--get-compression-command)
                " > " file-path))))
 
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: should try to see what functionality I can move out of this
 ;; function
-(defun kiss/internal--build-pkg (pkg)
+(defun kiss--build-pkg (pkg)
   "(I) Build PKG, return t if PKG was built successfully, nil otherwise."
-  (let ((missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
+  (let ((missing-deps (kiss--get-pkg-missing-dependencies pkg))
         (pkg-ver (replace-regexp-in-string
                   " " "-"
-                  (kiss/internal--get-pkg-version pkg))))
+                  (kiss--get-pkg-version pkg))))
     ;; Install/build missing dependencies
     (if missing-deps
-        (mapcar #'kiss/internal--try-install-build missing-deps))
+        (mapcar #'kiss--try-install-build missing-deps))
 
     ;; Recheck to make sure that we aren't missing any deps.
-    (setq missing-deps (kiss/internal--get-pkg-missing-dependencies pkg))
+    (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
 
     (if (not missing-deps)
         (let* ((build-script (concat (car (kiss/search pkg)) "/build"))
-               (proc-dir     (kiss/internal--get-tmp-destdir))
+               (proc-dir     (kiss--get-tmp-destdir))
                (build-dir    (concat proc-dir "/build/" pkg "/"))
                (install-dir  (concat proc-dir "/pkg/" pkg))
                (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el")))
 
           ;; Extract pkg's sources to the build directory.
-          (kiss/internal--extract-pkg-sources pkg build-dir)
+          (kiss--extract-pkg-sources pkg build-dir)
           ;; Essentially, we want to build out a script that contains
           ;; all of the info that we need.
 
@@ -823,7 +857,7 @@ as the car, and the packages that depend on it as the cdr."
                   ;; for symlinks
                   ;; Need to compute etcsums if they exist.
                   (let* ((manifest-lst
-                          (kiss/internal--get-manifest-for-dir install-dir))
+                          (kiss--get-manifest-for-dir install-dir))
                          (etc-files
                           (cl-remove-if-not
                            (lambda (s)
@@ -836,13 +870,13 @@ as the car, and the packages that depend on it as the cdr."
                         (f-write-text
                          (mapconcat
                           #'identity
-                          (mapcar #'kiss/internal--b3 etc-files)
+                          (mapcar #'kiss--b3 etc-files)
                           "\n")
                          'utf-8 (concat pkg-install-db pkg "/etcsums")))
 
                     ;; Next, create the manifest
                     (f-write-text
-                     (kiss/internal--manifest-to-string manifest-lst)
+                     (kiss--manifest-to-string manifest-lst)
                      'utf-8 (concat pkg-install-db pkg "/manifest"))))
 
                 ;; FIXME: need to optionally strip the binaries based off
@@ -852,10 +886,10 @@ as the car, and the packages that depend on it as the cdr."
 
                 ;; Finally create the tarball
                 (message (concat "Creating tarball for " pkg))
-                (kiss/internal--make-tarball-of-dir
+                (kiss--make-tarball-of-dir
                  install-dir
                  (concat kiss/KISS_BINDIR
-                         (kiss/internal--get-pkg-bin-name pkg pkg-ver)))
+                         (kiss--get-pkg-bin-name pkg pkg-ver)))
 
                 ;; rm the build directory
                 (message (concat "Removing the build directory (" proc-dir ")"))
@@ -868,30 +902,30 @@ as the car, and the packages that depend on it as the cdr."
               ;; Have the expr eval to nil.
               nil))))))
 
-;; (kiss/internal--build-pkg "xdo")
+;; (kiss--build-pkg "xdo")
 
 ;; FIXME: add in checks to the appropriate places.
-(defun kiss/internal--build-install (pkg)
+(defun kiss--build-install (pkg)
   "(I) Attempt to build and install PKG, nil if unsuccessful."
-  (if (kiss/internal--build-pkg)
+  (if (kiss--build-pkg)
       (kiss/install pkg)))
 
-(defun kiss/internal--try-install-build (pkg)
+(defun kiss--try-install-build (pkg)
   "(I) Attempt to install a binary of PKG, else build and install PKG."
-  (if (kiss/internal--get-pkg-cached-bin pkg)
+  (if (kiss--get-pkg-cached-bin pkg)
       (kiss/install pkg)
-    (kiss/internal--build-install pkg)))
+    (kiss--build-install pkg)))
 
 (defun kiss/build (pkgs-l)
   (interactive)
   (cond ((listp pkgs-l)
          (progn
-           (mapcar #'kiss/internal--build-pkg
-                   (kiss/internal--get-pkg-order pkgs-l))))
+           (mapcar #'kiss--build-pkg
+                   (kiss--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
          (progn
            (kiss/download pkgs-l)
-           (kiss/internal--build-pkg pkgs-l)))))
+           (kiss--build-pkg pkgs-l)))))
 
 ;; -> checksum     Generate checksums
 ;; ===========================================================================
@@ -899,7 +933,7 @@ as the car, and the packages that depend on it as the cdr."
 ;; Initial working impl of kiss/checksum below; need to refactor some of
 ;; the functionality since kiss/download has similar needs.
 
-(defun kiss/internal--get-pkg-repo-checksums (pkg)
+(defun kiss--get-pkg-repo-checksums (pkg)
   "(I) Return the list of checksums for PKG from a repo or nil if checksums don't exist."
   (let ((checksums-file (concat (car (kiss/search pkg)) "/checksums")))
     (if (file-exists-p checksums-file)
@@ -908,7 +942,7 @@ as the car, and the packages that depend on it as the cdr."
          (string-split
           (f-read-text checksums-file) "\n")))))
 
-(defmacro tps-env (pkg tps expr)
+(defmacro kiss--tps-env (pkg tps expr)
   ;; "(I) Macro to aide in parsing TPS, and using the values in EXPR."
   ;; Extract out each of the variables.
   `(let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR ,pkg "/"))
@@ -918,10 +952,10 @@ as the car, and the packages that depend on it as the cdr."
           (dest-dir             (concat pkg-source-cache-dir sub-dir)))
      ,expr))
 
-(defun kiss/internal--get-pkg-local-checksums (pkg)
+(defun kiss--get-pkg-local-checksums (pkg)
   "(I) Return the list of checksums for PKG from the files on disk, or nil."
   (cl-mapcar
-   #'kiss/internal--b3
+   #'kiss--b3
    (cl-mapcar
     #'cdr
     (cl-remove-if
@@ -930,17 +964,17 @@ as the car, and the packages that depend on it as the cdr."
      (lambda (tps-cache)
        (string= "git" (car (car tps-cache))))
      (-zip
-      (kiss/internal--get-type-pkg-sources pkg)
-      (kiss/internal--get-pkg-sources-cache-path pkg))))))
+      (kiss--get-type-pkg-sources pkg)
+      (kiss--get-pkg-sources-cache-path pkg))))))
 
-(defun kiss/internal--pkg-verify-local-checksums (pkg)
+(defun kiss--pkg-verify-local-checksums (pkg)
   "(I) Return t if local checksums match up with the repo checksums for PKG, nil otherwise."
   (eq nil
       (cl-remove-if
        (lambda (pair) (string= (car pair) (cdr pair)))
        (-zip
-        (kiss/internal--get-pkg-repo-checksums  pkg)
-        (kiss/internal--get-pkg-local-checksums pkg)))))
+        (kiss--get-pkg-repo-checksums  pkg)
+        (kiss--get-pkg-local-checksums pkg)))))
 
 (defun kiss/checksum (pkgs-l)
   (cond
@@ -951,13 +985,14 @@ as the car, and the packages that depend on it as the cdr."
            (chk-path (concat pkg-path "/checksums"))
            (chk-sums (mapconcat
                       #'identity
-                      (kiss/internal--get-pkg-local-checksums pkgs-l) "\n")))
-      (if (and (kiss/internal--am-owner-p chk-path)
+                      (kiss--get-pkg-local-checksums pkgs-l) "\n")))
+      (if (and (kiss--am-owner-p chk-path)
                (not (string-empty-p chk-sums)))
           (f-write-text
            chk-sums
            'utf-8 chk-path))))))
 
+;; (kiss--pkg-verify-local-checksums "chromium")
 
 ;; -> download     Download sources
 ;; ===========================================================================
@@ -967,13 +1002,13 @@ as the car, and the packages that depend on it as the cdr."
   (cond ((listp pkgs-l)
          (cl-mapcar #'kiss/download pkgs-l))
         ((atom pkgs-l)
-         (kiss/internal--download-pkg-sources pkgs-l))
+         (kiss--download-pkg-sources pkgs-l))
         (t nil)))
-;; (async-shell-command (concat "kiss download " pkgs-l)))
 
 ;; (kiss/download '("kiss" "gdb"))
+;; (kiss/download '("hugs"))
 
-(defun kiss/internal--get-pkg-sources (pkg)
+(defun kiss--get-pkg-sources (pkg)
   "(I) Return a list of sources for PKG, or nil if PKG has no sources file."
   (let* ((pkg-repo    (car (kiss/search pkg)))
          (pkg-sources (concat pkg-repo "/sources")))
@@ -997,7 +1032,7 @@ as the car, and the packages that depend on it as the cdr."
       ;; NOTE: This nil does not mean failure.
       nil)))
 
-(defun kiss/internal--get-pkg-sources-type (pkg-source)
+(defun kiss--get-pkg-sources-type (pkg-source)
   "(I) Return the type of PKG-SOURCE."
   (let ((pkg-url (car pkg-source)))
     ;; TODO: need to ensure that this is the same expected behavior as
@@ -1005,13 +1040,12 @@ as the car, and the packages that depend on it as the cdr."
     (cond
      ((string-match-p (rx bol "git+") pkg-url) "git")
      ((string-match-p (rx "://") pkg-url) "remote")
-     (t "local"))
-    ))
+     (t "local"))))
 
 ;; FIXME: make a macro for parsing out the clean url, the dest folder & commit
 ;; since that information would also be useful for other vc systems like
 ;; fossil and hg.
-(defun kiss/internal--download-git-source (url dest-dir)
+(defun kiss--download-git-source (url dest-dir)
   "(I) Download git URL to `kiss/KISS_SRCDIR' in the folder DEST-DIR."
   ;; NOTE: This currently does not support sources like the following:
   ;; git+https://github.com/user/project@somebranch#somecommit
@@ -1051,11 +1085,11 @@ as the car, and the packages that depend on it as the cdr."
       ;; Change back to our old working directory
       (cd opwd))))
 
-(defun kiss/internal--make-temp-file ()
+(defun kiss--make-temp-file ()
   "(I) Make a temporary file using the `mktemp' utility."
   (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
 
-(defun kiss/internal--get-download-utility-arguments ()
+(defun kiss--get-download-utility-arguments ()
   "(I) Get the proper arguments for the `kiss/KISS_GET' utility."
   (cond
    ((string= kiss/KISS_GET "aria2c") " -d / -o ")
@@ -1063,7 +1097,7 @@ as the car, and the packages that depend on it as the cdr."
    ((string= kiss/KISS_GET "curl")   " -fLo ")
    ((or (string= kiss/KISS_GET "wget") (string= kiss/KISS_GET "wget2")) " -O ")))
 
-(defun kiss/internal--download-remote-source (url dest-dir)
+(defun kiss--download-remote-source (url dest-dir)
   "(I) Download URL to DEST-DIR using `kiss/KISS_GET'."
   ;; TODO: check and make sure this is the right way to create this file name.
   (let* ((file-name (car (reverse (string-split url "/"))))
@@ -1073,10 +1107,10 @@ as the car, and the packages that depend on it as the cdr."
         (shell-command
          (concat kiss/KISS_GET " "
                  url
-                 (kiss/internal--get-download-utility-arguments)
+                 (kiss--get-download-utility-arguments)
                  dest-path)))))
 
-(defun kiss/internal--download-local-source (uri dest-dir)
+(defun kiss--download-local-source (uri dest-dir)
   "(I) Copy URI to DEST-DIR using cp(1)."
   (let ((file-name (car (reverse (string-split uri "/")))))
     ;; FIXME: double check to make sure this is correct - I have a hunch
@@ -1086,98 +1120,95 @@ as the car, and the packages that depend on it as the cdr."
          (concat "cp " file-path
                  " " (concat dest-dir file-name))))))
 
-(defun kiss/internal--get-pkg-sources-cache-path (pkg)
+(defun kiss--get-pkg-sources-cache-path (pkg)
   "(I) Return the cache path in `kiss/KISS_SRCDIR' for each of PKG's sources."
   (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg "/"))
-         (type-pkg-sources (kiss/internal--get-type-pkg-sources pkg)))
+         (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
     (cl-mapcar
      (lambda (tps)
-       (tps-env pkg tps
-                (progn
-                  (cond
-                   ;; This one is a bit messy since we have to be able to parse
-                   ;; out the useful information in a git source.
-                   ((string= "git" type)
-                    (let ((u (replace-regexp-in-string
-                              (rx bol "git+") ""
-                              uri)))
-                      (concat
-                       dest-dir "/"
-                       (car
-                        (reverse
-                         (string-split
-                          (car (string-split u (rx (or "#" "@")))) "/"))))))
+       (kiss--tps-env pkg tps
+                      (progn
+                        (cond
+                         ;; This one is a bit messy since we have to be able to parse
+                         ;; out the useful information in a git source.
+                         ((string= "git" type)
+                          (let ((u (replace-regexp-in-string
+                                    (rx bol "git+") ""
+                                    uri)))
+                            (concat
+                             dest-dir "/"
+                             (car
+                              (reverse
+                               (string-split
+                                (car (string-split u (rx (or "#" "@")))) "/"))))))
 
-                   ((string= "remote" type)
-                    (concat dest-dir "/" (car (reverse (string-split uri "/")))))
-                   ((string= "local" type)
-                    ;; (if (string= (rx bol "/" (regexp ".*")) "/asdf")
-                    (if (string-match (rx bol "/") uri)
-                        ;; Absolute path.
-                        uri
-                      ;; Relative path.
-                      (concat (car (kiss/search pkg)) "/" uri)))
-                   ))))
-     type-pkg-sources)
-    ))
+                         ((string= "remote" type)
+                          (concat dest-dir "/" (car (reverse (string-split uri "/")))))
+                         ((string= "local" type)
+                          ;; (if (string= (rx bol "/" (regexp ".*")) "/asdf")
+                          (if (string-match (rx bol "/") uri)
+                              ;; Absolute path.
+                              uri
+                            ;; Relative path.
+                            (concat (car (kiss/search pkg)) "/" uri)))))))
+     type-pkg-sources)))
 
-
-(defun kiss/internal--pkg-sources-available-p (pkg)
+(defun kiss--pkg-sources-available-p (pkg)
   "(I) Return t if all of the sources for PKG are available locally, nil otherwise."
   (not (member nil (cl-mapcar
                     #'file-exists-p
-                    (kiss/internal--get-pkg-sources-cache-path pkg)))))
+                    (kiss--get-pkg-sources-cache-path pkg)))))
 
-
-(defun kiss/internal--get-type-pkg-sources (pkg)
+(defun kiss--get-type-pkg-sources (pkg)
   "(I) Return a list containing the source type, followed by the source for PKG."
-  (let ((pkg-sources (kiss/internal--get-pkg-sources pkg)))
+  (let ((pkg-sources (kiss--get-pkg-sources pkg)))
     (-zip
-     (mapcar 'kiss/internal--get-pkg-sources-type pkg-sources)
+     (mapcar 'kiss--get-pkg-sources-type pkg-sources)
      pkg-sources)))
 
-(defun kiss/internal--download-pkg-sources (pkg)
+(defun kiss--download-pkg-sources (pkg)
   "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
   (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg "/"))
-         (type-pkg-sources (kiss/internal--get-type-pkg-sources pkg)))
-
+         (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
     (cl-mapcar
      (lambda (tps)
-       (tps-env pkg tps
-                (progn
-                  ;; Make the cache directory if it doesn't already exist.
-                  (if (not (file-exists-p dest-dir))
-                      (make-directory dest-dir))
+       (kiss--tps-env pkg tps
+                      (progn
+                        ;; Make the cache directory if it doesn't already exist.
+                        (if (not (file-exists-p dest-dir))
+                            (make-directory dest-dir))
 
-                  ;; Switch based on the type of source that it is.
-                  (cond
-                   ((string= type "remote")
-                    (kiss/internal--download-remote-source uri dest-dir))
-                   ((string= type "git")
-                    (kiss/internal--download-git-source uri dest-dir))
-                   ((string= type "local")
-                    (if (string-match (rx bol "/") uri)
-                        ;; Absolute path.
-                        (kiss/internal--download-local-source uri dest-dir))
-                    ;; Relative path.
-                    (kiss/internal--download-local-source
-                     (concat (car (kiss/search pkg)) "/" uri) dest-dir))
-                   ))))
-     type-pkg-sources)
-    ))
+                        ;; Switch based on the type of source that it is.
+                        (cond
+                         ((string= type "remote")
+                          (kiss--download-remote-source uri dest-dir))
+                         ((string= type "git")
+                          (kiss--download-git-source uri dest-dir))
+                         ((string= type "local")
+                          (if (string-match (rx bol "/") uri)
+                              ;; Absolute path.
+                              (kiss--download-local-source uri dest-dir))
+                          ;; Relative path.
+                          (kiss--download-local-source
+                           (concat (car (kiss/search pkg)) "/" uri) dest-dir))))))
+     type-pkg-sources)))
+
+;; (kiss--get-pkg-sources "shen-cl")
+;; (concat (car (kiss/search "shen-cl")) "/" "patches/ccl-and-ecl-support.patch"))
+;; (kiss--download-pkg-sources "shen-cl")
 
 ;; pkg_source_tar()
-(defun kiss/internal--extract-tarball (tarball dir)
+(defun kiss--extract-tarball (tarball dir)
   "(I) Extract TARBALL to DIR.  Emulates GNU Tar's --strip-components=1."
-  (let ((decomp-tarball (kiss/internal--make-temp-file)))
+  (let ((decomp-tarball (kiss--make-temp-file)))
     ;; Decompress the tarball.
-    (kiss/internal--decompress tarball decomp-tarball)
+    (kiss--decompress tarball decomp-tarball)
     ;; Extract the tarball.
     (shell-command (concat "tar xf " decomp-tarball " -C " dir))
     ;; Get all of the top level directories from the tarball.
     (cl-mapcar
      (lambda (tld)
-       (let* ((temp-f (kiss/internal--make-temp-file))
+       (let* ((temp-f (kiss--make-temp-file))
               (temp-d (concat temp-f "-" tld)))
          (message "%s" (eq 0
                            (shell-command
@@ -1201,14 +1232,14 @@ as the car, and the packages that depend on it as the cdr."
                 files)))
 
          ;; Make sure to rm the temp file.
-         (kiss/internal--shell-command-as-user
-          (concat "rm -- " temp-f) (kiss/internal--get-owner-name temp-f))
+         (kiss--shell-command-as-user
+          (concat "rm -- " temp-f) (kiss--get-owner-name temp-f))
          ;; Also rm the temp directory.
-         (kiss/internal--shell-command-as-user
-          (concat "rm -rf -- " temp-d) (kiss/internal--get-owner-name temp-d))
-         ))
+         (kiss--shell-command-as-user
+          (concat "rm -rf -- " temp-d) (kiss--get-owner-name temp-d))))
 
      ;; Get a list of all of the top level directories in the tarball.
+     ;; TODO: see if I can remove the pipe into sort.
      (cl-remove-if
       #'string-empty-p
       (string-split
@@ -1216,16 +1247,13 @@ as the car, and the packages that depend on it as the cdr."
         (concat "tar tf " tarball " | sort -ut / -k1,1"))
        "\n")))
 
-    ;; Iterate over all of the directories that we just
-    ;; extracted, each directories contents are moved up a level.
-
     ;; Remove our decompressed tarball now that we are done with it.
-    (kiss/internal--shell-command-as-user
+    (kiss--shell-command-as-user
      (concat "rm -f -- " decomp-tarball)
-     (kiss/internal--get-owner-name decomp-tarball))))
+     (kiss--get-owner-name decomp-tarball))))
 
 ;; pkg_extract() in kiss
-(defun kiss/internal--extract-pkg-sources (pkg dir)
+(defun kiss--extract-pkg-sources (pkg dir)
   "(I) Extract the cached sources of PKG to DIR."
   (cl-mapcar
    (lambda (type-path)
@@ -1241,16 +1269,15 @@ as the car, and the packages that depend on it as the cdr."
         ((string= type "git")
          (shell-command (concat "cp -PRf " cache "/. " outdir)))
 
-        (t (if (kiss/internal--str-tarball-p cache)
-               (kiss/internal--extract-tarball cache outdir)
+        (t (if (kiss--str-tarball-p cache)
+               (kiss--extract-tarball cache outdir)
              (shell-command (concat "cp -PRf " cache " " outdir)))))))
    ;; Get the type of each cached pkg source w/ the source itself.
    (-zip
-    (cl-mapcar (lambda (tps) (cons (car tps) (nth 2 tps))) (kiss/internal--get-type-pkg-sources pkg))
-    (kiss/internal--get-pkg-sources-cache-path pkg))))
+    (cl-mapcar (lambda (tps) (cons (car tps) (nth 2 tps))) (kiss--get-type-pkg-sources pkg))
+    (kiss--get-pkg-sources-cache-path pkg))))
 
-
-(defun kiss/internal--str-tarball-p (str)
+(defun kiss--str-tarball-p (str)
   "(I) Predicate to determine if STR matches the regex for a tarball."
   (string-match-p
    (rx
@@ -1261,20 +1288,27 @@ as the car, and the packages that depend on it as the cdr."
         (: "tar." any any any)
         (: "tar." any any any any)) eol) str))
 
-;; (kiss/internal--str-tarball-p "ball.tar.xz")
-
 ;; -> install      Install packages
 ;; ===========================================================================
 
-(defun kiss/internal--install-tarball (tarball)
+;; (defun kiss--pkg-is-installable-p (pkg)
+;;   "(I) Return t if PKG is installable, nil otherwise."
+;;   ;; A package is installable when the following conditions are met:
+;;   ;; * all of the dependencies for the packge are installed
+;;   (and
+;;    (kiss--pkg-is-installed-p pkg)
+;;    (eq (kiss--get-pkg-hard-dependents pkg) nil)
+;;    (eq (kiss--get-pkg-orphan-alternatives pkg) nil)))
+
+(defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
   ;; FIXME: maybe error out here?
   (if (not (f-exists? tarball))
       nil)
 
-  (let ((proc-dir       (kiss/internal--get-tmp-destdir))
+  (let ((proc-dir       (kiss--get-tmp-destdir))
         (extr-dir       (concat proc-dir "/extracted"))
-        (decomp-tarball (kiss/internal--make-temp-file)))
+        (decomp-tarball (kiss--make-temp-file)))
 
     ;; (split-string
     ;;  (shell-command-to-string (concat "tar tf " tarball)) "\n")
@@ -1287,12 +1321,12 @@ as the car, and the packages that depend on it as the cdr."
     ;; manually here, however when attempting to use it I end
     ;; up getting odd errors likely due to the extra processing that
     ;; occurs.
-    ;; (kiss/internal--extract-tarball tarball proc-dir)
+    ;; (kiss--extract-tarball tarball proc-dir)
 
-    (kiss/internal--decompress tarball decomp-tarball)
+    (kiss--decompress tarball decomp-tarball)
     (shell-command
      (concat "tar xf " decomp-tarball " -C " extr-dir))
-    (kiss/internal--remove-file decomp-tarball)
+    (kiss--remove-file decomp-tarball)
 
     (let ((pkg
            ;; FIXME: this code is ugly
@@ -1304,8 +1338,7 @@ as the car, and the packages that depend on it as the cdr."
                     (lambda (str)
                       (string-match
                        (rx "/var/db/kiss/installed/" (1+ (not "/")) "/" eol) str))
-                    (kiss/internal--get-manifest-for-dir extr-dir)) "/"))
-                 ))))
+                    (kiss--get-manifest-for-dir extr-dir)) "/"))))))
 
       (if (not pkg)
           (error "unable to detemine the package"))
@@ -1330,12 +1363,12 @@ as the car, and the packages that depend on it as the cdr."
              (lambda (fp)
                (or (file-directory-p
                     (concat extr-dir fp))
-                   (kiss/internal--file-exists-p
+                   (kiss--file-exists-p
                     (concat extr-dir fp))))
 
              ;; Yes this code is copied straight from `kiss/manifest',
              ;; I'm hoping to factor it out.
-             (kiss/internal--read-file
+             (kiss--read-file
               (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))))
           (message "kiss/install: manifest is valid!"))
 
@@ -1347,7 +1380,7 @@ as the car, and the packages that depend on it as the cdr."
 
       ;; If the pkg is already installed (and this is an upgrade)
       ;; make a backup of the manifest and etcsum files
-      (if (kiss/internal--pkg-is-installed-p pkg)
+      (if (kiss--pkg-is-installed-p pkg)
           (progn
             (shell-command
              (concat "cp " kiss/installed-db-dir pkg "/manifest"
@@ -1364,9 +1397,8 @@ as the car, and the packages that depend on it as the cdr."
       ;; as we iterate through each item. This is needed so that directories
       ;; are created in the proper order
 
-      )
-    )
-  )
+      ;; FIXME: finish this func
+      nil)))
 
 (defun kiss/install (pkgs-l)
   (interactive)
@@ -1376,27 +1408,25 @@ as the car, and the packages that depend on it as the cdr."
    ((atom pkgs-l)
     ((let* ((tarball
              (cond ((file-exists-p pkgs-l) pkgs-l)
-                   (t (kiss/internal--get-pkg-cached-bin pkgs-l)))))
+                   (t (kiss--get-pkg-cached-bin pkgs-l)))))
        (if (not tarball)
            (error (concat "kiss/install: tarball does not exist for " pkgs-l)))
-       (kiss/internal--install-tarball tarball))))))
+       (kiss--install-tarball tarball))))))
 
-(defun kiss/internal--pkg-is-installed-p (pkg)
+(defun kiss--pkg-is-installed-p (pkg)
   "(I) Return t if PKG is installed, nil otherwise."
   (file-exists-p (concat kiss/installed-db-dir pkg)))
 
-(defun kiss/install-if-not-installed (pkgs-l)
+(defun kiss--install-if-not-installed (pkgs-l)
   "Only install packages in PKGS-L if they are not already installed."
-  (kiss/install (cl-remove-if 'kiss/internal--pkg-is-installed-p pkgs-l)))
-
-;; (kiss/install-if-not-installed '("emacs-git" "glibc" "R" "asdf"))
+  (kiss/install (cl-remove-if 'kiss--pkg-is-installed-p pkgs-l)))
 
 ;; -> list         List installed packages
 ;; ===========================================================================
 
-(defun kiss/internal--get-installed-pkg-version (pkg)
+(defun kiss--get-installed-pkg-version (pkg)
   "(I) Return the version string for PKG, nil if PKG is not installed."
-  (if (kiss/internal--pkg-is-installed-p pkg)
+  (if (kiss--pkg-is-installed-p pkg)
       (let ((pdir (concat kiss/installed-db-dir pkg)))
         (replace-regexp-in-string
          "\n$" ""
@@ -1411,9 +1441,9 @@ as the car, and the packages that depend on it as the cdr."
       (let ((pkgs (nthcdr 2 (directory-files kiss/installed-db-dir))))
         (cl-mapcar (lambda (p)
                      (let ((pdir (concat kiss/installed-db-dir p)))
-                       (list p (kiss/internal--get-installed-pkg-version p))))
+                       (list p (kiss--get-installed-pkg-version p))))
                    pkgs))
-    (list pkg-q (kiss/internal--get-installed-pkg-version pkg-q))))
+    (list pkg-q (kiss--get-installed-pkg-version pkg-q))))
 
 ;; -> remove       Remove packages
 ;; ===========================================================================
@@ -1421,32 +1451,35 @@ as the car, and the packages that depend on it as the cdr."
 ;; TODO: need to account for symlinks w/ (file-symlink-p
 
 ;; FIXME: I think the `-f' flag is required to be added to rm(1).
-(defun kiss/internal--remove-file (file-path)
+(defun kiss--remove-file (file-path)
   "(I) Remove FILE-PATH as the appropriate user using rm(1), t if successful, nil otherwise."
   (if (file-exists-p file-path)
-      (let ((owner (kiss/internal--get-owner-name file-path))
+      (let ((owner (kiss--get-owner-name file-path))
             (rmcmd (concat "rm -- " file-path)))
         (eq 0
-            (if (kiss/internal--am-owner-p file-path)
+            (if (kiss--am-owner-p file-path)
                 (shell-command rmcmd)
-              (kiss/internal--shell-command-as-user rmcmd owner))))))
+              (kiss--shell-command-as-user rmcmd owner))))))
 
-(defun kiss/internal--remove-directory (dir-path)
+(defun kiss--remove-directory (dir-path)
   "(I) Remove DIR-PATH as the appropriate user using rmdir(1), t if successful, nil otherwise."
   (if (and (file-directory-p dir-path)
            (not (file-symlink-p dir-path)))
-      (let ((owner (kiss/internal--get-owner dir-path))
+      (let ((owner (kiss--get-owner-name dir-path))
             (rmcmd (concat "rmdir -- " dir-path)))
         (eq 0
-            (if (kiss/internal--am-owner-p dir-path)
+            (if (kiss--am-owner-p dir-path)
                 (shell-command rmcmd)
-              (kiss/internal--shell-command-as-user rmcmd owner))))))
+              (kiss--shell-command-as-user rmcmd owner))))))
 
-(defun kiss/internal--remove-files (file-path-lst)
+(defun kiss--remove-files (file-path-lst)
   "(I) Remove all files and empty directories in FILE-PATH-LST."
 
   ;; FIXME: does *not* take all cases into account yet, do NOT
   ;; use
+
+  ;; FIXME: need to investigate if this function needs my custom 'file-exists-p'
+  ;; predicate.
 
   ;; This will return all of the /etc files/dirs.
   ;; (cl-remove-if-not
@@ -1469,13 +1502,13 @@ as the car, and the packages that depend on it as the cdr."
 
         ((and (file-directory-p file-path)
               (not (file-symlink-p file-path)))
-         (kiss/internal--remove-directory file-path))
+         (kiss--remove-directory file-path))
 
         ((file-symlink-p file-path)
          (setq symlink-queue (cons file-path symlink-queue)))
 
         ((file-exists-p file-path)
-         (kiss/internal--remove-file file-path))
+         (kiss--remove-file file-path))
 
         (t nil)))
      file-path-lst)
@@ -1483,15 +1516,23 @@ as the car, and the packages that depend on it as the cdr."
     (cl-mapcar
      (lambda (sym)
        (if (file-exists-p sym)
-           (kiss/internal--remove-file sym)))
-     symlink-queue)
-    ))
+           (kiss--remove-file sym)))
+     symlink-queue)))
 
-;; (let ((pkg "xdo"))
-;;   (if (kiss/internal--pkg-is-removable-p pkg)
-;;       (kiss/internal--remove-files
-;;        (kiss/manifest pkg))))
-
+;; (mapconcat #'identity
+;;            (cl-mapcar
+;;             (lambda (file-path)
+;;               (cond
+;;                ((and (file-directory-p file-path)
+;;                      (not (file-symlink-p file-path)))
+;;                 "dir")
+;;                ((file-symlink-p file-path)
+;;                 "sym")
+;;                ((file-exists-p file-path)
+;;                 "file")
+;;                (t nil)))
+;;             (kiss/manifest "xdo"))
+;;            " ")
 
 (defun kiss/remove (pkgs-l)
   (interactive)
@@ -1499,13 +1540,12 @@ as the car, and the packages that depend on it as the cdr."
   (cond ((listp pkgs-l)
          (cl-mapcar #'kiss/remove
                     (reverse
-                     (kiss/internal--get-pkg-order pkgs-l))))
+                     (kiss--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
-         (if (kiss/internal--pkg-is-removable-p pkgs-l)
-             (kiss/internal--remove-files
+         (if (kiss--pkg-is-removable-p pkgs-l)
+             (kiss--remove-files
               (kiss/manifest pkgs-l))))
         (t nil)))
-
 
 ;; -> search       Search for packages
 ;; ===========================================================================
@@ -1521,49 +1561,46 @@ as the car, and the packages that depend on it as the cdr."
 
 ;; FIXME: see if Emacs has something built-in to do most of this (vc.el).
 
-(defun kiss/internal--dir-is-git-repo-p (dir)
+(defun kiss--dir-is-git-repo-p (dir)
   "(I) Return t if DIR is a git repo, nil otherwise."
   (eq 0 (shell-command (concat "git -C " dir " rev-parse 'HEAD@{upstream}'"))))
 
-(defun kiss/internal--git-subm-superproject-dir (dir)
+(defun kiss--git-subm-superproject-dir (dir)
   "(I) Return the directory for a git submodule's (DIR) superproject."
   (replace-regexp-in-string
    "\n$" ""
    (shell-command-to-string
     (concat "git -C " dir " rev-parse --show-superproject-working-tree"))))
 
-(defun kiss/internal--dir-is-git-subm-p (dir)
+(defun kiss--dir-is-git-subm-p (dir)
   "(I) Return t if DIR is a git submodule, nil otherwise."
-  (not (string-empty-p (kiss/internal--git-subm-superproject-dir dir))))
+  (not (string-empty-p (kiss--git-subm-superproject-dir dir))))
 
-;; (kiss/internal--dir-is-git-subm-p "/home/ethan/git/uni/fbsd-repo/repo-xorg")
-;; (kiss/internal--dir-is-git-subm-p "/home/ethan/git/uni/fbsd-repo/core")
-
-(defun kiss/internal--get-git-dir-toplevel (dir)
+(defun kiss--get-git-dir-toplevel (dir)
   "(I) Return the toplevel directory for a git repo, of which DIR is a subdir."
-  (let* ((dir-is-subm-p (kiss/internal--dir-is-git-subm-p dir))
+  (let* ((dir-is-subm-p (kiss--dir-is-git-subm-p dir))
          (repo (if dir-is-subm-p
-                   (kiss/internal--git-subm-superproject-dir dir)
+                   (kiss--git-subm-superproject-dir dir)
                  dir)))
     (replace-regexp-in-string
      "\n$" ""
      (shell-command-to-string
       (concat "git -C " repo " rev-parse --show-toplevel")))))
 
-(defun kiss/internal--kiss-path-git-repos ()
+(defun kiss--kiss-path-git-repos ()
   "(I) Return only the repos in `kiss/KISS_PATH' that are git repos."
-  (cl-remove-if-not 'kiss/internal--dir-is-git-repo-p kiss/KISS_PATH))
+  (cl-remove-if-not 'kiss--dir-is-git-repo-p kiss/KISS_PATH))
 
-(defun kiss/internal--update-git-repos ()
+(defun kiss--update-git-repos ()
   "(I) Update all git repos in `kiss/KISS_PATH'."
   (let ((git-repos (delete-dups
-                    (cl-mapcar 'kiss/internal--get-git-dir-toplevel
-                               (kiss/internal--kiss-path-git-repos)))))
+                    (cl-mapcar 'kiss--get-git-dir-toplevel
+                               (kiss--kiss-path-git-repos)))))
     (dolist (repo git-repos)
       (message (concat "kiss/update: Updating " repo))
       ;; FIXME: prevent this from stalling Emacs.
-      (let ((repo-owner   (kiss/internal--get-owner-name repo))
-            (am-owner-p   (kiss/internal--am-owner-p repo))
+      (let ((repo-owner   (kiss--get-owner-name repo))
+            (am-owner-p   (kiss--am-owner-p repo))
             (git-pull-cmd (concat "git -C " repo " pull" ))
             (git-subm-cmd (concat "git -C " repo " submodule update --remote --init -f")))
         (if am-owner-p
@@ -1571,13 +1608,13 @@ as the car, and the packages that depend on it as the cdr."
               (shell-command git-pull-cmd)
               (shell-command git-subm-cmd))
           (progn
-            (kiss/internal--shell-command-as-user git-pull-cmd repo-owner)
-            (kiss/internal--shell-command-as-user git-subm-cmd repo-owner)))))))
+            (kiss--shell-command-as-user git-pull-cmd repo-owner)
+            (kiss--shell-command-as-user git-subm-cmd repo-owner)))))))
 
 ;; TODO: Rethink how to integrate this.
-;; (defun kiss/internal--print-git-repo-MOTD ()
+;; (defun kiss--print-git-repo-MOTD ()
 ;;   "(I) Print out all of the MOTDs from each git repo."
-;;   (let ((git-repos (delete-dups (cl-mapcar 'kiss/internal--get-git-dir-toplevel (kiss/internal--kiss-path-git-repos)))))
+;;   (let ((git-repos (delete-dups (cl-mapcar 'kiss--get-git-dir-toplevel (kiss--kiss-path-git-repos)))))
 ;;     (dolist (repo git-repos)
 ;;       (if (file-exists-p (concat repo "/MOTD"))
 ;;           (shell-command-to-string (concat "cat " repo "/MOTD"))))))
@@ -1585,32 +1622,59 @@ as the car, and the packages that depend on it as the cdr."
 (defun kiss/update ()
   (interactive)
   (message "kiss/update")
-  (kiss/internal--update-git-repos))
+  (kiss--update-git-repos))
 ;; (async-shell-command "KISS_PROMPT=0 kiss update"))
 
 ;; -> upgrade      Update the system
 ;; ===========================================================================
 
-(defun kiss/internal--pkg-remote-eq-pkg-local-p (pkg)
+(defun kiss--pkg-remote-eq-pkg-local-p (pkg)
   "(I) Return t if the version of PKG is the same locally and from the remotes."
   (string=
-   (kiss/internal--sanitize-ver-str
+   (kiss--sanitize-ver-str
     (f-read-text (concat (car (kiss/search pkg)) "/version")))
-   (kiss/internal--sanitize-ver-str
-    (kiss/internal--get-installed-pkg-version pkg))))
-
+   (kiss--sanitize-ver-str
+    (kiss--get-installed-pkg-version pkg))))
 
 ;; TODO: consider making this *not* internal.
-(defun kiss/internal--get-out-of-date-pkgs ()
+(defun kiss--get-out-of-date-pkgs ()
   "(I) Return a list of PKGS that are out of date."
-  (cl-remove-if 'kiss/internal--pkg-remote-eq-pkg-local-p
+  (cl-remove-if 'kiss--pkg-remote-eq-pkg-local-p
                 (cl-mapcar 'car (kiss/list))))
 
 (defun kiss/upgrade ()
   (interactive)
-  (async-shell-command "KISS_PROMPT=0 kiss Upgrade"))
 
-(defun kiss/internal--pkgs-without-repo ()
+  (let* ((oodpkgs (kiss--get-out-of-date-pkgs)))
+    ;; FIXME: need to move this step to the actual building of the pkg
+    ;; Need to check if kiss is being updated, since we need to make sure
+    ;; to install it *first*, because it may have bug fixes/breaking changes.
+
+    ;; NOTE: need think about how we will deal with a kiss update from
+    ;; kiss.el's perspective.
+    ;; (if (member "kiss" oodpkgs)
+    ;;     (kiss/build-install "kiss"))
+
+    ;; Now that we potentially have kiss updated, we need to now update
+    ;; the packages in oodpkgs in the proper order.
+    ;; This should prevent us from having to do any backtracking
+    ;; as well, since we are always going to build the packages in the order
+    ;; that they are required for.
+
+    ;; (mapcar #'kiss/build-install
+    ;;         (kiss--get-pkg-order oodpkgs))
+    oodpkgs))
+
+;; (let ((pkgs (kiss--get-out-of-date-pkgs)))
+;; ;; If kiss is a member of the pkgs to be updated, make sure to update
+;; ;; it first.
+;; (if (member "kiss" pkgs)
+;;     (progn
+;;       (kiss/download "kiss")
+;;       (kiss/build    "kiss")
+;;       (kiss/install  "kiss")))
+
+(defun kiss--pkgs-without-repo ()
   "(I) Return all packages that are installed that are not in a remote repo."
   (let ((pkgs-l (mapcar 'car (kiss/list))))
     (cl-remove-if-not
@@ -1625,11 +1689,31 @@ as the car, and the packages that depend on it as the cdr."
              (kiss/search p)))))
      pkgs-l)))
 
-(defun kiss/internal--get-pkg-order (pkgs-lst)
+;; NOTE: it may be possible to make the future version that uses
+;; the elisp tsort impl much faster than how it currently is,
+;; since we can remove all verticies from the dependency graph
+;; which aren't explicitly mentioned
+;; TODO: look into this function when it comes time to optimize.
+;; FIXME: add in a fast path for lists of 1 - can just return the
+;; list
+(defun kiss--get-pkg-order (pkgs-lst)
   "(I) Get the proper build order for the packages in PKGS-LST."
   (cl-remove-if-not
    (lambda (pkg) (member pkg pkgs-lst))
-   (kiss/internal--get-pkg-dependency-order pkgs-lst)))
+   (kiss--get-pkg-dependency-order pkgs-lst)))
+
+;; This returns the proper order to build all of the out of date packages.
+;; (kiss--get-pkg-order (kiss--get-out-of-date-pkgs))
+;; (benchmark-elapse
+;;   (kiss--get-pkg-order '("blender" "rust" "llvm" "ghc" "zig" "lld")))
+
+;; Little snippet to get a list of all of the installed git-version packages.
+;; (benchmark-elapse
+;;   (cl-remove-if-not
+;;    (lambda (pair)
+;;      (let ((ver (car (cdr pair))))
+;;        (string-match "git" ver)))
+;;    (kiss/list)))
 
 ;; -> version      Package manager version
 ;; SEE const.
