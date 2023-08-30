@@ -174,18 +174,18 @@
 ;; (user-real-uid) -> get the current uid
 
 (defun kiss/internal--get-owner (file-path)
-  "(I) Return the owner of FILE-PATH."
-  (nth 2
-       (string-split
-        (shell-command-to-string (concat "ls -ld " file-path))
-        " ")))
+  "(I) Return the owner uid of FILE-PATH."
+  (file-attribute-user-id (file-attributes file-path)))
 
-;; FIXME: will need to update w/ using the userid instead of
-;; using LOGNAME
+(defun kiss/internal--get-owner-name (file-path)
+  "(I) Return the owner name of FILE-PATH."
+  (kiss/internal--get-user-from-uid
+   (kiss/internal--get-owner file-path)))
+
 (defun kiss/internal--am-owner-p (file-path)
   "(I) Return t if the current LOGNAME owns the FILE-PATH, nil otherwise."
-  (string=
-   (getenv "LOGNAME")
+  (eql
+   (user-real-uid)
    (kiss/internal--get-owner file-path)))
 
 (defun kiss/internal--shell-command-as-user (command user)
@@ -261,7 +261,7 @@
   ;; TODO: test this to make sure it is correct.
   (let* ((manifest-f (concat kiss/installed-db-dir pkg "/manifest"))
          (temp-f     (kiss/internal--make-temp-file))
-         (owner      (kiss/internal--get-owner manifest-f))
+         (owner      (kiss/internal--get-owner-name manifest-f))
          (manifest-t (kiss/internal--manifest-to-string
                       (reverse
                        (cl-sort
@@ -273,6 +273,7 @@
 
     ;; TODO: see if this can be avoided.
     ;; Ensure the ownership is preserved.
+    ;; NOTE: chown can work with uids instead of names
     (kiss/internal--shell-command-as-user
      (concat "chown " owner ":" owner " " temp-f) owner)
     ;; Ensure the permissions are set correctly.
@@ -325,7 +326,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                      (concat "cp -Pf " path " "
                              (kiss/internal--single-quote-string
                               (concat kiss/choices-db-dir path-own alt)))
-                     (kiss/internal--get-owner path))
+                     (kiss/internal--get-owner-name path))
 
                     ;; Update the manifest file to reflect the new version.
                     (kiss/internal--pkg-manifest-replace
@@ -334,7 +335,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
               (kiss/internal--shell-command-as-user
                (concat "mv -f " (kiss/internal--single-quote-string alt-path)
                        " " path)
-               (kiss/internal--get-owner path))
+               (kiss/internal--get-owner-name path))
               (kiss/internal--pkg-manifest-replace pkg alt-path path))))))
 
 
@@ -1201,10 +1202,10 @@ as the car, and the packages that depend on it as the cdr."
 
          ;; Make sure to rm the temp file.
          (kiss/internal--shell-command-as-user
-          (concat "rm -- " temp-f) (kiss/internal--get-owner temp-f))
+          (concat "rm -- " temp-f) (kiss/internal--get-owner-name temp-f))
          ;; Also rm the temp directory.
          (kiss/internal--shell-command-as-user
-          (concat "rm -rf -- " temp-d) (kiss/internal--get-owner temp-d))
+          (concat "rm -rf -- " temp-d) (kiss/internal--get-owner-name temp-d))
          ))
 
      ;; Get a list of all of the top level directories in the tarball.
@@ -1221,7 +1222,7 @@ as the car, and the packages that depend on it as the cdr."
     ;; Remove our decompressed tarball now that we are done with it.
     (kiss/internal--shell-command-as-user
      (concat "rm -f -- " decomp-tarball)
-     (kiss/internal--get-owner decomp-tarball))))
+     (kiss/internal--get-owner-name decomp-tarball))))
 
 ;; pkg_extract() in kiss
 (defun kiss/internal--extract-pkg-sources (pkg dir)
@@ -1423,7 +1424,7 @@ as the car, and the packages that depend on it as the cdr."
 (defun kiss/internal--remove-file (file-path)
   "(I) Remove FILE-PATH as the appropriate user using rm(1), t if successful, nil otherwise."
   (if (file-exists-p file-path)
-      (let ((owner (kiss/internal--get-owner file-path))
+      (let ((owner (kiss/internal--get-owner-name file-path))
             (rmcmd (concat "rm -- " file-path)))
         (eq 0
             (if (kiss/internal--am-owner-p file-path)
@@ -1561,7 +1562,7 @@ as the car, and the packages that depend on it as the cdr."
     (dolist (repo git-repos)
       (message (concat "kiss/update: Updating " repo))
       ;; FIXME: prevent this from stalling Emacs.
-      (let ((repo-owner   (kiss/internal--get-owner repo))
+      (let ((repo-owner   (kiss/internal--get-owner-name repo))
             (am-owner-p   (kiss/internal--am-owner-p repo))
             (git-pull-cmd (concat "git -C " repo " pull" ))
             (git-subm-cmd (concat "git -C " repo " submodule update --remote --init -f")))
