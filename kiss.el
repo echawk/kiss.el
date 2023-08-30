@@ -497,7 +497,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                   (dep-deps (kiss--get-pkg-dependencies dep)))
              (let ((item `(,dep ,dep-deps)))
                (if (not (member item res))
-                   (kiss--get-pkg-dependency-graph-impl
+                   (kiss--get-pkg-dependency-graph-rec
                     (append dep-deps (cdr queue))
                     (cons dep seen)
                     (cons item res)))))
@@ -907,7 +907,7 @@ as the car, and the packages that depend on it as the cdr."
 ;; FIXME: add in checks to the appropriate places.
 (defun kiss--build-install (pkg)
   "(I) Attempt to build and install PKG, nil if unsuccessful."
-  (if (kiss--build-pkg)
+  (if (kiss/build pkg)
       (kiss/install pkg)))
 
 (defun kiss--try-install-build (pkg)
@@ -1117,7 +1117,7 @@ as the car, and the packages that depend on it as the cdr."
     ;; that it's not.
     (if (not (file-exists-p uri))
         (shell-command
-         (concat "cp " file-path
+         (concat "cp " uri
                  " " (concat dest-dir file-name))))))
 
 (defun kiss--get-pkg-sources-cache-path (pkg)
@@ -1306,9 +1306,9 @@ as the car, and the packages that depend on it as the cdr."
   (if (not (f-exists? tarball))
       nil)
 
-  (let ((proc-dir       (kiss--get-tmp-destdir))
-        (extr-dir       (concat proc-dir "/extracted"))
-        (decomp-tarball (kiss--make-temp-file)))
+  (let* ((proc-dir       (kiss--get-tmp-destdir))
+         (extr-dir       (concat proc-dir "/extracted"))
+         (decomp-tarball (kiss--make-temp-file)))
 
     ;; (split-string
     ;;  (shell-command-to-string (concat "tar tf " tarball)) "\n")
