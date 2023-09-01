@@ -56,6 +56,9 @@
 ;; messages is also useful more generally as it allows you to see what
 ;; exactly the package manager is doing at any given time.
 
+;; TODO: remove dependency on 'cl-lib, and replace all relevant
+;; calls either with dash.el, or with seq.
+
 ;; FIXME: in addition to these messages, there also needs to be
 ;; assertions/error checking done throughout the code.
 
@@ -70,6 +73,7 @@
   (require 'cl-lib)
   (require 'f)
   (require 'rx)
+  (require 'seq)
   (require 'subp))
 
 ;; FIXME: Find out what the containing group should be...
@@ -96,21 +100,21 @@
   "The version of kiss that kiss.el is compatible with.")
 
 (defcustom kiss/KISS_GET
-  (car (cl-remove-if-not 'executable-find
-                         '("aria2c" "axel" "curl" "wget" "wget2")))
+  (car (seq-filter 'executable-find
+                   '("aria2c" "axel" "curl" "wget" "wget2")))
   "The utility for downloading http sources."
   :type 'string)
 
 (defcustom kiss/KISS_CHK
-  (car (cl-remove-if-not 'executable-find
-                         '("openssl" "sha256sum" "sha256" "shasum" "digest")))
+  (car (seq-filter 'executable-find
+                   '("openssl" "sha256sum" "sha256" "shasum" "digest")))
   "The utility for computing SHA256 checksums."
   :type 'string)
 
 ;; FIXME: Using 'su' is currently not supported by this package manager.
 (defcustom kiss/KISS_SU
-  (car (cl-remove-if-not 'executable-find
-                         '("ssu" "sudo" "doas" "su")))
+  (car (seq-filter 'executable-find
+                   '("ssu" "sudo" "doas" "su")))
   "The utility that will be used to elevate priviledges."
   :type 'string)
 
@@ -150,7 +154,7 @@
 ;; code to be used other places too
 (defun kiss--read-file (file-path)
   "(I) Read FILE-PATH as a list of lines, with empty newlines removed."
-  (cl-remove-if
+  (seq-remove
    (lambda (s) (string= "" s))
    (string-split (f-read-text file-path) "\n")))
 
@@ -445,7 +449,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies."
   (let ((depends-file (concat (car (kiss/search pkg)) "/depends")))
     (if (file-exists-p depends-file)
-        (cl-remove-if
+        (seq-remove
          #'string-empty-p
          ;; All of this below is to emulate `awk '{print $1}' < file'
          (mapcar (lambda (s) (car (string-split s " ")))
@@ -473,7 +477,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         (seen '())
         (res '()))
     (while queue
-      (setq queue (cl-remove-if (lambda (e) (member e seen)) queue))
+      (setq queue (seq-remove (lambda (e) (member e seen)) queue))
       (if (car queue)
           (progn
             (setq seen (cons (car queue) seen))
@@ -504,12 +508,12 @@ as the car, and the packages that depend on it as the cdr."
      (let ((pkg (car pair)))
        (list
         pkg
-        (cl-remove-if-not
+        (seq-filter
          #'identity
-         (cl-mapcar
+         (mapcar
           (lambda (pair) (if (member pkg (cadr pair)) (car pair)))
-          (cl-remove-if (lambda (e) (equal pair e))
-                        pkg-depgraph))))))
+          (seq-remove (lambda (e) (equal pair e))
+                      pkg-depgraph))))))
    pkg-depgraph))
 
 (defun kiss--dependency-graph-to-tsort (pkg-depgraph)
@@ -531,15 +535,15 @@ as the car, and the packages that depend on it as the cdr."
 
 (defun kiss--get-pkg-dependency-order (pkg-lst)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
-  (cl-remove-if #'string-empty-p
-                (string-split
-                 (shell-command-to-string
-                  (concat "printf '"
-                          (kiss--get-pkg-tsort-graph pkg-lst)
-                          "'"
-                          " | "
-                          " tsort "))
-                 "\n")))
+  (seq-remove #'string-empty-p
+              (string-split
+               (shell-command-to-string
+                (concat "printf '"
+                        (kiss--get-pkg-tsort-graph pkg-lst)
+                        "'"
+                        " | "
+                        " tsort "))
+               "\n")))
 
 ;; TODO: make the output list prettier (ie, should be a list of pkgs,
 ;; not depends files)
@@ -552,11 +556,11 @@ as the car, and the packages that depend on it as the cdr."
       (replace-regexp-in-string
        kiss/installed-db-dir ""
        dep-file)))
-   (cl-remove-if-not
+   (seq-filter
     (lambda (depfile)
       (string-match (rx bol (literal pkg) (one-or-more " ") (literal "make"))
                     (f-read-text depfile)))
-    (cl-remove-if-not
+    (seq-filter
      #'file-exists-p
      (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
              (nthcdr 2 (directory-files kiss/installed-db-dir)))))))
@@ -586,11 +590,11 @@ as the car, and the packages that depend on it as the cdr."
       (replace-regexp-in-string
        kiss/installed-db-dir ""
        dep-file)))
-   (cl-remove-if-not
+   (seq-filter
     (lambda (depfile)
       (string-match (rx bol (literal pkg) (zero-or-more " ") eol)
                     (f-read-text depfile)))
-    (cl-remove-if-not
+    (seq-filter
      #'file-exists-p
      (mapcar (lambda (p) (concat kiss/installed-db-dir p "/depends"))
              (nthcdr 2 (directory-files kiss/installed-db-dir)))))))
@@ -599,7 +603,7 @@ as the car, and the packages that depend on it as the cdr."
 
 (defun kiss--get-pkg-missing-dependencies (pkg)
   "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
-  (cl-remove-if
+  (seq-remove
    #'kiss--pkg-is-installed-p
    (delete-dups
     (flatten-list
@@ -612,7 +616,7 @@ as the car, and the packages that depend on it as the cdr."
 (defun kiss--get-pkg-orphan-alternatives (pkg)
   "(I) Return a list of orphaned alternatives that would result from removing PKG."
   (let ((orphaned-alternatives
-         (cl-remove-if-not
+         (seq-filter
           (lambda (pair) (seq-contains-p pair pkg))
           (kiss/preferred))))
     ;; Return the files associated with PKG.
@@ -656,7 +660,7 @@ as the car, and the packages that depend on it as the cdr."
   "(I) Return a kiss compatible manifest for DIR."
   (let ((files-and-dirs
          ;; find cmd
-         (cl-mapcar
+         (mapcar
           (lambda (file-path)
             (let ((cfp (replace-regexp-in-string dir "" file-path)))
               (cond
@@ -1221,7 +1225,7 @@ as the car, and the packages that depend on it as the cdr."
 
      ;; Get a list of all of the top level directories in the tarball.
      ;; TODO: see if I can remove the pipe into sort.
-     (cl-remove-if
+     (seq-remove
       #'string-empty-p
       (string-split
        (shell-command-to-string
@@ -1400,7 +1404,7 @@ as the car, and the packages that depend on it as the cdr."
 
 (defun kiss--install-if-not-installed (pkgs-l)
   "Only install packages in PKGS-L if they are not already installed."
-  (kiss/install (cl-remove-if 'kiss--pkg-is-installed-p pkgs-l)))
+  (kiss/install (seq-remove 'kiss--pkg-is-installed-p pkgs-l)))
 
 ;; -> list         List installed packages
 ;; ===========================================================================
@@ -1532,10 +1536,10 @@ as the car, and the packages that depend on it as the cdr."
 ;; ===========================================================================
 (defun kiss/search (q)
   (interactive "sQuery: ")
-  (cl-remove-if-not 'file-exists-p
-                    (mapcar (lambda (repo) (concat repo "/" q))
-                            `(,@kiss/KISS_PATH
-                              ,kiss/installed-db-dir))))
+  (seq-filter 'file-exists-p
+              (mapcar (lambda (repo) (concat repo "/" q))
+                      `(,@kiss/KISS_PATH
+                        ,kiss/installed-db-dir))))
 
 ;; -> update       Update the repositories
 ;; ===========================================================================
@@ -1570,7 +1574,7 @@ as the car, and the packages that depend on it as the cdr."
 
 (defun kiss--kiss-path-git-repos ()
   "(I) Return only the repos in `kiss/KISS_PATH' that are git repos."
-  (cl-remove-if-not 'kiss--dir-is-git-repo-p kiss/KISS_PATH))
+  (seq-filter 'kiss--dir-is-git-repo-p kiss/KISS_PATH))
 
 (defun kiss--update-git-repos ()
   "(I) Update all git repos in `kiss/KISS_PATH'."
@@ -1620,8 +1624,8 @@ as the car, and the packages that depend on it as the cdr."
 ;; TODO: consider making this *not* internal.
 (defun kiss--get-out-of-date-pkgs ()
   "(I) Return a list of PKGS that are out of date."
-  (cl-remove-if 'kiss--pkg-remote-eq-pkg-local-p
-                (cl-mapcar 'car (kiss/list))))
+  (seq-remove 'kiss--pkg-remote-eq-pkg-local-p
+              (cl-mapcar 'car (kiss/list))))
 
 (defun kiss/upgrade ()
   (interactive)
@@ -1658,14 +1662,14 @@ as the car, and the packages that depend on it as the cdr."
 (defun kiss--pkgs-without-repo ()
   "(I) Return all packages that are installed that are not in a remote repo."
   (let ((pkgs-l (mapcar 'car (kiss/list))))
-    (cl-remove-if-not
+    (seq-filter
      (lambda (p)
        ;; Naturally, anything that was only *installed* will have 0 other
        ;; occurances.
        (eq 0
            (length
             ;; Remove the installed-db-dir *repo* from the list.
-            (cl-remove-if
+            (seq-remove
              (lambda (repo) (string-match-p kiss/installed-db-dir repo))
              (kiss/search p)))))
      pkgs-l)))
@@ -1679,7 +1683,7 @@ as the car, and the packages that depend on it as the cdr."
 ;; list
 (defun kiss--get-pkg-order (pkgs-lst)
   "(I) Get the proper build order for the packages in PKGS-LST."
-  (cl-remove-if-not
+  (seq-filter
    (lambda (pkg) (member pkg pkgs-lst))
    (kiss--get-pkg-dependency-order pkgs-lst)))
 
