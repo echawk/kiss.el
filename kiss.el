@@ -862,12 +862,29 @@ as the car, and the packages that depend on it as the cdr."
                     ;; Next, create the manifest
                     (f-write-text
                      (kiss--manifest-to-string manifest-lst)
-                     'utf-8 (concat pkg-install-db pkg "/manifest"))))
+                     'utf-8 (concat pkg-install-db pkg "/manifest")))
 
-                ;; FIXME: need to optionally strip the binaries based off
-                ;; of the KISS_STRIP env variable.
+                  ;; FIXME: need to optionally strip the binaries based off
+                  ;; of the KISS_STRIP env variable.
 
-                ;; FIXME: also need to do dependency fixing
+                  ;; TODO: finish up this impl.
+                  ;; FIXME: also need to do dependency fixing
+                  (seq-filter
+                   (lambda (file-path)
+                     (string-match-p
+                      (rx
+                       (or
+                        (: (0+ any) "/sbin")
+                        (: (0+ any) "/bin")
+                        (: (0+ any) "/lib")
+                        (: (0+ any) "/lib" any any )
+                        (: (0+ any) "/lib" any any any )
+                        (: (0+ any) "/lib" any any any any ))
+                       "/"
+                       (0+ any)
+                       (1+ (not "/")) eol)
+                      file-path))
+                   (kiss--read-file (concat pkg-install-db pkg "/manifest"))))
 
                 ;; Finally create the tarball
                 (message (concat "Creating tarball for " pkg))
