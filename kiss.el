@@ -485,25 +485,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
               (setq queue (append dep-deps (cdr queue)))))))
     res))
 
-;; FIXME: incorrect atm.
-(defun kiss--get-pkg-dependency-graph-rec (queue seen res)
-  "(I) Recursive implementation of `kiss--get-pkg-dependency-graph', may replace it."
-  (message "%s" res)
-  (if queue
-      (if (not (member (car queue) seen))
-          (let* ((dep (car queue))
-                 (dep-deps (kiss--get-pkg-dependencies dep)))
-            (let ((item `(,dep ,dep-deps)))
-              (if (not (member item res))
-                  (kiss--get-pkg-dependency-graph-rec
-                   (append dep-deps (cdr queue))
-                   (cons dep seen)
-                   (cons item res))))))
-    res))
-
-
 ;; (length  (kiss--get-pkg-dependency-graph '("gcc")))
-;; (length  (kiss--get-pkg-dependency-graph-rec '("gcc") '() '()))
 
 ;; (kiss--get-pkg-dependency-graph '("kiss" "cmake"))
 ;; (kiss--get-pkg-dependency-order "cmake")
@@ -535,7 +517,7 @@ as the car, and the packages that depend on it as the cdr."
   (let ((print-pair
          (lambda (pair)
            (if (cadr pair)
-               (mapconcat (lambda (p) (message "%s %s" p (car pair)))
+               (mapconcat (lambda (p) (concat p " " (car pair)))
                           (cadr pair) "\n")))))
     (let ((pair-str
            (funcall print-pair pkg-depgraph)))
