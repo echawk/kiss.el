@@ -68,6 +68,9 @@
 
 ;; https://www.emacswiki.org/emacs/UnitTesting
 
+;; Fun little piece of trivia for the KISS Linux veterans out there:
+;; https://github.com/dylanaraps/community/commit/e370a224520d07e6e42ba045845674b39dea03a4
+
 ;;; Code:
 (eval-when-compile
   (require 'cl-lib)
