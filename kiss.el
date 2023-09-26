@@ -466,11 +466,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; could be written in a more functional style, so as to allow
 ;; eaiser porting of the logic to other functional programming
 ;; languages.
-;; FIXME: add in the ability to support passing in a list of
-;; packages to this function, since it would *greatly* reduce
-;; the amount of time spent checking for dependencies.
-;; Also it should be somewhat easy to implement + make the code
-;; that depends on this code simpler. win-win
 (defun kiss--get-pkg-dependency-graph (pkg-lst)
   "(I) Generate a graph of the dependencies for PKG-LST."
   (let ((queue
