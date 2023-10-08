@@ -773,6 +773,59 @@ as the car, and the packages that depend on it as the cdr."
       file-path))
    file-path-lst))
 
+(defun kiss--get-potential-binary-files-fast (file-path-lst)
+  "A *much* faster version of kiss--get-potential-binary-files.
+
+Takes the same argument as the other function, a FILE-PATH-LST.
+
+Not yet the default, since I have not yet been able to confirm that
+this implementation will always result in exactly the same files
+as the other implementation.  It is important to note though, that at
+least with chromium, as well as some other test packages, the lists
+are the same."
+  ;; First, we need to detect all of the potenial names for 'lib'
+  ;; This inolves us doing a pretty liberal string match, which
+  ;; after we get the relevant lines, we extract the symbol name
+  ;; that we are interested in.
+  (let ((lib-symbols
+         (delete-dups
+          (mapcar
+           #'intern
+           (flatten-list
+            (mapcar (lambda (l)
+                      (seq-filter
+                       (lambda (s) (string-match-p "lib.?.?.?.?" s)) l))
+                    (mapcar
+                     (lambda (s) (string-split s "/"))
+                     (seq-filter
+                      (lambda (s) (string-match-p "/lib.?.?.?.?/$" s))
+                      mani))))))))
+    (let ((found-files
+           ;; This is the code to approximate the rx or match.
+           (seq-filter (lambda (l)
+                         (and
+                          (or
+                           (seq-contains-p l 'sbin)
+                           (seq-contains-p l 'bin)
+                           ;; NOTE: may ned to double check the logic
+                           ;; on this remove - may need to actually
+                           ;; check for this to be non-nil?
+                           (remove nil (mapcar (lambda (libs) (member libs l))
+                                               lib-symbols)))
+                          (not (eq '## (car (reverse l))))))
+
+                       ;; Here is where the big speed up is.
+                       ;; Instead of comparing strings, which is slow
+                       ;; all the time always (except maybe in snobol4...)
+                       ;; we convert our file path strings into lists
+                       ;; of symbols, which are much, much faster to act on.
+                       (mapcar
+                        (lambda (fp) (mapcar #'intern (cdr (string-split fp "/"))))
+                        file-path-lst))))
+      (mapcar
+       (lambda (ff) (concat "/" (mapconcat #'symbol-name ff "/")))
+       found-files))))
+
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: should try to see what functionality I can move out of this
 ;; function
