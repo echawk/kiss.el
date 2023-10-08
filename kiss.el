@@ -871,13 +871,11 @@ as the car, and the packages that depend on it as the cdr."
                    (lambda (file-path)
                      (string-match-p
                       (rx
+                       (0+ any)
                        (or
-                        (: (0+ any) "/sbin")
-                        (: (0+ any) "/bin")
-                        (: (0+ any) "/lib")
-                        (: (0+ any) "/lib" any any )
-                        (: (0+ any) "/lib" any any any )
-                        (: (0+ any) "/lib" any any any any ))
+                        (: "/sbin")
+                        (: "/bin")
+                        (: "/lib" (? (** 2 4 any))))
                        "/"
                        (0+ any)
                        (1+ (not "/")) eol)
