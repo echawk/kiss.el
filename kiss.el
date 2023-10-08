@@ -756,6 +756,23 @@ as the car, and the packages that depend on it as the cdr."
                (kiss--get-compression-command)
                " > " file-path))))
 
+(defun kiss--get-potential-binary-files (file-path-lst)
+  "(I) Return a list of files in FILE-PATH-LST that `strip` or `ldd` could use."
+  (seq-filter
+   (lambda (file-path)
+     (string-match-p
+      (rx
+       (0+ any)
+       (or
+        (: "/sbin")
+        (: "/bin")
+        (: "/lib" (? (** 2 4 any))))
+       "/"
+       (0+ any)
+       (1+ (not "/")) eol)
+      file-path))
+   file-path-lst))
+
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: should try to see what functionality I can move out of this
 ;; function
@@ -867,19 +884,7 @@ as the car, and the packages that depend on it as the cdr."
 
                   ;; TODO: finish up this impl.
                   ;; FIXME: also need to do dependency fixing
-                  (seq-filter
-                   (lambda (file-path)
-                     (string-match-p
-                      (rx
-                       (0+ any)
-                       (or
-                        (: "/sbin")
-                        (: "/bin")
-                        (: "/lib" (? (** 2 4 any))))
-                       "/"
-                       (0+ any)
-                       (1+ (not "/")) eol)
-                      file-path))
+                  (kiss--get-potential-binary-files
                    (kiss--read-file (concat pkg-install-db pkg "/manifest"))))
 
                 ;; Finally create the tarball
