@@ -494,23 +494,31 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;;  (kiss--get-pkg-dependency-graph-rec '("gcc" "llvm")))
 
 (defun kiss--get-pkg-dependency-graph-rec (pkg-lst)
-  ""
-  (defun kiss--get-pkg-dependency-graph-rec-impl (queue seen res)
-    ""
-    (let* ((new-queue (seq-remove (lambda (e) (member e seen)) queue))
-           (dep (car new-queue)))
-      (if dep
-          (let* ((new-seen (cons dep seen))
-                 (dep-deps (kiss--get-pkg-dependencies dep))
-                 (item `(,dep ,dep-deps))
-                 (new-res (if (not (member item res)) (cons item res) res)))
-            (kiss--get-pkg-dependency-graph-rec-impl
-             (append dep-deps (cdr new-queue)) new-seen new-res))
-        res)))
-  (let ((pkgs (cond
-               ((atom pkg-lst) `(,pkg-lst))
-               ((listp pkg-lst) pkg-lst))))
-    (kiss--get-pkg-dependency-graph-rec-impl pkgs '() '())))
+  "(I) A Recursive & TCO-ed implementation of `kiss--get-pkg-dependency-graph'.
+
+This version of the function is meant primarily as a resource for people
+looking to implement kiss in other functional programming languages.
+It is also important to note that there is no meaninful decrease in speed
+when using this function compared with the iterative version."
+  (let* ((pkgs (cond
+                ((atom pkg-lst) `(,pkg-lst))
+                ((listp pkg-lst) pkg-lst))))
+
+    (named-let kiss--get-pkg-dependency-graph-rec-impl
+        ((queue pkgs) (seen '()) (res '()))
+      (let* ((new-queue (seq-remove (lambda (e) (member e seen)) queue))
+             (dep (car new-queue)))
+        (if dep
+            (let* ((new-seen (cons dep seen))
+                   (dep-deps (kiss--get-pkg-dependencies dep))
+                   (item `(,dep ,dep-deps))
+                   (new-res (if (not (member item res)) (cons item res) res)))
+              (kiss--get-pkg-dependency-graph-rec-impl
+               (append dep-deps (cdr new-queue)) new-seen new-res))
+          res)))))
+
+;; (benchmark-elapse (kiss--get-pkg-dependency-graph (mapcar #'car (kiss/list))))
+;; (benchmark-elapse (kiss--get-pkg-dependency-graph-rec (mapcar #'car (kiss/list))))
 
 ;; (kiss--get-pkg-dependency-graph '("kiss" "cmake"))
 ;; (kiss--get-pkg-dependency-order "cmake")
