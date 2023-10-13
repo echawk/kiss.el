@@ -489,6 +489,29 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 ;; (length  (kiss--get-pkg-dependency-graph '("gcc")))
 
+;; (equal
+;;  (kiss--get-pkg-dependency-graph '("gcc" "llvm"))
+;;  (kiss--get-pkg-dependency-graph-rec '("gcc" "llvm")))
+
+(defun kiss--get-pkg-dependency-graph-rec (pkg-lst)
+  ""
+  (defun kiss--get-pkg-dependency-graph-rec-impl (queue seen res)
+    ""
+    (let* ((new-queue (seq-remove (lambda (e) (member e seen)) queue))
+           (dep (car new-queue)))
+      (if dep
+          (let* ((new-seen (cons dep seen))
+                 (dep-deps (kiss--get-pkg-dependencies dep))
+                 (item `(,dep ,dep-deps))
+                 (new-res (if (not (member item res)) (cons item res) res)))
+            (kiss--get-pkg-dependency-graph-rec-impl
+             (append dep-deps (cdr new-queue)) new-seen new-res))
+        res)))
+  (let ((pkgs (cond
+               ((atom pkg-lst) `(,pkg-lst))
+               ((listp pkg-lst) pkg-lst))))
+    (kiss--get-pkg-dependency-graph-rec-impl pkgs '() '())))
+
 ;; (kiss--get-pkg-dependency-graph '("kiss" "cmake"))
 ;; (kiss--get-pkg-dependency-order "cmake")
 ;; TODO: consider moving invert-pkg-dependency-graph to tsort.el
