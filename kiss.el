@@ -950,8 +950,8 @@ are the same."
 ;; FIXME: add in checks to the appropriate places.
 (defun kiss--build-install (pkg)
   "(I) Attempt to build and install PKG, nil if unsuccessful."
-  (if (kiss/build pkg)
-      (kiss/install pkg)))
+  (when (kiss/build pkg)
+    (kiss/install pkg)))
 
 (defun kiss--try-install-build (pkg)
   "(I) Attempt to install a binary of PKG, else build and install PKG."
@@ -1055,25 +1055,21 @@ are the same."
   "(I) Return a list of sources for PKG, or nil if PKG has no sources file."
   (let* ((pkg-repo    (car (kiss/search pkg)))
          (pkg-sources (concat pkg-repo "/sources")))
-    (if (file-exists-p pkg-sources)
-        (progn
-          ;; Remove any non source lines.
-          (cl-remove-if
-           (lambda (lst) (string-empty-p (car lst)))
-           (mapcar
-            (lambda (pkg-dest-line)
-              ;; Sanitize each line
-              (string-split
-               (replace-regexp-in-string
-                (rx (one-or-more " ")) " "
-                pkg-dest-line)
-               " "))
-            (string-split
-             (f-read-text (concat pkg-repo "/sources"))
-             "\n"))))
-      ;; Return nil if there are no sources for the package.
-      ;; NOTE: This nil does not mean failure.
-      nil)))
+    (when (file-exists-p pkg-sources)
+      ;; Remove any non source lines.
+      (cl-remove-if
+       (lambda (lst) (string-empty-p (car lst)))
+       (mapcar
+        (lambda (pkg-dest-line)
+          ;; Sanitize each line
+          (string-split
+           (replace-regexp-in-string
+            (rx (one-or-more " ")) " "
+            pkg-dest-line)
+           " "))
+        (string-split
+         (f-read-text (concat pkg-repo "/sources"))
+         "\n"))))))
 
 (defun kiss--get-pkg-sources-type (pkg-source)
   "(I) Return the type of PKG-SOURCE."
@@ -1106,14 +1102,14 @@ are the same."
          (com (nth 1 (string-split u (rx (or "#" "@"))))))
 
     ;; If a specific branch/commit isn't specified, default to FETCH_HEAD.
-    (if (eq com nil)
-        (setq com "HEAD"))
+    (when (eq com nil)
+      (setq com "HEAD"))
     ;; Only make the directory if it doesn't exist.
-    (if (not (file-exists-p dest-folder))
-        (make-directory dest-folder))
+    (unless (file-exists-p dest-folder)
+      (make-directory dest-folder))
     ;; Initialize the git repo if it doesn't exist.
-    (if (not (file-exists-p (concat dest-folder ".git")))
-        (shell-command (concat "git init " dest-folder)))
+    (unless (file-exists-p (concat dest-folder ".git"))
+      (shell-command (concat "git init " dest-folder)))
     ;; Save our current working directory.
     (let ((opwd (getenv "PWD")))
       (cd dest-folder)
@@ -1219,9 +1215,10 @@ are the same."
        (kiss--tps-env pkg tps
                       (progn
                         ;; Make the cache directory if it doesn't already exist.
-                        (if (not (file-exists-p dest-dir))
-                            (make-directory dest-dir))
+                        (unless (file-exists-p dest-dir)
+                          (make-directory dest-dir))
 
+                        ;; FIXME: change this to a pcase
                         ;; Switch based on the type of source that it is.
                         (cond
                          ((string= type "remote")
@@ -1306,8 +1303,8 @@ are the same."
             (cache  (cdr  type-path))
             (outdir (concat dir "/" subdir)))
        ;; Make the subdir if it does not exist already.
-       (if (not (file-directory-p outdir))
-           (make-directory outdir t))
+       (unless (file-directory-p outdir)
+         (make-directory outdir t))
        (cond
         ;; If the source type is a git repo:
         ((string= type "git")
@@ -1384,8 +1381,8 @@ are the same."
                        (rx "/var/db/kiss/installed/" (1+ (not "/")) "/" eol) str))
                     (kiss--get-manifest-for-dir extr-dir)) "/"))))))
 
-      (if (not pkg)
-          (error "unable to detemine the package"))
+      (unless pkg
+        (error "unable to detemine the package"))
 
       ;; assume that the existence of the manifest file is all that
       ;; makes a valid KISS pkg.
