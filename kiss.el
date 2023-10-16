@@ -637,7 +637,7 @@ when using this function compared with the iterative version."
 ;; pkgs to be updated.
 ;;(kiss--get-pkg-order
 ;; (flatten-list
-;; (cl-remove-if
+;; (seq-remove
 ;;  (lambda (i) (eq i nil))
 ;;  (mapcar #'kiss--get-pkg-missing-dependencies
 ;;          (cons "freecad" (cons "gimp" (kiss--get-out-of-date-pkgs))))))
@@ -654,7 +654,7 @@ when using this function compared with the iterative version."
                (t cfp ))))
 
           ;; Filter out libtool .la files and charset.alias
-          (cl-remove-if
+          (seq-remove
            (lambda (fp)
              (string-match-p
               (rx (or (literal "charset.alias") (literal ".la")) eol)
@@ -981,7 +981,7 @@ are the same."
   "(I) Return the list of checksums for PKG from a repo or nil if checksums don't exist."
   (let ((checksums-file (concat (car (kiss/search pkg)) "/checksums")))
     (if (file-exists-p checksums-file)
-        (cl-remove-if
+        (seq-remove
          #'string-empty-p
          (string-split
           (f-read-text checksums-file) "\n")))))
@@ -1002,7 +1002,7 @@ are the same."
    #'kiss--b3
    (cl-mapcar
     #'cdr
-    (cl-remove-if
+    (seq-remove
      ;; Filter out 'git' sources.
      ;; TODO: implement a lookup for future mercurial sources.
      (lambda (tps-cache)
@@ -1014,7 +1014,7 @@ are the same."
 (defun kiss--pkg-verify-local-checksums (pkg)
   "(I) Return t if local checksums match up with the repo checksums for PKG, nil otherwise."
   (eq nil
-      (cl-remove-if
+      (seq-remove
        (lambda (pair) (string= (car pair) (cdr pair)))
        (-zip
         (kiss--get-pkg-repo-checksums  pkg)
@@ -1058,7 +1058,7 @@ are the same."
          (pkg-sources (concat pkg-repo "/sources")))
     (when (file-exists-p pkg-sources)
       ;; Remove any non source lines.
-      (cl-remove-if
+      (seq-remove
        (lambda (lst) (string-empty-p (car lst)))
        (mapcar
         (lambda (pkg-dest-line)
@@ -1373,7 +1373,7 @@ are the same."
     (let ((pkg
            ;; FIXME: this code is ugly
            (car (reverse
-                 (cl-remove-if
+                 (seq-remove
                   #'string-empty-p
                   (string-split
                    (seq-filter
@@ -1397,7 +1397,7 @@ are the same."
       (if (not
            ;; Remove all of the t values, since it will result in the
            ;; list being empty if it was successful.
-           (cl-remove-if
+           (seq-remove
             #'identity
             (cl-mapcar
 
