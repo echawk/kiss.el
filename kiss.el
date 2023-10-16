@@ -279,10 +279,9 @@
          (owner      (kiss--get-owner-name manifest-f))
          (manifest-t (kiss--manifest-to-string
                       (reverse
-                       (cl-sort
-                        (cl-mapcar (lambda (s) (if (string= s old) new s))
-                                   (kiss/manifest pkg))
-                        'string-lessp)))))
+                       (seq-sort 'string-lessp
+                                 (cl-mapcar (lambda (s) (if (string= s old) new s))
+                                            (kiss/manifest pkg)))))))
 
     (f-write-text manifest-t 'utf-8 temp-f)
 
@@ -680,7 +679,7 @@ when using this function compared with the iterative version."
 
     ;; sort -ur
     (reverse
-     (cl-sort (delete-dups files-and-dirs) 'string-lessp))))
+     (seq-sort 'string-lessp (delete-dups files-and-dirs)))))
 
 (defun kiss--get-pkg-version (pkg)
   "(I) Get the version for PKG using the car of `kiss/search'."
