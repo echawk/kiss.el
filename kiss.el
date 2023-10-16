@@ -555,7 +555,7 @@ when using this function compared with the iterative version."
 (defun kiss--get-pkg-make-orphans ()
   "(I) Return a list of installed packages that were only required as a make dependency."
   ;; NOTE: This function is pretty slow at the moment.
-  (cl-remove-if-not
+  (seq-filter
    (lambda (pkg)
      (and (eq (kiss--get-pkg-hard-dependents pkg) nil)
           (not
@@ -664,7 +664,7 @@ when using this function compared with the iterative version."
     ;; Admittedly I'm not a huge fan of the below code, but it does work.
     (if (member "/var/db/kiss/installed/" files-and-dirs)
         (let ((pkg-db-dir
-               (car (cl-remove-if-not
+               (car (seq-filter
                      (lambda (s)
                        (string-match-p
                         (rx "/var/db/kiss/installed/" (1+ (not "/")) "/" eol)
@@ -900,7 +900,7 @@ are the same."
                   (let* ((manifest-lst
                           (kiss--get-manifest-for-dir install-dir))
                          (etc-files
-                          (cl-remove-if-not
+                          (seq-filter
                            (lambda (s)
                              (and (string-match-p (rx bol "/etc")s)
                                   (f-file? (concat install-dir "/" s))))
@@ -1376,7 +1376,7 @@ are the same."
                  (cl-remove-if
                   #'string-empty-p
                   (string-split
-                   (cl-remove-if-not
+                   (seq-filter
                     (lambda (str)
                       (string-match
                        (rx "/var/db/kiss/installed/" (1+ (not "/")) "/" eol) str))
@@ -1751,7 +1751,7 @@ are the same."
 
 ;; Little snippet to get a list of all of the installed git-version packages.
 ;; (benchmark-elapse
-;;   (cl-remove-if-not
+;;   (seq-filter
 ;;    (lambda (pair)
 ;;      (let ((ver (car (cdr pair))))
 ;;        (string-match "git" ver)))
