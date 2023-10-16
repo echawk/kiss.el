@@ -79,6 +79,7 @@
   (require 'rx)
   (require 'seq)
   (require 'subp)
+  (require 'subr-x)
   (require 'tsort))
 
 ;; FIXME: Find out what the containing group should be...
