@@ -4,7 +4,7 @@
 ;; Maintainer: Ethan Hawk <ethan.hawk@valpo.edu>
 ;; URL: https://github.com/ehawkvu/kiss.el
 ;; Keywords: package-manager, tools
-;; Package-Requires: ((f) (dash) (emacs "29.1"))
+;; Package-Requires: ((dash) (emacs "29.1") (f) (tsort))
 ;; Version: 0.0.1
 
 ;; This file is under the MIT license.
@@ -77,7 +77,8 @@
   (require 'f)
   (require 'rx)
   (require 'seq)
-  (require 'subp))
+  (require 'subp)
+  (require 'tsort))
 
 ;; FIXME: Find out what the containing group should be...
 (defgroup kiss nil
@@ -524,55 +525,9 @@ when using this function compared with the iterative version."
 ;; (kiss--get-pkg-dependency-order "cmake")
 ;; TODO: consider moving invert-pkg-dependency-graph to tsort.el
 
-(defun kiss--invert-pkg-dependency-graph (pkg-depgraph)
-  "(I) Change the direction of the edges in PKG-DEPGRAPH.
-
-The current `kiss--get-pkg-dependency-graph' will
-return a graph which will return each package as the car and its
-depends as the cdr.  This function can take a graph that is in
-that format and convert it to be a graph that has a package
-as the car, and the packages that depend on it as the cdr."
-  (mapcar
-   (lambda (pair)
-     (let ((pkg (car pair)))
-       (list
-        pkg
-        (seq-filter
-         #'identity
-         (mapcar
-          (lambda (pair) (if (member pkg (cadr pair)) (car pair)))
-          (seq-remove (lambda (e) (equal pair e))
-                      pkg-depgraph))))))
-   pkg-depgraph))
-
-(defun kiss--dependency-graph-to-tsort (pkg-depgraph)
-  "(I) Convert a PKG-DEPGRAPH graph to a tsort(1) compatible one."
-  (let ((print-pair
-         (lambda (pair)
-           (if (cadr pair)
-               (mapconcat (lambda (p) (concat p " " (car pair)))
-                          (cadr pair) "\n")))))
-    (let ((pair-str
-           (funcall print-pair pkg-depgraph)))
-      (if pair-str pair-str ""))))
-
-;; NOTE: will likely be removed once a tsort implementation in elisp is written.
-(defun kiss--get-pkg-tsort-graph (pkg-lst)
-  "(I) Get a tsort(1) compatible representation of the dependencies for PKG-LST."
-  (mapconcat #'kiss--dependency-graph-to-tsort
-             (kiss--get-pkg-dependency-graph pkg-lst) "\n"))
-
 (defun kiss--get-pkg-dependency-order (pkg-lst)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
-  (seq-remove #'string-empty-p
-              (string-split
-               (shell-command-to-string
-                (concat "printf '"
-                        (kiss--get-pkg-tsort-graph pkg-lst)
-                        "'"
-                        " | "
-                        " tsort "))
-               "\n")))
+  (tsort (kiss--get-pkg-dependency-graph pkg-lst)))
 
 ;; TODO: make the output list prettier (ie, should be a list of pkgs,
 ;; not depends files)
