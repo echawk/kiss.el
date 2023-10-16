@@ -227,12 +227,12 @@
 (defun kiss--sh256 (file-path)
   "(I) Run `kiss/KISS_CHK' with proper arguments on FILE-PATH."
   (let ((args
-         (cond
-          ((string-match-p "openssl"   kiss/KISS_CHK) " dgst -sha256 -r ")
-          ((string-match-p "sha256sum" kiss/KISS_CHK) "")
-          ((string-match-p "sha256"    kiss/KISS_CHK) " -r ")
-          ((string-match-p "shasum"    kiss/KISS_CHK) " -a 256 ")
-          ((string-match-p "digest"    kiss/KISS_CHK) " -a sha256 "))))
+         (pcase kiss/KISS_CHK
+           ("openssl"   " dgst -sha256 -r ")
+           ("sha256sum" "")
+           ("sha256"    " -r ")
+           ("shasum"    " -a 256 ")
+           ("digest"    " -a sha256 "))))
     (car
      (string-split
       (replace-regexp-in-string
@@ -1133,11 +1133,12 @@ are the same."
 
 (defun kiss--get-download-utility-arguments ()
   "(I) Get the proper arguments for the `kiss/KISS_GET' utility."
-  (cond
-   ((string= kiss/KISS_GET "aria2c") " -d / -o ")
-   ((string= kiss/KISS_GET "axel")   " -o ")
-   ((string= kiss/KISS_GET "curl")   " -fLo ")
-   ((or (string= kiss/KISS_GET "wget") (string= kiss/KISS_GET "wget2")) " -O ")))
+  (pcase kiss/KISS_GET
+    ("aria2c" " -d / -o ")
+    ("axel"   " -o ")
+    ("curl"   " -fLo ")
+    ("wget"   " -O ")
+    ("wget2"  " -O ")))
 
 (defun kiss--download-remote-source (url dest-dir)
   "(I) Download URL to DEST-DIR using `kiss/KISS_GET'."
