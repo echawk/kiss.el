@@ -684,13 +684,13 @@ when using this function compared with the iterative version."
 (defun kiss--get-pkg-version (pkg)
   "(I) Get the version for PKG using the car of `kiss/search'."
   (let ((ks (kiss/search pkg)))
-    (if ks
-        (let ((pdir (car ks)))
-          (replace-regexp-in-string
-           "\n$" ""
-           ;; TODO: see if there is a way to avoid
-           ;; depending on f.el
-           (f-read-text (concat pdir "/version")))))))
+    (when ks
+      (let ((pdir (car ks)))
+        (replace-regexp-in-string
+         "\n$" ""
+         ;; TODO: see if there is a way to avoid
+         ;; depending on f.el
+         (f-read-text (concat pdir "/version")))))))
 
 (defun kiss--get-pkg-bin-name (pkg version)
   "(I) Return the proper name for the binary for PKG at VERSION."
