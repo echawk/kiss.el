@@ -75,6 +75,7 @@
 (eval-when-compile
   (require 'cl-lib)
   (require 'f)
+  (require 'pcase)
   (require 'rx)
   (require 'seq)
   (require 'subp)
