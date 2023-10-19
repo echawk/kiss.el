@@ -396,10 +396,10 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                       (kiss--lst-to-str
                        (kiss--get-installed-manifest-files))))
          (cmd-out (shell-command-to-string cmd)))
-    (if (not (string-empty-p cmd-out))
-        (car
-         (string-split
-          (replace-regexp-in-string kiss/installed-db-dir "" cmd-out) "/")))))
+    (unless (string-empty-p cmd-out)
+      (car
+       (string-split
+        (replace-regexp-in-string kiss/installed-db-dir "" cmd-out) "/")))))
 
 ;; (cl-mapcar
 ;;  (lambda (file)
@@ -829,121 +829,121 @@ are the same."
     ;; Recheck to make sure that we aren't missing any deps.
     (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
 
-    (if (not missing-deps)
-        (let* ((build-script (concat (car (kiss/search pkg)) "/build"))
-               (proc-dir     (kiss--get-tmp-destdir))
-               (build-dir    (concat proc-dir "/build/" pkg "/"))
-               (install-dir  (concat proc-dir "/pkg/" pkg))
-               (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el")))
+    (unless missing-deps
+      (let* ((build-script (concat (car (kiss/search pkg)) "/build"))
+             (proc-dir     (kiss--get-tmp-destdir))
+             (build-dir    (concat proc-dir "/build/" pkg "/"))
+             (install-dir  (concat proc-dir "/pkg/" pkg))
+             (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el")))
 
-          ;; Extract pkg's sources to the build directory.
-          (kiss--extract-pkg-sources pkg build-dir)
-          ;; Essentially, we want to build out a script that contains
-          ;; all of the info that we need.
+        ;; Extract pkg's sources to the build directory.
+        (kiss--extract-pkg-sources pkg build-dir)
+        ;; Essentially, we want to build out a script that contains
+        ;; all of the info that we need.
 
-          ;; * Environment to build the package in
-          ;; * The package build script
-          ;; * The proper arguments to said pkg build script
+        ;; * Environment to build the package in
+        ;; * The package build script
+        ;; * The proper arguments to said pkg build script
 
-          ;; FIXME: need to also save a log of the build...
-          ;; ^^ do this using 'tee(1)' or just piping directly into the
-          ;; log itself
-          ;; ~/.cache/kiss/logs/$(date +%Y-%m-%d)/<pkg>-$(date +%Y-%m-%d-%H:%M)-<procnum>
-          (f-write-text
-           (concat
-            "#!/bin/sh -xe\n"
+        ;; FIXME: need to also save a log of the build...
+        ;; ^^ do this using 'tee(1)' or just piping directly into the
+        ;; log itself
+        ;; ~/.cache/kiss/logs/$(date +%Y-%m-%d)/<pkg>-$(date +%Y-%m-%d-%H:%M)-<procnum>
+        (f-write-text
+         (concat
+          "#!/bin/sh -xe\n"
 
-            ;; cd into the build dir so our env is correct.
-            "cd " build-dir " \n"
+          ;; cd into the build dir so our env is correct.
+          "cd " build-dir " \n"
 
-            "export AR=${AR:-ar} \n"
-            "export CC=${CC:-cc} \n"
-            "export CXX=${CXX:-c++} \n"
-            "export NM=${NM:-nm} \n"
-            "export RANLIB=${RANLIB:-ranlib} \n"
-            "export RUSTFLAGS=\"--remap-path-prefix=$PWD=. $RUSTFLAGS\" \n"
-            "export GOFLAGS=\"-trimpath -modcacherw $GOFLAGS\" \n"
-            "export GOPATH=\"$PWD/go\" \n"
-            "export DESTDIR=\"" install-dir "\" \n"
-            ;; TODO: this might not be explicitly needed at this part?
-            ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
+          "export AR=${AR:-ar} \n"
+          "export CC=${CC:-cc} \n"
+          "export CXX=${CXX:-c++} \n"
+          "export NM=${NM:-nm} \n"
+          "export RANLIB=${RANLIB:-ranlib} \n"
+          "export RUSTFLAGS=\"--remap-path-prefix=$PWD=. $RUSTFLAGS\" \n"
+          "export GOFLAGS=\"-trimpath -modcacherw $GOFLAGS\" \n"
+          "export GOPATH=\"$PWD/go\" \n"
+          "export DESTDIR=\"" install-dir "\" \n"
+          ;; TODO: this might not be explicitly needed at this part?
+          ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
 
-            build-script " " install-dir " " pkg-ver)
-           ;; Write this script to a temporary location.
-           'utf-8 k-el-build)
+          build-script " " install-dir " " pkg-ver)
+         ;; Write this script to a temporary location.
+         'utf-8 k-el-build)
 
-          ;; Mark the script as executable.
-          (shell-command (concat "chmod +x " k-el-build))
+        ;; Mark the script as executable.
+        (shell-command (concat "chmod +x " k-el-build))
 
-          ;; NOTE: will need to be somewhat more clever when
-          ;; executing the build script, since I would like to be able
-          ;; to see the build as it is occurring, like in
-          ;; async-shell-command
+        ;; NOTE: will need to be somewhat more clever when
+        ;; executing the build script, since I would like to be able
+        ;; to see the build as it is occurring, like in
+        ;; async-shell-command
 
-          ;; Now actually execute the script.
-          (message (concat "Building " pkg " at version: " pkg-ver))
-          (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
-              ;; Success
-              (progn
-                (message (concat "Successful Build!"))
-                ;; Now we have to fork over the package files that we
-                ;; used to the repo dir.
-                (let ((pkg-install-db
-                       (concat install-dir "/var/db/kiss/installed/")))
-                  (make-directory pkg-install-db t)
-                  (kiss/fork pkg pkg-install-db)
-
-                  ;; FIXME: look over kiss code & implement /dev/null
-                  ;; for symlinks
-                  ;; Need to compute etcsums if they exist.
-                  (let* ((manifest-lst
-                          (kiss--get-manifest-for-dir install-dir))
-                         (etc-files
-                          (seq-filter
-                           (lambda (s)
-                             (and (string-match-p (rx bol "/etc")s)
-                                  (f-file? (concat install-dir "/" s))))
-                           manifest-lst)))
-
-                    ;; If we have any etcfiles, create etcsums
-                    (if etc-files
-                        (f-write-text
-                         (mapconcat
-                          #'identity
-                          (mapcar #'kiss--b3 etc-files)
-                          "\n")
-                         'utf-8 (concat pkg-install-db pkg "/etcsums")))
-
-                    ;; Next, create the manifest
-                    (f-write-text
-                     (kiss--manifest-to-string manifest-lst)
-                     'utf-8 (concat pkg-install-db pkg "/manifest")))
-
-                  ;; FIXME: need to optionally strip the binaries based off
-                  ;; of the KISS_STRIP env variable.
-
-                  ;; TODO: finish up this impl.
-                  ;; FIXME: also need to do dependency fixing
-                  (kiss--get-potential-binary-files
-                   (kiss--read-file (concat pkg-install-db pkg "/manifest"))))
-
-                ;; Finally create the tarball
-                (message (concat "Creating tarball for " pkg))
-                (kiss--make-tarball-of-dir
-                 install-dir
-                 (concat kiss/KISS_BINDIR
-                         (kiss--get-pkg-bin-name pkg pkg-ver)))
-
-                ;; rm the build directory
-                (message (concat "Removing the build directory (" proc-dir ")"))
-                (shell-command (concat "rm -rf -- " proc-dir))
-                ;; Have the expr eval to t.
-                t)
-            ;; Failure
+        ;; Now actually execute the script.
+        (message (concat "Building " pkg " at version: " pkg-ver))
+        (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
+            ;; Success
             (progn
-              (message "Build failed")
-              ;; Have the expr eval to nil.
-              nil))))))
+              (message (concat "Successful Build!"))
+              ;; Now we have to fork over the package files that we
+              ;; used to the repo dir.
+              (let ((pkg-install-db
+                     (concat install-dir "/var/db/kiss/installed/")))
+                (make-directory pkg-install-db t)
+                (kiss/fork pkg pkg-install-db)
+
+                ;; FIXME: look over kiss code & implement /dev/null
+                ;; for symlinks
+                ;; Need to compute etcsums if they exist.
+                (let* ((manifest-lst
+                        (kiss--get-manifest-for-dir install-dir))
+                       (etc-files
+                        (seq-filter
+                         (lambda (s)
+                           (and (string-match-p (rx bol "/etc")s)
+                                (f-file? (concat install-dir "/" s))))
+                         manifest-lst)))
+
+                  ;; If we have any etcfiles, create etcsums
+                  (if etc-files
+                      (f-write-text
+                       (mapconcat
+                        #'identity
+                        (mapcar #'kiss--b3 etc-files)
+                        "\n")
+                       'utf-8 (concat pkg-install-db pkg "/etcsums")))
+
+                  ;; Next, create the manifest
+                  (f-write-text
+                   (kiss--manifest-to-string manifest-lst)
+                   'utf-8 (concat pkg-install-db pkg "/manifest")))
+
+                ;; FIXME: need to optionally strip the binaries based off
+                ;; of the KISS_STRIP env variable.
+
+                ;; TODO: finish up this impl.
+                ;; FIXME: also need to do dependency fixing
+                (kiss--get-potential-binary-files
+                 (kiss--read-file (concat pkg-install-db pkg "/manifest"))))
+
+              ;; Finally create the tarball
+              (message (concat "Creating tarball for " pkg))
+              (kiss--make-tarball-of-dir
+               install-dir
+               (concat kiss/KISS_BINDIR
+                       (kiss--get-pkg-bin-name pkg pkg-ver)))
+
+              ;; rm the build directory
+              (message (concat "Removing the build directory (" proc-dir ")"))
+              (shell-command (concat "rm -rf -- " proc-dir))
+              ;; Have the expr eval to t.
+              t)
+          ;; Failure
+          (progn
+            (message "Build failed")
+            ;; Have the expr eval to nil.
+            nil))))))
 
 ;; (kiss--build-pkg "xdo")
 
@@ -1113,12 +1113,12 @@ are the same."
     ;; Save our current working directory.
     (let ((opwd (getenv "PWD")))
       (cd dest-folder)
-      (if (not
-           (eq 0
-               (shell-command
-                (concat "git remote set-url origin " clean-url " 2> /dev/null"))))
-          (shell-command
-           (concat "git remote add origin " clean-url)))
+      (unless
+          (eq 0
+              (shell-command
+               (concat "git remote set-url origin " clean-url " 2> /dev/null")))
+        (shell-command
+         (concat "git remote add origin " clean-url)))
       (shell-command (concat "git fetch --depth=1 origin " com))
       (shell-command (concat "git reset --hard FETCH_HEAD"))
       ;; Change back to our old working directory
@@ -1143,22 +1143,22 @@ are the same."
   (let* ((file-name (car (reverse (string-split url "/"))))
          (dest-path (concat dest-dir "/" file-name)))
     ;; Only download if the file doesn't already exist.
-    (if (not (file-exists-p dest-path))
-        (shell-command
-         (concat kiss/KISS_GET " "
-                 url
-                 (kiss--get-download-utility-arguments)
-                 dest-path)))))
+    (unless (file-exists-p dest-path)
+      (shell-command
+       (concat kiss/KISS_GET " "
+               url
+               (kiss--get-download-utility-arguments)
+               dest-path)))))
 
 (defun kiss--download-local-source (uri dest-dir)
   "(I) Copy URI to DEST-DIR using cp(1)."
   (let ((file-name (car (reverse (string-split uri "/")))))
     ;; FIXME: double check to make sure this is correct - I have a hunch
     ;; that it's not.
-    (if (not (file-exists-p uri))
-        (shell-command
-         (concat "cp " uri
-                 " " (concat dest-dir file-name))))))
+    (unless (file-exists-p uri)
+      (shell-command
+       (concat "cp " uri
+               " " (concat dest-dir file-name))))))
 
 (defun kiss--get-pkg-sources-cache-path (pkg)
   "(I) Return the cache path in `kiss/KISS_SRCDIR' for each of PKG's sources."
@@ -1344,8 +1344,8 @@ are the same."
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
   ;; FIXME: maybe error out here?
-  (if (not (f-exists? tarball))
-      nil)
+  (unless (f-exists? tarball)
+    nil)
 
   (let* ((proc-dir       (kiss--get-tmp-destdir))
          (extr-dir       (concat proc-dir "/extracted"))
@@ -1386,9 +1386,9 @@ are the same."
 
       ;; assume that the existence of the manifest file is all that
       ;; makes a valid KISS pkg.
-      (if (not (file-exists-p
-                (concat "/var/db/kiss/installed/" pkg "/manifest")))
-          (message "kiss/install: Not a valid kiss package!"))
+      (unless (file-exists-p
+               (concat "/var/db/kiss/installed/" pkg "/manifest"))
+        (message "kiss/install: Not a valid kiss package!"))
 
       ;; Now that the pkg is verified to be a kiss pkg, we need
       ;; to validate the manifest that was shipped with the pkg.
