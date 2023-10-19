@@ -205,14 +205,14 @@
 (defun kiss--decompress (file-path out-path)
   "(I) Decompress FILE-PATH to OUT-PATH based on the file name."
   (let ((cmd
-         (cond
-          ((string-match-p (rx ".tar" eol)             file-path) "cat ")
-          ((string-match-p (rx (or ".tbz" ".bz2") eol) file-path) "bzip2 -dc ")
-          ((string-match-p (rx ".lz" eol)              file-path) "lzip -dc")
-          ((string-match-p (rx (or ".tgz" ".gz") eol)  file-path) "gzip -dc ")
-          ((string-match-p (rx ".lzma" eol)            file-path) "lzma -dcT0 ")
-          ((string-match-p (rx (or ".txz" ".xz") eol)  file-path) "xz -dcT0 ")
-          ((string-match-p (rx ".zst" eol)             file-path) "zstd -dcT0 "))))
+         (pcase file-path
+           ((rx ".tar" eol)             "cat ")
+           ((rx (or ".tbz" ".bz2") eol) "bzip2 -dc ")
+           ((rx ".lz" eol)              "lzip -dc")
+           ((rx (or ".tgz" ".gz") eol)  "gzip -dc ")
+           ((rx ".lzma" eol)            "lzma -dcT0 ")
+           ((rx (or ".txz" ".xz") eol)  "xz -dcT0 ")
+           ((rx ".zst" eol)             "zstd -dcT0 "))))
     (if cmd
         (shell-command (concat cmd file-path " > " out-path)))))
 
@@ -1076,10 +1076,10 @@ are the same."
   (let ((pkg-url (car pkg-source)))
     ;; TODO: need to ensure that this is the same expected behavior as
     ;; upstream.
-    (cond
-     ((string-match-p (rx bol "git+") pkg-url) "git")
-     ((string-match-p (rx "://") pkg-url) "remote")
-     (t "local"))))
+    (pcase pkg-url
+      ((rx bol "git+") "git")
+      ((rx "://")      "remote")
+      (_               "local"))))
 
 ;; FIXME: make a macro for parsing out the clean url, the dest folder & commit
 ;; since that information would also be useful for other vc systems like
