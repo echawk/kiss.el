@@ -1212,26 +1212,23 @@ are the same."
          (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
     (cl-mapcar
      (lambda (tps)
-       (kiss--tps-env pkg tps
-                      (progn
-                        ;; Make the cache directory if it doesn't already exist.
-                        (unless (file-exists-p dest-dir)
-                          (make-directory dest-dir))
+       (kiss--tps-env
+        pkg tps
+        (progn
+          ;; Make the cache directory if it doesn't already exist.
+          (unless (file-exists-p dest-dir)
+            (make-directory dest-dir))
 
-                        ;; FIXME: change this to a pcase
-                        ;; Switch based on the type of source that it is.
-                        (cond
-                         ((string= type "remote")
-                          (kiss--download-remote-source uri dest-dir))
-                         ((string= type "git")
-                          (kiss--download-git-source uri dest-dir))
-                         ((string= type "local")
-                          (if (string-match (rx bol "/") uri)
-                              ;; Absolute path.
-                              (kiss--download-local-source uri dest-dir))
-                          ;; Relative path.
-                          (kiss--download-local-source
-                           (concat (car (kiss/search pkg)) "/" uri) dest-dir))))))
+          (pcase type
+            ("remote" (kiss--download-remote-source uri dest-dir))
+            ("git"    (kiss--download-git-source uri dest-dir))
+            ("local"
+             (if (string-match (rx bol "/") uri)
+                 ;; Absolute path.
+                 (kiss--download-local-source uri dest-dir)
+               ;; Relative path.
+               (kiss--download-local-source
+                (concat (car (kiss/search pkg)) "/" uri) dest-dir)))))))
      type-pkg-sources)))
 
 ;; (kiss--get-pkg-sources "shen-cl")
