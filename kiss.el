@@ -1,4 +1,5 @@
 ;;; kiss.el --- KISS package manager in ELisp -*- lexical-binding: t -*-
+;; SPDX-License-Identifier: MIT
 
 ;; Author: Ethan Hawk <ethan.hawk@valpo.edu>
 ;; Maintainer: Ethan Hawk <ethan.hawk@valpo.edu>
