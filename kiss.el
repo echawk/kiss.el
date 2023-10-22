@@ -1362,6 +1362,26 @@ are the same."
 ;;    (eq (kiss--get-pkg-hard-dependents pkg) nil)
 ;;    (eq (kiss--get-pkg-orphan-alternatives pkg) nil)))
 
+(defun kiss--pkg-conflicts (pkg dir)
+  "(I) Fix up DIR for PKG so as to allow for alternatives."
+
+  ;; It is assumed that DIR will be an extracted kiss pkg.
+  (let ((choices-dir (concat dir kiss/choices-db-dir))
+        (manifest-file
+         (concat dir "/var/db/kiss/installed/" pkg "/manifest")))
+
+    (unless (kiss--file-exists-p manifest-file)
+      (error "manifest file does not exit!"))
+
+    (let ((dir-files
+           (seq-remove
+            (lambda (str) (string-match-p "/$" str))
+            (kiss--read-file manifest-file))))
+
+      (dolist (file dir-files)
+        (when (kiss/owns file)
+          1)))))
+
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
   ;; FIXME: maybe error out here?
