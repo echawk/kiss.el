@@ -1512,8 +1512,8 @@ are the same."
 
 (defun kiss--remove-directory (dir-path)
   "(I) Remove DIR-PATH as the appropriate user using rmdir(1), t if successful, nil otherwise."
-  (if (and (file-directory-p dir-path)
-           (not (file-symlink-p dir-path)))
+  (if (and (kiss--file-is-directory-p dir-path)
+           (not (kiss--file-is-symbolic-link-p dir-path)))
       (let ((owner (kiss--get-owner-name dir-path))
             (rmcmd (concat "rmdir -- " dir-path)))
         (eq 0
@@ -1549,14 +1549,14 @@ are the same."
         ;; NOTE: This is a cond expression, so it is important that
         ;; the directory check is *first*.
 
-        ((and (file-directory-p file-path)
-              (not (file-symlink-p file-path)))
+        ((and (kiss--file-is-directory-p file-path)
+              (not (kiss--file-is-symbolic-link-p file-path)))
          (kiss--remove-directory file-path))
 
-        ((file-symlink-p file-path)
+        ((kiss--file-is-symbolic-link-p file-path)
          (setq symlink-queue (cons file-path symlink-queue)))
 
-        ((file-exists-p file-path)
+        ((kiss--file-exists-p file-path)
          (kiss--remove-file file-path))
 
         (t nil)))
@@ -1564,7 +1564,7 @@ are the same."
     ;; Now to cleanup broken symlinks.
     (cl-mapcar
      (lambda (sym)
-       (if (file-exists-p sym)
+       (if (kiss--file-exists-p sym)
            (kiss--remove-file sym)))
      symlink-queue)))
 
