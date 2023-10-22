@@ -132,6 +132,11 @@
   "The compression algorithm that should be used when making packages."
   :type 'string)
 
+(defcustom kiss/KISS_CHOICE
+  1
+  "Set this value to '0' disable the alternatives system and error on any file conflicts."
+  :type 'integer)
+
 (defcustom kiss/KISS_PATH
   (split-string (getenv "KISS_PATH") ":")
   "A list of directories in decreasing precedence to look for packages in."
@@ -1470,6 +1475,11 @@ are the same."
 
       ;; pkg_conflicts()
       ;; FIXME: impl
+
+      (when (kiss--get-pkg-conflict-files pkg extr-dir)
+        (if (eq 0 kiss/KISS_CHOICE)
+            (error "kiss/install: kiss/KISS_CHOICE is equal to 0, erroring out!")
+          (kiss--pkg-conflicts pkg extr-dir)))
 
       ;; If the pkg is already installed (and this is an upgrade)
       ;; make a backup of the manifest and etcsum files
