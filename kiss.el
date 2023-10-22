@@ -1384,25 +1384,32 @@ are the same."
           " | grep -v " (concat pkg "/manifest:")))
         "\n" t)))))
 
-(defun kiss--pkg-conflicts (pkg dir)
+(defun kiss--pkg-conflicts (pkg extr-dir)
   "(I) Fix up DIR for PKG so as to allow for alternatives."
+  (let ((conf-files (kiss--get-pkg-conflict-files pkg extr-dir)))
+    (when conf-files
+      (let ((files-to-be-alts (mapcar #'car conf-files)))
 
-  ;; It is assumed that DIR will be an extracted kiss pkg.
-  (let ((choices-dir (concat dir kiss/choices-db-dir))
-        (manifest-file
-         (concat dir "/var/db/kiss/installed/" pkg "/manifest")))
+        ;; Make the choices dir in the extracted tarball.
+        (make-directory (concat extr-dir kiss/choices-db-dir) t)
 
-    (unless (kiss--file-exists-p manifest-file)
-      (error "manifest file does not exit!"))
+        (dolist (path files-to-be-alts)
+          (let* ((alt      (string-replace "/" ">" path))
+                 (alt-path (concat kiss/choices-db-dir pkg alt)))
 
-    (let ((dir-files
-           (seq-remove
-            (lambda (str) (string-match-p "/$" str))
-            (kiss--read-file manifest-file))))
-
-      (dolist (file dir-files)
-        (when (kiss/owns file)
-          1)))))
+            ;; Move the file to the choices directory.
+            (shell-command
+             (concat
+              "mv -f "
+              (kiss--single-quote-string
+               (concat extr-dir path))
+              " "
+              (kiss--single-quote-string
+               (concat extr-dir alt-path))))
+            (kiss--pkg-manifest-file-replace
+             (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")
+             path
+             alt-path)))))))
 
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
