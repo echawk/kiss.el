@@ -1400,16 +1400,14 @@ are the same."
             ;; Move the file to the choices directory.
             (shell-command
              (concat
-              "mv -f "
-              (kiss--single-quote-string
-               (concat extr-dir path))
-              " "
-              (kiss--single-quote-string
-               (concat extr-dir alt-path))))
-            (kiss--pkg-manifest-file-replace
-             (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")
-             path
-             alt-path)))))))
+              "mv -f " (kiss--single-quote-string (concat extr-dir path))
+              " " (kiss--single-quote-string (concat extr-dir alt-path))))))
+
+        ;; Regenerate the manifest for the directory.
+        (f-write-text
+         (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
+         'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))))))
+
 
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
