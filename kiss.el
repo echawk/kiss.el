@@ -1352,6 +1352,34 @@ are the same."
 ;;    (eq (kiss--get-pkg-hard-dependents pkg) nil)
 ;;    (eq (kiss--get-pkg-orphan-alternatives pkg) nil)))
 
+(defun kiss--get-pkg-conflict-files (pkg dir)
+  ;; It is assumed that DIR will be an extracted kiss pkg.
+  (let ((manifest-file
+         (concat dir "/var/db/kiss/installed/" pkg "/manifest")))
+
+    (unless (kiss--file-exists-p manifest-file)
+      (error "manifest file does not exit!"))
+
+    (let ((dir-files
+           ;; Ensure we are only looking at *files* and *not* directories.
+           (seq-remove
+            (lambda (str) (string-match-p "/$" str))
+            (kiss--read-file manifest-file))))
+
+      ;;(mapcar #'kiss/owns dir-files)
+      ;; TODO: would like to investigate the penalty of using a pure
+      ;; Emacs lisp based solution for this.
+      (shell-command-to-string
+       (concat
+        "printf '"
+        (kiss--manifest-to-string dir-files)
+        "'"
+        " | "
+        "grep -Fxf - "
+        (kiss--lst-to-str
+         (kiss--get-installed-manifest-files))
+        " | grep -v " (concat pkg "/manifest:"))))))
+
 (defun kiss--pkg-conflicts (pkg dir)
   "(I) Fix up DIR for PKG so as to allow for alternatives."
 
