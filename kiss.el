@@ -1394,26 +1394,10 @@ are the same."
 
       ;; Now that the pkg is verified to be a kiss pkg, we need
       ;; to validate the manifest that was shipped with the pkg.
-
-      (if (not
-           ;; Remove all of the t values, since it will result in the
-           ;; list being empty if it was successful.
-           (seq-remove
-            #'identity
-            (cl-mapcar
-
-             ;; Test if the file is either a directory -or- a file/symlink
-             (lambda (fp)
-               (or (file-directory-p
-                    (concat extr-dir fp))
-                   (kiss--file-exists-p
-                    (concat extr-dir fp))))
-
-             ;; Yes this code is copied straight from `kiss/manifest',
-             ;; I'm hoping to factor it out.
-             (kiss--read-file
-              (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))))
-          (message "kiss/install: manifest is valid!"))
+      (unless (kiss--dir-matches-manifest-p
+               extr-dir
+               (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))
+        (error "kiss/install: Manifest is not valid!"))
 
       ;; (not (cl-remove-if #'identity '(nil nil nil)))
       ;; (not (cl-remove-if #'identity '(t t t)))
