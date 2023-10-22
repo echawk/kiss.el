@@ -1390,7 +1390,7 @@ are the same."
       ;; makes a valid KISS pkg.
       (unless (file-exists-p
                (concat "/var/db/kiss/installed/" pkg "/manifest"))
-        (message "kiss/install: Not a valid kiss package!"))
+        (error "kiss/install: Not a valid kiss package!"))
 
       ;; Now that the pkg is verified to be a kiss pkg, we need
       ;; to validate the manifest that was shipped with the pkg.
