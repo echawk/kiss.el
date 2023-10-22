@@ -107,20 +107,20 @@
   "The version of kiss that kiss.el is compatible with.")
 
 (defcustom kiss/KISS_GET
-  (car (seq-filter 'executable-find
+  (car (seq-filter #'executable-find
                    '("aria2c" "axel" "curl" "wget" "wget2")))
   "The utility for downloading http sources."
   :type 'string)
 
 (defcustom kiss/KISS_CHK
-  (car (seq-filter 'executable-find
+  (car (seq-filter #'executable-find
                    '("openssl" "sha256sum" "sha256" "shasum" "digest")))
   "The utility for computing SHA256 checksums."
   :type 'string)
 
 ;; FIXME: Using 'su' is currently not supported by this package manager.
 (defcustom kiss/KISS_SU
-  (car (seq-filter 'executable-find
+  (car (seq-filter #'executable-find
                    '("ssu" "sudo" "doas" "su")))
   "The utility that will be used to elevate priviledges."
   :type 'string)
@@ -214,8 +214,8 @@
            ((rx ".lzma" eol)            "lzma -dcT0 ")
            ((rx (or ".txz" ".xz") eol)  "xz -dcT0 ")
            ((rx ".zst" eol)             "zstd -dcT0 "))))
-    (if cmd
-        (shell-command (concat cmd file-path " > " out-path)))))
+    (when cmd
+      (shell-command (concat cmd file-path " > " out-path)))))
 
 (defun kiss--b3 (file-path)
   "(I) Run b3sum on FILE-PATH."
@@ -848,8 +848,8 @@ are the same."
                   " " "-"
                   (kiss--get-pkg-version pkg))))
     ;; Install/build missing dependencies
-    (if missing-deps
-        (mapcar #'kiss--try-install-build missing-deps))
+    (when missing-deps
+      (mapcar #'kiss--try-install-build missing-deps))
 
     ;; Recheck to make sure that we aren't missing any deps.
     (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
@@ -926,7 +926,7 @@ are the same."
                        (etc-files
                         (seq-filter
                          (lambda (s)
-                           (and (string-match-p (rx bol "/etc")s)
+                           (and (string-match-p (rx bol "/etc") s)
                                 (f-file? (concat install-dir "/" s))))
                          manifest-lst)))
 
