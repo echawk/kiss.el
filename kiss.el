@@ -395,13 +395,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (kiss--read-file
    (concat kiss/installed-db-dir pkg "/manifest")))
 
-;; (cl-remove-if
-;;  (lambda (s) (string= "" s))
-;;  (string-split
-;;   (f-read-text
-;;    (concat kiss/installed-db-dir pkg "/manifest"))
-;;   "\n")))
-
 ;; (benchmark-elapse (kiss/manifest "kiss"))
 
 (defun kiss--get-installed-manifest-files ()
@@ -484,10 +477,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                    (f-read-text depends-file))
                   "\n"))))))
 
-;; NOTE: I would like to revisit this function to see if it
-;; could be written in a more functional style, so as to allow
-;; eaiser porting of the logic to other functional programming
-;; languages.
 (defun kiss--get-pkg-dependency-graph (pkg-lst)
   "(I) Generate a graph of the dependencies for PKG-LST."
   (let ((queue
@@ -584,8 +573,6 @@ when using this function compared with the iterative version."
 ;; (kiss--get-pkg-make-orphans)
 ;; (length (kiss--get-pkg-make-orphans))
 
-;; TODO: make the output list prettier (ie, should be a list of pkgs,
-;; not depends files)
 (defun kiss--get-pkg-hard-dependents (pkg)
   "(I) Return a list of installed packages that have a runtime dependency on PKG, nil if there are no dependents."
   (mapcar
@@ -758,6 +745,7 @@ when using this function compared with the iterative version."
          (concat "cp -Lrf " (car (kiss/search pkg)) " " dir))))
 
 
+;; FIXME: need kiss--single-quote-string?
 (defun kiss--make-tarball-of-dir (dir file-path)
   "(I) Make a compressed tarball of DIR saved into FILE-PATH."
   ;; FIXME: need to remove the reliance on tar's -C flag, since it
@@ -897,6 +885,7 @@ are the same."
          ;; Write this script to a temporary location.
          'utf-8 k-el-build)
 
+        ;; FIXME: need kiss--single-quote-string?
         ;; Mark the script as executable.
         (shell-command (concat "chmod +x " k-el-build))
 
@@ -961,6 +950,7 @@ are the same."
 
               ;; rm the build directory
               (message (concat "Removing the build directory (" proc-dir ")"))
+              ;; FIXME: need kiss--single-quote-string?
               (shell-command (concat "rm -rf -- " proc-dir))
               ;; Have the expr eval to t.
               t)
