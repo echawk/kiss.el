@@ -1535,7 +1535,7 @@ are the same."
 
 ;; FIXME: I think the `-f' flag is required to be added to rm(1).
 (defun kiss--remove-file (file-path)
-  "(I) Remove FILE-PATH as the appropriate user using rm(1), t if successful, nil otherwise."
+  "(I) Remove FILE-PATH as the appropriate user using rm(1)."
   (if (kiss--file-exists-p file-path)
       (let ((owner (kiss--get-owner-name file-path))
             (rmcmd (concat "rm -- " (kiss--single-quote-string file-path))))
@@ -1545,7 +1545,7 @@ are the same."
               (kiss--shell-command-as-user rmcmd owner))))))
 
 (defun kiss--remove-directory (dir-path)
-  "(I) Remove DIR-PATH as the appropriate user using rmdir(1), t if successful, nil otherwise."
+  "(I) Remove DIR-PATH as the appropriate user using rmdir(1)."
   (if (and (kiss--file-is-directory-p dir-path)
            (not (kiss--file-is-symbolic-link-p dir-path)))
       (let ((owner (kiss--get-owner-name dir-path))
