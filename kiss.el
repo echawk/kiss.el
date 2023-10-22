@@ -681,6 +681,11 @@ when using this function compared with the iterative version."
     (reverse
      (seq-sort 'string-lessp (delete-dups files-and-dirs)))))
 
+(defun kiss--dir-matches-manifest-p (dir manifest-file)
+  "(I) Return t or nil depending on whether a DIR matches MANIFEST-FILE."
+  (equal (kiss--get-manifest-for-dir dir)
+         (kiss--read-file manifest-file)))
+
 (defun kiss--get-pkg-version (pkg)
   "(I) Get the version for PKG using the car of `kiss/search'."
   (let ((ks (kiss/search pkg)))
