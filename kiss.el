@@ -301,6 +301,29 @@
 
 ;; (kiss--manifest-to-string (kiss/manifest "xdo"))
 
+;; FIXME: this function should not need to exist.
+(defun kiss--file-is-regular-file-p (file-path)
+  "(I) Return T if FILE-PATH exists and is a regular file."
+  (eq 0 (shell-command (concat "test -f "
+                               (kiss--single-quote-string file-path)))))
+
+(defun kiss--file-is-symbolic-link-p (file-path)
+  "(I) Return T if FILE-PATH exists and is a symbolic link."
+  (eq 0 (shell-command (concat "test -h "
+                               (kiss--single-quote-string file-path)))))
+
+(defun kiss--file-is-directory-p (file-path)
+  "(I) Return T if FILE-PATH exists and is a directory."
+  (eq 0 (shell-command (concat "test -d "
+                               (kiss--single-quote-string file-path)))))
+
+(defun kiss--file-identify (file-path)
+  "(I) Identify FILE-PATH as a symbol representing what kind of file it is."
+  (cond
+   ((kiss--file-is-directory-p     file-path) 'directory)
+   ((kiss--file-is-symbolic-link-p file-path) 'symlink)
+   ((kiss--file-is-regular-file-p  file-path) 'file)))
+
 ;; FIXME: Either fix upstream Emacs/f.el or keep using this.
 ;; NOTE: DO NOT USE THIS ANYWHERE THAT ISN'T ABSOLUTELY NECESSARY.
 (defun kiss--file-exists-p (file-path)
@@ -309,10 +332,9 @@ However, `file-exists-p' and `file-symlink-p' are fundamentally broken when it
 comes to broken symlinks.  Hence the need for this function.
 This function returns t if FILE-PATH exists and nil if it doesn't."
   (or
-   (eq 0
-       (shell-command (concat "test -f " file-path)))
-   (eq 0
-       (shell-command (concat "test -h " file-path)))))
+   (kiss--file-is-regular-file-p file-path)
+   (kiss--file-is-symbolic-link-p file-path)))
+
 
 (defun kiss--single-quote-string (str)
   "(I) Add quotes around STR.  Useful when interacting with the cli."
