@@ -1441,7 +1441,7 @@ are the same."
             (shell-command
              (concat "cp " kiss/installed-db-dir pkg "/manifest"
                      " " proc-dir "/manifest-copy"))
-            (if (file-exists-p kiss/installed-db-dir pkg "/etcsums")
+            (if (file-exists-p (concat kiss/installed-db-dir pkg "/etcsums"))
                 (shell-command
                  (concat "cp " kiss/installed-db-dir pkg "/etcsums"
                          " " proc-dir "/etcsums-copy")))))
@@ -1462,12 +1462,11 @@ are the same."
    ((listp pkgs-l)
     (mapcar #'kiss/install pkgs-l))
    ((atom pkgs-l)
-    ((let* ((tarball
-             (cond ((file-exists-p pkgs-l) pkgs-l)
-                   (t (kiss--get-pkg-cached-bin pkgs-l)))))
-       (if (not tarball)
-           (error (concat "kiss/install: tarball does not exist for " pkgs-l)))
-       (kiss--install-tarball tarball))))))
+    (let* ((tarball
+            (cond ((file-exists-p pkgs-l) pkgs-l)
+                  (t (kiss--get-pkg-cached-bin pkgs-l)))))
+      (when tarball
+        (kiss--install-tarball tarball))))))
 
 (defun kiss--pkg-is-installed-p (pkg)
   "(I) Return t if PKG is installed, nil otherwise."
@@ -1496,10 +1495,10 @@ are the same."
   (if (eq nil pkg-q)
       (let ((pkgs (nthcdr 2 (directory-files kiss/installed-db-dir))))
         (cl-mapcar (lambda (p)
-                     (let ((pdir (concat kiss/installed-db-dir p)))
-                       (list p (kiss--get-installed-pkg-version p))))
+                     (list p (kiss--get-installed-pkg-version p)))
                    pkgs))
-    (list pkg-q (kiss--get-installed-pkg-version pkg-q))))
+    (when (kiss--pkg-is-installed-p pkg-q)
+      (list pkg-q (kiss--get-installed-pkg-version pkg-q)))))
 
 ;; -> remove       Remove packages
 ;; ===========================================================================
@@ -1556,12 +1555,11 @@ are the same."
   (let ((symlink-queue '()))
     (mapcar
      (lambda (file-path)
-       (let ((sq-file-path (kiss--single-quote-string file-path)))
-         (pcase (kiss--file-identify file-path)
-           ('directory (kiss--remove-directory file-path))
-           ('symlink   (setq symlink-queue
-                             (cons file-path symlink-queue)))
-           ('file      (kiss--remove-file      file-path)))))
+       (pcase (kiss--file-identify file-path)
+         ('directory (kiss--remove-directory file-path))
+         ('symlink   (setq symlink-queue
+                           (cons file-path symlink-queue)))
+         ('file      (kiss--remove-file      file-path))))
      file-path-lst)
     ;; Now to cleanup broken symlinks.
     (mapcar
