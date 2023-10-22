@@ -350,8 +350,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
       (let* ((alt      (string-replace "/" ">" path))
              (alt-path (concat kiss/choices-db-dir pkg alt))
              (path-own (kiss/owns path)))
-        (if (kiss--file-exists-p
-             (kiss--single-quote-string alt-path))
+        (if (kiss--file-exists-p  alt-path)
             (progn
               ;; If the file is owned by a package in the database.
               (if path-own
@@ -375,8 +374,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                        " " path)
                (kiss--get-owner-name path))
               (kiss--pkg-manifest-replace pkg alt-path path))))))
-
-
 
 ;; (f-symlink-p "/var/db/kiss/choices/gawk\\>usr\\>bin\\>awk")
 ;; (f-exists?  "/var/db/kiss/choices/busybox\\>usr\\>bin\\>sh")
