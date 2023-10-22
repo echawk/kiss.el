@@ -1168,29 +1168,29 @@ are the same."
      (lambda (tps)
        (kiss--tps-env pkg tps
                       (progn
-                        (cond
-                         ;; This one is a bit messy since we have to be able to parse
-                         ;; out the useful information in a git source.
-                         ((string= "git" type)
-                          (let ((u (replace-regexp-in-string
-                                    (rx bol "git+") ""
-                                    uri)))
-                            (concat
-                             dest-dir "/"
-                             (car
-                              (reverse
-                               (string-split
-                                (car (string-split u (rx (or "#" "@")))) "/"))))))
+                        (pcase type
+                          ;; This one is a bit messy since we have to be able to parse
+                          ;; out the useful information in a git source.
+                          ("git"
+                           (let ((u (replace-regexp-in-string
+                                     (rx bol "git+") ""
+                                     uri)))
+                             (concat
+                              dest-dir "/"
+                              (car
+                               (reverse
+                                (string-split
+                                 (car (string-split u (rx (or "#" "@")))) "/"))))))
 
-                         ((string= "remote" type)
-                          (concat dest-dir "/" (car (reverse (string-split uri "/")))))
-                         ((string= "local" type)
-                          ;; (if (string= (rx bol "/" (regexp ".*")) "/asdf")
-                          (if (string-match (rx bol "/") uri)
-                              ;; Absolute path.
-                              uri
-                            ;; Relative path.
-                            (concat (car (kiss/search pkg)) "/" uri)))))))
+                          ("remote"
+                           (concat dest-dir "/" (car (reverse (string-split uri "/")))))
+                          ("local"
+                           ;; (if (string= (rx bol "/" (regexp ".*")) "/asdf")
+                           (if (string-match (rx bol "/") uri)
+                               ;; Absolute path.
+                               uri
+                             ;; Relative path.
+                             (concat (car (kiss/search pkg)) "/" uri)))))))
      type-pkg-sources)))
 
 (defun kiss--pkg-sources-available-p (pkg)
