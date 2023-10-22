@@ -1502,9 +1502,9 @@ are the same."
 ;; FIXME: I think the `-f' flag is required to be added to rm(1).
 (defun kiss--remove-file (file-path)
   "(I) Remove FILE-PATH as the appropriate user using rm(1), t if successful, nil otherwise."
-  (if (file-exists-p file-path)
+  (if (kiss--file-exists-p file-path)
       (let ((owner (kiss--get-owner-name file-path))
-            (rmcmd (concat "rm -- " file-path)))
+            (rmcmd (concat "rm -- " (kiss--single-quote-string file-path))))
         (eq 0
             (if (kiss--am-owner-p file-path)
                 (shell-command rmcmd)
@@ -1527,8 +1527,12 @@ are the same."
   ;; FIXME: does *not* take all cases into account yet, do NOT
   ;; use
 
-  ;; FIXME: need to investigate if this function needs my custom 'file-exists-p'
-  ;; predicate.
+  ;; TODO: Check this function with packages that have more elaborate
+  ;; symlink structures, and ensure that this function removes all of the
+  ;; files in the manifest properly.
+  ;; I think one way to remedy this would be to try to remove all of the
+  ;; directories from the file-path-lst again, once all of the symlinks are
+  ;; gone, so that way all of the dirs can be properly removed.
 
   ;; This will return all of the /etc files/dirs.
   ;; (cl-remove-if-not
@@ -1545,27 +1549,16 @@ are the same."
   (let ((symlink-queue '()))
     (cl-mapcar
      (lambda (file-path)
-       (cond
-        ;; NOTE: This is a cond expression, so it is important that
-        ;; the directory check is *first*.
-
-        ((and (kiss--file-is-directory-p file-path)
-              (not (kiss--file-is-symbolic-link-p file-path)))
-         (kiss--remove-directory file-path))
-
-        ((kiss--file-is-symbolic-link-p file-path)
-         (setq symlink-queue (cons file-path symlink-queue)))
-
-        ((kiss--file-exists-p file-path)
-         (kiss--remove-file file-path))
-
-        (t nil)))
+       (let ((sq-file-path (kiss--single-quote-string file-path)))
+         (pcase (kiss--file-identify file-path)
+           ('directory (kiss--remove-directory file-path))
+           ('symlink   (setq symlink-queue
+                             (cons file-path symlink-queue)))
+           ('file      (kiss--remove-file      file-path)))))
      file-path-lst)
     ;; Now to cleanup broken symlinks.
     (cl-mapcar
-     (lambda (sym)
-       (if (kiss--file-exists-p sym)
-           (kiss--remove-file sym)))
+     #'kiss--remove-file
      symlink-queue)))
 
 ;; (mapconcat #'identity
