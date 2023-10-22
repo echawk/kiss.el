@@ -1068,7 +1068,7 @@ are the same."
 (defun kiss/download (pkgs-l)
   (interactive "sQuery: ")
   (cond ((listp pkgs-l)
-         (cl-mapcar #'kiss/download pkgs-l))
+         (mapcar #'kiss/download pkgs-l))
         ((atom pkgs-l)
          (kiss--download-pkg-sources pkgs-l))
         (t nil)))
@@ -1235,7 +1235,7 @@ are the same."
   "(I) Download the sources for PKG into `kiss/KISS_SRCDIR'."
   (let* ((pkg-source-cache-dir (concat kiss/KISS_SRCDIR pkg "/"))
          (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
-    (cl-mapcar
+    (mapcar
      (lambda (tps)
        (kiss--tps-env
         pkg tps
@@ -1269,7 +1269,7 @@ are the same."
     ;; Extract the tarball.
     (shell-command (concat "tar xf " decomp-tarball " -C " dir))
     ;; Get all of the top level directories from the tarball.
-    (cl-mapcar
+    (mapcar
      (lambda (tld)
        (let* ((temp-f (kiss--make-temp-file))
               (temp-d (concat temp-f "-" tld)))
@@ -1279,7 +1279,7 @@ are the same."
 
          ;; NOTE: we need to call directory-files twice here, since
          ;; First do the mv's
-         (cl-mapcar
+         (mapcar
           (lambda (f)
             (shell-command
              (concat "mv -f " (concat temp-d f) " " dir)))
@@ -1288,7 +1288,7 @@ are the same."
          ;; Then do the cp's
          (let ((files (nthcdr 2 (directory-files temp-d))))
            (if files
-               (cl-mapcar
+               (mapcar
                 (lambda (f)
                   (shell-command
                    (concat "cp -fRPp " (concat temp-d f) " " dir)))
@@ -1564,7 +1564,7 @@ are the same."
   ;; Make this local variable since we need to rm the symlinks
   ;; separately.
   (let ((symlink-queue '()))
-    (cl-mapcar
+    (mapcar
      (lambda (file-path)
        (let ((sq-file-path (kiss--single-quote-string file-path)))
          (pcase (kiss--file-identify file-path)
@@ -1574,7 +1574,7 @@ are the same."
            ('file      (kiss--remove-file      file-path)))))
      file-path-lst)
     ;; Now to cleanup broken symlinks.
-    (cl-mapcar
+    (mapcar
      #'kiss--remove-file
      symlink-queue)))
 
