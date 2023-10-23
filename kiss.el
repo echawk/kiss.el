@@ -863,7 +863,7 @@ are the same."
                      (lambda (s) (string-split s "/"))
                      (seq-filter
                       (lambda (s) (string-match-p "/lib.?.?.?.?/$" s))
-                      file-path-lst))))))))
+                      file-path-st))))))))
     (let ((found-files
            ;; This is the code to approximate the rx or match.
            (seq-filter (lambda (l)
