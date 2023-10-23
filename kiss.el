@@ -111,6 +111,9 @@
 (defconst kiss/KISS_BINDIR
   (concat (getenv "HOME") "/.cache/kiss/bin/"))
 
+(defconst kiss/KISS_LOGDIR
+  (concat (getenv "HOME") "/.cache/kiss/logs/"))
+
 (defconst kiss/version "0.0.1"
   "The version of kiss.el.")
 (defconst kiss/compat-version "5.6.4"
@@ -890,6 +893,43 @@ are the same."
        (lambda (ff) (concat "/" (mapconcat #'symbol-name ff "/")))
        found-files))))
 
+
+(defun kiss--build-make-script (build-dir install-dir pkg-ver log-file)
+
+  ;; Essentially, we want to build out a script that contains
+
+  ;; all of the info that we need.
+
+  ;; * Environment to build the package in
+  ;; * The package build script
+  ;; * The proper arguments to said pkg build script
+
+  ;; ~/.cache/kiss/logs/$(date +%Y-%m-%d)/<pkg>-$(date +%Y-%m-%d-%H:%M)-<procnum>
+  (f-write-text
+   (concat
+    "#!/bin/sh -xe\n"
+
+    ;; cd into the build dir so our env is correct.
+    "cd " build-dir " \n"
+
+    "export AR=${AR:-ar} \n"
+    "export CC=${CC:-cc} \n"
+    "export CXX=${CXX:-c++} \n"
+    "export NM=${NM:-nm} \n"
+    "export RANLIB=${RANLIB:-ranlib} \n"
+    "export RUSTFLAGS=\"--remap-path-prefix=$PWD=. $RUSTFLAGS\" \n"
+    "export GOFLAGS=\"-trimpath -modcacherw $GOFLAGS\" \n"
+    "export GOPATH=\"$PWD/go\" \n"
+    "export DESTDIR=\"" install-dir "\" \n"
+    ;; TODO: this might not be explicitly needed at this part?
+    ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
+
+    build-script " " install-dir " " pkg-ver " | tee " log-file)
+   ;; Write this script to a temporary location.
+   'utf-8 k-el-build)
+  ;; Mark the script as executable.
+  (shell-command (concat "chmod +x " (kiss--single-quote-string k-el-build))))
+
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: should try to see what functionality I can move out of this
 ;; function
@@ -915,43 +955,13 @@ are the same."
 
         ;; Extract pkg's sources to the build directory.
         (kiss--extract-pkg-sources pkg build-dir)
-        ;; Essentially, we want to build out a script that contains
-        ;; all of the info that we need.
-
-        ;; * Environment to build the package in
-        ;; * The package build script
-        ;; * The proper arguments to said pkg build script
-
-        ;; FIXME: need to also save a log of the build...
-        ;; ^^ do this using 'tee(1)' or just piping directly into the
-        ;; log itself
-        ;; ~/.cache/kiss/logs/$(date +%Y-%m-%d)/<pkg>-$(date +%Y-%m-%d-%H:%M)-<procnum>
-        (f-write-text
-         (concat
-          "#!/bin/sh -xe\n"
-
-          ;; cd into the build dir so our env is correct.
-          "cd " build-dir " \n"
-
-          "export AR=${AR:-ar} \n"
-          "export CC=${CC:-cc} \n"
-          "export CXX=${CXX:-c++} \n"
-          "export NM=${NM:-nm} \n"
-          "export RANLIB=${RANLIB:-ranlib} \n"
-          "export RUSTFLAGS=\"--remap-path-prefix=$PWD=. $RUSTFLAGS\" \n"
-          "export GOFLAGS=\"-trimpath -modcacherw $GOFLAGS\" \n"
-          "export GOPATH=\"$PWD/go\" \n"
-          "export DESTDIR=\"" install-dir "\" \n"
-          ;; TODO: this might not be explicitly needed at this part?
-          ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
-
-          build-script " " install-dir " " pkg-ver)
-         ;; Write this script to a temporary location.
-         'utf-8 k-el-build)
-
-        ;; FIXME: need kiss--single-quote-string?
-        ;; Mark the script as executable.
-        (shell-command (concat "chmod +x " k-el-build))
+        (let ((log-file
+               (concat
+                kiss/KISS_LOGDIR
+                (format-time-string "%Y-%m-%d" (current-time))
+                "/"
+                pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
+          (kiss--build-make-script build-dir install-dir pkg-ver log-file))
 
         ;; NOTE: will need to be somewhat more clever when
         ;; executing the build script, since I would like to be able
