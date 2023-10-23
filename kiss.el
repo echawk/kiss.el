@@ -12,6 +12,16 @@
 
 ;;; Commentary:
 
+;; kiss.el is an implementation of the
+;; KISS Linux package manager (https://codeberg.org/kiss-community/kiss)
+;; This package can also be thought of as providing an "API" into
+;; the kiss package system since, at the moment, the only way to do
+;; any interesting computation with the kiss package system is to
+;; parse and write everything yourself.
+
+;; My hope is that the publishing and finishing of kiss.el will inspire
+;; others to write their own implementations of kiss.
+
 ;; TODO: need to replace all slashes with something else, likely
 ;; a hyphen?
 ;; or could rename kiss/internal to kiss-i or just kiss--
