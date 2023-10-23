@@ -1852,13 +1852,7 @@ are the same."
              (kiss/search p)))))
      pkgs-l)))
 
-;; NOTE: it may be possible to make the future version that uses
-;; the elisp tsort impl much faster than how it currently is,
-;; since we can remove all verticies from the dependency graph
-;; which aren't explicitly mentioned
-;; TODO: look into this function when it comes time to optimize.
-;; FIXME: add in a fast path for lists of 1 - can just return the
-;; list
+;; FIXME: add in a fast path for lists of 1 - can just return the list
 (defun kiss--get-pkg-order (pkgs-lst)
   "(I) Get the proper build order for the packages in PKGS-LST."
   (seq-filter
