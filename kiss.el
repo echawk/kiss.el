@@ -776,14 +776,20 @@ when using this function compared with the iterative version."
                            (kiss--get-pkg-bin-name pkg ver))))
           (if (file-exists-p bin) bin)))))
 
+(defun kiss--get-random-number (&optional upper-bound)
+  "(I) Number from 1 to UPPER-BOUND, exclusive. Default UPPER-BOUND is 30000."
+  (if upper-bound
+      (message "%s" (mod (abs (random)) upper-bound))
+    (message "%s" (mod (abs (random)) 30000))))
+
 (defun kiss--get-tmp-destdir ()
   "(I) Return a directory that can be used as a temporary destdir."
   ;; NOTE: This is not a *perfect* system, however, it is not as easy to
   ;; do the pid trick that the shell implementation of kiss does.
   ;; So the compromise is to pick a random number from 1 to 30000.
-  (let ((rn (message "%s" (mod (abs (random)) 30000))))
+  (let ((rn (kiss--get-random-number)))
     (while (file-exists-p (concat kiss/KISS_TMPDIR rn))
-      (setq rn (message "%s" (mod (abs (random)) 30000))))
+      (setq rn (kiss--get-random-number)))
     (make-directory (concat kiss/KISS_TMPDIR rn) t)
     (concat kiss/KISS_TMPDIR rn)))
 
