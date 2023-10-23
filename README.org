@@ -1,6 +1,6 @@
 * kiss.el
 
-This is an implementation of the [kiss](https://codeberg.org/kiss-community/kiss) package manager in Emacs lisp.
+This is an implementation of the [[https://codeberg.org/kiss-community/kiss][kiss]] package manager in Emacs lisp.
 
 Currently is very much WIP.
 
