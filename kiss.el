@@ -894,7 +894,7 @@ are the same."
        found-files))))
 
 
-(defun kiss--build-make-script (build-dir install-dir pkg-ver log-file)
+(defun kiss--build-make-script (k-el-build build-script build-dir install-dir pkg-ver log-file)
 
   ;; Essentially, we want to build out a script that contains
 
@@ -965,7 +965,12 @@ are the same."
                  log-dir
                  pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
           (make-directory log-dir t)
-          (kiss--build-make-script build-dir install-dir pkg-ver log-file))
+          (kiss--build-make-script k-el-build
+                                   build-script
+                                   build-dir
+                                   install-dir
+                                   pkg-ver
+                                   log-file))
 
         ;; NOTE: will need to be somewhat more clever when
         ;; executing the build script, since I would like to be able
