@@ -712,7 +712,7 @@ when using this function compared with the iterative version."
 (defun kiss--get-pkg-bin-name (pkg version)
   "(I) Return the proper name for the binary for PKG at VERSION."
   (concat pkg "@"
-          (replace-regexp-in-string " " "-" version)
+          (replace-regexp-in-string " " "-" (string-trim-right version))
           ".tar." kiss/KISS_COMPRESS ))
 
 (defun kiss--get-compression-command ()
@@ -839,7 +839,7 @@ are the same."
   (let ((missing-deps (kiss--get-pkg-missing-dependencies pkg))
         (pkg-ver (replace-regexp-in-string
                   " " "-"
-                  (kiss--get-pkg-version pkg))))
+                  (string-trim-right (kiss--get-pkg-version pkg)))))
     ;; Install/build missing dependencies
     (when missing-deps
       (mapcar #'kiss--try-install-build missing-deps))
