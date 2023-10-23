@@ -20,6 +20,8 @@ Currently is very much WIP.
 - [ ] upgrade
 - [X] version
 
+- [ ] hooks
+
 *NOTE*: Some of these features are /partially/ supported.
 
 Feel free to submit issues & PRs!
