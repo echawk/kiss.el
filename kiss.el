@@ -458,7 +458,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 (defun kiss--get-installed-manifest-files ()
   "(I) Return a list of all of the installed manifest files."
   (mapcar
-   '(lambda (pkg) (concat kiss/installed-db-dir pkg "/manifest"))
+   (lambda (pkg) (concat kiss/installed-db-dir pkg "/manifest"))
    (mapcar 'car (kiss/list))))
 
 (defun kiss/owns (file-path)
@@ -863,7 +863,7 @@ are the same."
                      (lambda (s) (string-split s "/"))
                      (seq-filter
                       (lambda (s) (string-match-p "/lib.?.?.?.?/$" s))
-                      mani))))))))
+                      file-path-lst))))))))
     (let ((found-files
            ;; This is the code to approximate the rx or match.
            (seq-filter (lambda (l)
