@@ -1519,8 +1519,18 @@ are the same."
                (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))
         (error "kiss/install: Manifest is not valid!"))
 
-      ;; (not (cl-remove-if #'identity '(nil nil nil)))
-      ;; (not (cl-remove-if #'identity '(t t t)))
+      ;; Check to make sure we aren't missing any dependencies.
+      (let ((extr-depends
+             (concat extr-dir "/var/db/kiss/installed/" pkg "/depends")))
+        (when (kiss--file-exists-p extr-depends)
+          (when (seq-contains-p
+                 (mapcar #'kiss--pkg-is-installed-p
+                         (seq-remove
+                          (lambda (line)
+                            (string-match-p (rx bol (0+ " ") "#") line))
+                          (kiss--read-file extr-depends)))
+                 nil)
+            (error "kiss/install: Missing dependencies!"))))
 
       ;; pkg_conflicts()
       ;; FIXME: impl
