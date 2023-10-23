@@ -142,6 +142,11 @@
   "A list of directories in decreasing precedence to look for packages in."
   :type '(string))
 
+(defcustom kiss/KISS_HOOK
+  (split-string (getenv "KISS_HOOK") ":")
+  "A list of absolute paths to executable files."
+  :type '(string))
+
 ;; ===========================================================================
 
 ;; Internal function definitions, these are considered to not be stable.
@@ -249,6 +254,44 @@
         (concat kiss/KISS_CHK args file-path)))))))
 
 ;; Public code below.
+
+;;[006] List of hooks ----------------------------------------------------------
+
+;;Each hook is executed in the order it appears in KISS_HOOK and is given its
+;;own environment/arguments accordingly. The hooks are documented as follows.
+
+;;+---------------+--------+----------+--------------------+-------------------+
+;;| hook          | arg1   | arg2     | arg3               | arg4              |
+;;+---------------+--------+----------+--------------------+-------------------+
+;;|               |        |          |                    |                   |
+;;| build-fail    | Type   | Package  | Build directory    |                   |
+;;| post-build    | Type   | Package  | DESTDIR            |                   |
+;;| post-install  | Type   | Package  | Installed database |                   |
+;;| post-package  | Type   | Package  | Tarball            |                   |
+;;| post-source   | Type   | Package  | Verbatim source    | Resolved source   |
+;;| post-update   | Type   | [7]      |                    |                   |
+;;| pre-build     | Type   | Package  | Build directory    |                   |
+;;| pre-extract   | Type   | Package  | DESTDIR            |                   |
+;;| pre-install   | Type   | Package  | Extracted package  |                   |
+;;| pre-remove    | Type   | Package  | Installed database |                   |
+;;| pre-source    | Type   | Package  | Verbatim source    | Resolved source   |
+;;| pre-update    | Type   | [7] [8]  |                    |                   |
+;;| queue-status  | Type   | Package  | Number in queue    | Total in queue    |
+;;|               |        |          |                    |                   |
+;;+---------------+--------+----------+--------------------+-------------------+
+
+;;[7] The -update hooks start in the current repository. In other words, you can
+;;    operate on the repository directly or grab the value from '$PWD'.
+
+;;[8] The second argument of pre-update is '0' if the current user owns the
+;;    repository and '1' if they do not. In the latter case, privilege
+;;    escalation is required to preserve ownership.
+
+(defun kiss--run-hook (hook &optional arg2 arg3 arg4)
+  "(I) Run all hooks in `kiss/KISS_HOOK'."
+  (dolist (kiss-hook kiss/KISS_HOOK)
+    (shell-command
+     (concat kiss-hook " " hook " " arg2 " " arg3 " " arg4))))
 
 ;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
