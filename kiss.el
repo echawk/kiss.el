@@ -1644,10 +1644,54 @@ are the same."
          (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
          'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))))))
 
-(defun kiss--install-files (source-dir file-path-lst verify-p)
-
+(defun kiss--install-files (source-dir file-path-lst pkg verify-p)
   ;; Copy files and create directories (while preserving permissions)
   ;; The 'test $1' will run w/ '-z' for overwrite and '-e' for verify.
+  (let ((rn (kiss--get-random-number)))
+    (dolist (file file-path-lst)
+      (let ((actual-file (kiss--normalize-file-path (concat kiss/root file))))
+        (pcase (kiss--file-identify actual-file)
+
+          ('directory
+           (unless (kiss--file-is-directory-p actual-file)
+             (kiss--shell-command-as-user
+              (concat
+               "mkdir -m " (kiss--file-rwx (concat source-dir file)) " "
+               (kiss--single-quote-string actual-file))
+              ;; FIXME: see if this is correct???
+              (kiss--get-owner-name kiss/root))))
+
+          ('symlink
+           (kiss--shell-command-as-user
+            (concat "cp -fP " (kiss--single-quote-string
+                               (concat source-dir file))
+                    " " (kiss--single-quote-string
+                         (concat (kiss--dirname actual-file) "/.")))
+            ;; FIXME: see if this is correct???
+            (kiss--get-owner-name kiss/root)))
+
+          ('file
+           (let ((tmp
+                  (concat
+                   (kiss--dirname actual-file)
+                   "__kiss-el-tmp-" pkg
+                   "-" (kiss--basename actual-file)
+                   "-" rn)))
+
+             (kiss--shell-command-as-user
+              (concat "cp -fP " (kiss--single-quote-string
+                                 (concat source-dir file))
+                      " " tmp)
+              ;; FIXME: see if this is correct???
+              (kiss--get-owner-name kiss/root))
+
+             (kiss--shell-command-as-user
+              (concat "mv -f " (kiss--single-quote-string tmp)
+                      " " (kiss--single-quote-string actual-file))
+              ;; FIXME: see if this is correct???
+              (kiss--get-owner-name kiss/root))))
+
+          ))))
 
   ;; while { read -r file && _file=$KISS_ROOT$file; } do case $file in
   ;;     */)
