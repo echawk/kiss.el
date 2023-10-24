@@ -1589,6 +1589,28 @@ are the same."
           " | grep -v " (concat pkg "/manifest:")))
         "\n" t)))))
 
+(defun kiss--rwx-lst-to-octal (lst)
+  (seq-reduce
+   #'+
+   (mapcar
+    (lambda (pair) (if (eq (cdr pair) 45) 0 (car pair)))
+    (-zip '(4 2 1) lst))
+   0))
+
+
+(defun kiss--file-rwx (file-path)
+  (mapconcat
+   #'number-to-string
+   (mapcar
+    #'kiss--rwx-lst-to-octal
+    (seq-partition
+     (cdr
+      (string-to-list
+       (file-attribute-modes
+        (file-attributes file-path))))
+     3))
+   ""))
+
 (defun kiss--dirname (file-path)
   (mapconcat
    #'identity
