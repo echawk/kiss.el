@@ -1112,7 +1112,7 @@ are the same."
                         (seq-filter
                          (lambda (s)
                            (and (string-match-p (rx bol "/etc") s)
-                                (f-file? (concat install-dir "/" s))))
+                                (kiss--file-exists-p (concat install-dir "/" s))))
                          manifest-lst)))
 
                   ;; If we have any etcfiles, create etcsums
