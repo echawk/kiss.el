@@ -163,12 +163,12 @@
   :type 'integer)
 
 (defcustom kiss/KISS_PATH
-  (split-string (getenv "KISS_PATH") ":")
+  (let ((kp (getenv "KISS_PATH"))) (when kp (split-string kp ":")))
   "A list of directories in decreasing precedence to look for packages in."
   :type '(string))
 
 (defcustom kiss/KISS_HOOK
-  (split-string (getenv "KISS_HOOK") ":")
+  (let ((kh (getenv "KISS_HOOK"))) (when kh (split-string kh ":")))
   "A list of absolute paths to executable files."
   :type '(string))
 
