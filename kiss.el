@@ -1800,7 +1800,7 @@ are the same."
       ;; assume that the existence of the manifest file is all that
       ;; makes a valid KISS pkg.
       (unless (file-exists-p
-               (concat "/var/db/kiss/installed/" pkg "/manifest"))
+               (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))
         (error "kiss/install: Not a valid kiss package!"))
 
       ;; Now that the pkg is verified to be a kiss pkg, we need
