@@ -131,6 +131,7 @@
   "The utility for computing SHA256 checksums."
   :type 'string)
 
+;; FIXME: when root, we do as root does - we don't need any of this.
 ;; FIXME: Using 'su' is currently not supported by this package manager.
 (defcustom kiss/KISS_SU
   (car (seq-filter #'executable-find
@@ -499,6 +500,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 ;; (rgrep "/usr/bin/awk$" "manifest" "/var/db/kiss/installed/")
 
+;; FIXME: this function will include '("")  in the return.
 (defun kiss/preferred ()
   (mapcar
    ;; NOTE: this may split files with ':' in the name...
@@ -1097,6 +1099,9 @@ are the same."
 
         ;; Now actually execute the script.
         (message (concat "Building " pkg " at version: " pkg-ver))
+
+        ;; (kiss--run-hook "pre-build" pkg build-dir)
+
         (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
             ;; Success
             (progn
@@ -1107,6 +1112,8 @@ are the same."
                 (make-directory pkg-install-db t)
                 (kiss/fork pkg pkg-install-db)
                 (message (concat "Successful Build!"))
+
+                ;; (kiss--run-hook "post-build" pkg install-dir)
 
                 ;; FIXME: look over kiss code & implement /dev/null
                 ;; for symlinks
@@ -1155,6 +1162,10 @@ are the same."
                install-dir
                (concat kiss/KISS_BINDIR
                        (kiss--get-pkg-bin-name pkg pkg-ver)))
+
+              ;; (kiss--run-hook "post-package" pkg
+              ;;                 (concat kiss/KISS_BINDIR
+              ;;                         (kiss--get-pkg-bin-name pkg pkg-ver)))
 
               ;; rm the build directory
               (message (concat "Removing the build directory (" proc-dir ")"))
@@ -1634,6 +1645,7 @@ are the same."
         ;; Make the choices dir in the extracted tarball.
         (make-directory (concat extr-dir kiss/choices-db-dir) t)
 
+        ;; Move all of the files to the appropriate place.
         (dolist (path files-to-be-alts)
           (let* ((alt      (string-replace "/" ">" path))
                  (alt-path (concat kiss/choices-db-dir pkg alt)))
@@ -1811,6 +1823,7 @@ are the same."
         (error "kiss/install: Manifest is not valid!"))
 
       ;; Check to make sure we aren't missing any dependencies.
+      ;; FIXME: this is where the code is erroring out now
       (let ((extr-depends
              (concat extr-dir "/var/db/kiss/installed/" pkg "/depends")))
         (when (kiss--file-exists-p extr-depends)
@@ -1823,8 +1836,7 @@ are the same."
                  nil)
             (error "kiss/install: Missing dependencies!"))))
 
-      ;; pkg_conflicts()
-      ;; FIXME: impl
+      ;; (kiss--run-hook "pre-install" pkg extr-dir)
 
       (when (kiss--get-pkg-conflict-files pkg extr-dir)
         (if (eq 0 kiss/KISS_CHOICE)
