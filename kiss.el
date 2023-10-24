@@ -153,13 +153,13 @@
 
 (defcustom kiss/KISS_CHOICE
   1
-  "Set this value to '0' disable the alternatives system and error on any file conflicts."
+  "Set to '0' disable the alternatives system and error on any file conflicts."
   :type 'integer)
 
 ;; FIXME: make the default 1, once package stripping actually works.
 (defcustom kiss/KISS_STRIP
   0
-  "Set this value to '1' to enable the stripping of packages."
+  "Set to '1' to enable the stripping of packages."
   :type 'integer)
 
 (defcustom kiss/KISS_PATH
@@ -628,7 +628,7 @@ when using this function compared with the iterative version."
 ;; TODO: make the output list prettier (ie, should be a list of pkgs,
 ;; not depends files)
 (defun kiss--get-pkg-make-dependents (pkg)
-  "(I) Return a list of installed packages that have a make dependency on PKG, nil if there are no dependents."
+  "(I) Return a list of installed packages that have a make dependency on PKG."
   (mapcar
    (lambda (dep-file)
      (replace-regexp-in-string
@@ -797,7 +797,7 @@ when using this function compared with the iterative version."
           ".tar." kiss/KISS_COMPRESS ))
 
 (defun kiss--get-compression-command ()
-  "(I) Return the proper command for the compression specified by `kiss/KISS_COMPRESS'."
+  "(I) Return the proper command for based on `kiss/KISS_COMPRESS'."
   (pcase kiss/KISS_COMPRESS
     ("bz2"  "bzip2 -c")
     ("gz"   "gzip -c")
@@ -807,7 +807,7 @@ when using this function compared with the iterative version."
     ("zstd" "zstd -cT0")))
 
 (defun kiss--get-pkg-cached-bin (pkg)
-  "(I) Return the path of the binary for PKG, nil if PKG has no binary in the cache."
+  "(I) Return the path of the binary for PKG, nil if binary is not in the cache."
   (let ((ver (kiss--get-pkg-version pkg)))
     (if ver
         (let ((bin (concat kiss/KISS_BINDIR
@@ -1195,7 +1195,7 @@ are the same."
 ;; the functionality since kiss/download has similar needs.
 
 (defun kiss--get-pkg-repo-checksums (pkg)
-  "(I) Return the list of checksums for PKG from a repo or nil if checksums don't exist."
+  "(I) Return the list of repo checksums for PKG."
   (let ((checksums-file (concat (car (kiss/search pkg)) "/checksums")))
     (if (file-exists-p checksums-file)
         (seq-remove
