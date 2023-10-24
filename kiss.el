@@ -1748,6 +1748,21 @@ are the same."
   nil
   )
 
+(defun kiss--get-pkg-from-manifest (file-path-lst)
+  "(I) Determine the package name from a manifest."
+  (when (member kiss/installed-db-dir file-path-lst)
+    (car
+     (reverse
+      (string-split
+       (car
+        (seq-filter
+         (lambda (fp) (string-match-p
+                       (rx
+                        (literal kiss/installed-db-dir) (1+ (not "/")) "/" eol)
+                       fp))
+         file-path-lst))
+       "/" t)))))
+
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
   ;; FIXME: maybe error out here?
@@ -1776,17 +1791,8 @@ are the same."
      (concat "tar xf " decomp-tarball " -C " extr-dir))
     (kiss--remove-file decomp-tarball)
 
-    (let ((pkg
-           ;; FIXME: this code is ugly
-           (car (reverse
-                 (seq-remove
-                  #'string-empty-p
-                  (string-split
-                   (seq-filter
-                    (lambda (str)
-                      (string-match
-                       (rx "/var/db/kiss/installed/" (1+ (not "/")) "/" eol) str))
-                    (kiss--get-manifest-for-dir extr-dir)) "/"))))))
+    (let ((pkg (kiss--get-pkg-from-manifest
+                (kiss--get-manifest-for-dir extr-dir))))
 
       (unless pkg
         (error "kiss/install: Unable to detemine the package!"))
