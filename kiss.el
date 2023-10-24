@@ -200,9 +200,10 @@
 ;; code to be used other places too
 (defun kiss--read-file (file-path)
   "(I) Read FILE-PATH as a list of lines, with empty newlines removed."
-  (seq-remove
-   (lambda (s) (string= "" s))
-   (string-split (f-read-text file-path) "\n")))
+  (when (f-exists-p file-path)
+    (seq-remove
+     (lambda (s) (string= "" s))
+     (string-split (f-read-text file-path) "\n"))))
 
 (defun kiss--get-user-from-uid (uid)
   "(I) Return the name for UID.  `$ getent passwd' is parsed for the information."
@@ -963,6 +964,8 @@ are the same."
       (mapcar
        (lambda (line)
          (let ((libpath
+                ;; FIXME: don't concat '/usr' just so kiss/owns will work.
+                ;; Make this a grep?
                 (concat
                  "/usr"
                  (car
@@ -1026,6 +1029,7 @@ are the same."
            (string-match-p
             arch-rx
             (nth 0 od-cmd-output)))
+      (message (concat "strip -g -R .comment -R .note " file))
       (shell-command (concat "strip -g -R .comment -R .note " file)))
 
     ;; .so & executables
@@ -1036,6 +1040,7 @@ are the same."
            (string-match-p
             (rx "0000020 00" (or "2" "3"))
             (nth 1 od-cmd-output)))
+      (message (concat "strip -s -R .comment -R .note " file))
       (shell-command (concat "strip -s -R .comment -R .note " file)))))
 
 (defun kiss--build-strip-files (dir file-path-lst)
@@ -1746,8 +1751,8 @@ are the same."
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
   ;; FIXME: maybe error out here?
-  (unless (f-exists? tarball)
-    nil)
+  (unless (kiss--file-exists-p tarball)
+    (error (concat "kiss/install: " tarball " doesn't exist!")))
 
   (let* ((proc-dir       (kiss--get-tmp-destdir))
          (extr-dir       (concat proc-dir "/extracted"))
@@ -1784,7 +1789,7 @@ are the same."
                     (kiss--get-manifest-for-dir extr-dir)) "/"))))))
 
       (unless pkg
-        (error "unable to detemine the package"))
+        (error "kiss/install: Unable to detemine the package!"))
 
       ;; assume that the existence of the manifest file is all that
       ;; makes a valid KISS pkg.
@@ -1970,6 +1975,7 @@ are the same."
 
   ;; Make this local variable since we need to rm the symlinks
   ;; separately.
+  ;; FIXME: mapcar -> mapc?
   (let ((symlink-queue '()))
     (mapcar
      (lambda (file-path)
@@ -1999,6 +2005,8 @@ are the same."
 ;;             (kiss/manifest "xdo"))
 ;;            " ")
 
+;; NOTE: this function is slowed by the need
+;; to use my custom file detection commands.
 (defun kiss/remove (pkgs-l)
   (interactive)
 
@@ -2084,6 +2092,8 @@ are the same."
 ;;       (if (file-exists-p (concat repo "/MOTD"))
 ;;           (shell-command-to-string (concat "cat " repo "/MOTD"))))))
 
+;; FIXME: will need to rethink how the pre-update & post-update hooks
+;; will work since we have a different arch to how kiss is presently.
 (defun kiss/update ()
   (interactive)
   (message "kiss/update")
