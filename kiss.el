@@ -1688,6 +1688,15 @@ are the same."
             (error "kiss/install: kiss/KISS_CHOICE is equal to 0, erroring out!")
           (kiss--pkg-conflicts pkg extr-dir)))
 
+      ;; FIXME: This code is *technically* not needed, but hey, might as well.
+      ;; This function is typically *super cheap* to run.
+      ;; Now that the pkg is verified to be a kiss pkg, we need
+      ;; to validate the manifest that was shipped with the pkg.
+      (unless (kiss--dir-matches-manifest-p
+               extr-dir
+               (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))
+        (error "kiss/install: Manifest is not valid!"))
+
       ;; If the pkg is already installed (and this is an upgrade)
       ;; make a backup of the manifest and etcsum files
       (if (kiss--pkg-is-installed-p pkg)
