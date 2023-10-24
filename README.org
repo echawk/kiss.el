@@ -25,3 +25,16 @@ Currently is very much WIP.
 *NOTE*: Some of these features are /partially/ supported.
 
 Feel free to submit issues & PRs!
+
+** Long-term Roadmap:
+
+Some of these are far more pie-in-the-sky than others. I think
+that all of them would be cool to have though.
+
+- [ ] Create a wrapper script that can be used from the command line
+- [ ] Write an EIEIO class for packages
+- [ ] Allow for packages to be defined via S-Expressions
+- [ ] Make a TUI/Menu for installing/upgrading packages
+- [ ] Be able to build GUIX derivations
+- [ ] Port to Common Lisp
+- [ ] Rename to kisp? (once ported to Common Lisp)
