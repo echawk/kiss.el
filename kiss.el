@@ -1224,7 +1224,7 @@ are the same."
      ;; TODO: implement a lookup for future mercurial sources.
      (lambda (tps-cache)
        (string= "git" (car (car tps-cache))))
-     (-zip
+     (-zip-pair
       (kiss--get-type-pkg-sources pkg)
       (kiss--get-pkg-sources-cache-path pkg))))))
 
@@ -1233,7 +1233,7 @@ are the same."
   (eq nil
       (seq-remove
        (lambda (pair) (string= (car pair) (cdr pair)))
-       (-zip
+       (-zip-pair
         (kiss--get-pkg-repo-checksums  pkg)
         (kiss--get-pkg-local-checksums pkg)))))
 
@@ -1594,7 +1594,7 @@ are the same."
    #'+
    (mapcar
     (lambda (pair) (if (eq (cdr pair) 45) 0 (car pair)))
-    (-zip '(4 2 1) lst))
+    (-zip-pair '(4 2 1) lst))
    0))
 
 
