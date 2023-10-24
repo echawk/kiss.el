@@ -1857,11 +1857,11 @@ are the same."
 
       ;; FIXME: need to ensure that there is no breakage when
       ;; installing a package that is not presently intsalled.
-      (let ((new-manifest (kiss--read-file (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))
-            (old-manifest (kiss--read-file (concat kiss/installed-db-dir pkg "/manifest")))
-            (files-not-present-in-new-manifest
-             ;; NOTE: the order here is backwards from upstream.
-             (seq-difference old-manifest new-manifest)))
+      (let* ((new-manifest (kiss--read-file (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))
+             (old-manifest (kiss--read-file (concat kiss/installed-db-dir pkg "/manifest")))
+             (files-not-present-in-new-manifest
+              ;; NOTE: the order here is backwards from upstream.
+              (seq-difference old-manifest new-manifest)))
         ;; Reverse the manifest file so that we start shallow, and go deeper
         ;; as we iterate through each item. This is needed so that directories
         ;; are created in the proper order
