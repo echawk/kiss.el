@@ -1394,15 +1394,17 @@ are the same."
                            (let ((u (replace-regexp-in-string
                                      (rx bol "git+") ""
                                      uri)))
-                             (concat
-                              dest-dir "/"
-                              (car
-                               (reverse
-                                (string-split
-                                 (car (string-split u (rx (or "#" "@")))) "/"))))))
+                             (kiss--normalize-file-path
+                              (concat
+                               dest-dir "/"
+                               (car
+                                (reverse
+                                 (string-split
+                                  (car (string-split u (rx (or "#" "@")))) "/")))))))
 
                           ("remote"
-                           (concat dest-dir "/" (car (reverse (string-split uri "/")))))
+                           (kiss--normalize-file-path
+                            (concat dest-dir "/" (car (reverse (string-split uri "/"))))))
                           ("local"
                            ;; (if (string= (rx bol "/" (regexp ".*")) "/asdf")
                            (if (string-match (rx bol "/") uri)
