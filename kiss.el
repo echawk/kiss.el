@@ -1133,10 +1133,9 @@ are the same."
                        (kiss--get-potential-binary-files
                         (kiss--read-file
                          (concat pkg-install-db pkg "/manifest")))))
-                  ;; FIXME: need to optionally strip the binaries based off
-                  ;; of the KISS_STRIP env variable.
-                  (kiss--build-strip-files
-                   install-dir potential-binary-files)
+                  (when (eq 1 kiss/KISS_STRIP)
+                    (kiss--build-strip-files
+                     install-dir potential-binary-files))
 
                   ;; TODO: finish up this impl.
                   ;; FIXME: also need to do dependency fixing
