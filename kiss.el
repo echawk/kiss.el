@@ -138,6 +138,12 @@
   "The utility that will be used to elevate priviledges."
   :type 'string)
 
+(defcustom kiss/KISS_ELF
+  (car (seq-filter #'executable-find
+                   '("readelf" "eu-readelf" "llvm-readelf" "ldd")))
+  "The utility that will be used to dump elf information."
+  :type 'string)
+
 ;; Valid options:
 ;; bz2, gz, lz, lzma, xz, zst
 (defcustom kiss/KISS_COMPRESS
@@ -148,6 +154,12 @@
 (defcustom kiss/KISS_CHOICE
   1
   "Set this value to '0' disable the alternatives system and error on any file conflicts."
+  :type 'integer)
+
+;; FIXME: make the default 1, once package stripping actually works.
+(defcustom kiss/KISS_STRIP
+  0
+  "Set this value to '1' to enable the stripping of packages."
   :type 'integer)
 
 (defcustom kiss/KISS_PATH
@@ -866,7 +878,7 @@ are the same."
                      (lambda (s) (string-split s "/"))
                      (seq-filter
                       (lambda (s) (string-match-p "/lib.?.?.?.?/$" s))
-                      file-path-st))))))))
+                      file-path-lst))))))))
     (let ((found-files
            ;; This is the code to approximate the rx or match.
            (seq-filter (lambda (l)
@@ -930,6 +942,51 @@ are the same."
   ;; Mark the script as executable.
   (shell-command (concat "chmod +x " (kiss--single-quote-string k-el-build))))
 
+;; FIXME: maybe not depend on a library this is *NOT* in melpa???
+(defun dependency-find-test ()
+  (let ((elfcmd "ldd"))
+    (-non-nil
+     (seq-uniq
+      (mapcar
+       (lambda (line)
+         (let ((libpath
+                (concat
+                 "/usr"
+                 (car
+                  (string-split
+                   (string-trim-left (car (reverse (string-split line "=>")))))))))
+           (when libpath
+             (kiss/owns libpath))))
+       (seq-uniq
+        (string-split
+         (mapconcat (lambda (str)
+                      (string-trim
+                       (replace-regexp-in-string
+                        (rx "(" (1+ any) ")") "" str)))
+                    (seq-filter
+                     #'identity
+                     (mapcar
+                      (lambda (fp)
+                        (let ((cmd (concat elfcmd " " "/home/ethan/tmp/h" fp)))
+                          (subp-cond cmd (success stdout))))
+                      (kiss--get-potential-binary-files
+                       (kiss--get-manifest-for-dir "/home/ethan/tmp/h")))) "\n")
+         "\n")
+        )
+       )
+      )
+     )
+    )
+  )
+
+(defun kiss--build-get-missing-dependencies (dir file-path-lst)
+  nil
+  )
+
+(defun kiss--build-strip-files (dir file-path-lst)
+  nil
+  )
+
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: should try to see what functionality I can move out of this
 ;; function
@@ -982,13 +1039,13 @@ are the same."
         (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
             ;; Success
             (progn
-              (message (concat "Successful Build!"))
               ;; Now we have to fork over the package files that we
               ;; used to the repo dir.
               (let ((pkg-install-db
                      (concat install-dir "/var/db/kiss/installed/")))
                 (make-directory pkg-install-db t)
                 (kiss/fork pkg pkg-install-db)
+                (message (concat "Successful Build!"))
 
                 ;; FIXME: look over kiss code & implement /dev/null
                 ;; for symlinks
@@ -1016,13 +1073,21 @@ are the same."
                    (kiss--manifest-to-string manifest-lst)
                    'utf-8 (concat pkg-install-db pkg "/manifest")))
 
-                ;; FIXME: need to optionally strip the binaries based off
-                ;; of the KISS_STRIP env variable.
+                (let ((potential-binary-files
+                       (kiss--get-potential-binary-files
+                        (kiss--read-file
+                         (concat pkg-install-db pkg "/manifest")))))
+                  ;; FIXME: need to optionally strip the binaries based off
+                  ;; of the KISS_STRIP env variable.
+                  (kiss--build-strip-files
+                   install-dir potential-binary-files)
 
-                ;; TODO: finish up this impl.
-                ;; FIXME: also need to do dependency fixing
-                (kiss--get-potential-binary-files
-                 (kiss--read-file (concat pkg-install-db pkg "/manifest"))))
+                  ;; TODO: finish up this impl.
+                  ;; FIXME: also need to do dependency fixing
+                  (kiss--build-get-missing-dependencies
+                   install-dir potential-binary-files)
+                  )
+                )
 
               ;; Finally create the tarball
               (message (concat "Creating tarball for " pkg))
