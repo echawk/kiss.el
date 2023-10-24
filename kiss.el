@@ -1556,6 +1556,60 @@ are the same."
          (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
          'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))))))
 
+(defun kiss--install-files (source-dir file-path-lst verify-p)
+
+  ;; Copy files and create directories (while preserving permissions)
+  ;; The 'test $1' will run w/ '-z' for overwrite and '-e' for verify.
+
+  ;; while { read -r file && _file=$KISS_ROOT$file; } do case $file in
+  ;;     */)
+  ;;         # Skip directories if they already exist in the file system.
+  ;;         # (Think /usr/bin, /usr/lib, etc).
+  ;;         [ -d "$_file" ] || {
+  ;;             file_rwx "$2/${file#/}"
+  ;;             mkdir -m "$oct" "$_file"
+  ;;         }
+  ;;     ;;
+
+  ;;     *)
+  ;;         # Skip directories and files which exist in verify mode.
+  ;;         [ -d "$_file" ] || ! test "$1" "$_file" ||
+  ;;             continue
+
+  ;;         case $file in /etc/*[!/])
+  ;;             # Handle /etc/ files in a special way (via a 3-way checksum) to
+  ;;             # determine how these files should be installed. Do we overwrite
+  ;;             # the existing file? Do we install it as $file.new to avoid
+  ;;             # deleting user configuration? etc.
+  ;;             #
+  ;;             # This is more or less similar to Arch Linux's Pacman with the
+  ;;             # user manually handling the .new files when and if they appear.
+  ;;             pkg_etc || continue
+  ;;         esac
+
+  ;;         if [ -h "$_file" ]; then
+  ;;             # Copy the file to the destination directory overwriting
+  ;;             # any existing file.
+  ;;             cp -fP "$2$file" "${_file%/*}/."
+
+  ;;         else
+  ;;             # Construct a temporary filename which is a) unique and
+  ;;             # b) identifiable as related to the package manager.
+  ;;             __tmp=${_file%/*}/__kiss-tmp-$_pkg-${file##*/}-$KISS_PID
+
+  ;;             # Copy the file to the destination directory with the
+  ;;             # temporary name created above.
+  ;;             cp -fP "$2$file" "$__tmp" &&
+
+  ;;             # Atomically move the temporary file to its final
+  ;;             # destination. The running processes will either get
+  ;;             # the old file or the new one.
+  ;;             mv -f "$__tmp" "$_file"
+  ;;         fi
+  ;; esac || return 1; done
+
+  nil
+  )
 
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
@@ -1649,9 +1703,32 @@ are the same."
       ;; generate a list of files which exist in the current (installed)
       ;; manifest that do not exist in the new (to be installed) manifest.
 
-      ;; Reverse the manifest file so that we start shallow, and go deeper
-      ;; as we iterate through each item. This is needed so that directories
-      ;; are created in the proper order
+      (let ((files-not-present-in-new-manifest
+             ;; NOTE: the order here is backwards from upstream.
+             (seq-difference
+              (kiss--read-file
+               (concat kiss/installed-db-dir pkg "/manifest"))
+
+              (kiss--read-file
+               (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))))
+        ;; Reverse the manifest file so that we start shallow, and go deeper
+        ;; as we iterate through each item. This is needed so that directories
+        ;; are created in the proper order
+
+        ;; Install the packages files.
+        ;;(kiss--install-files extr-dir ... nil)
+
+        ;; Remove any files that were in the old manifest that aren't
+        ;; in the new one.
+        (kiss--remove-files files-not-present-in-new-manifest)
+
+        ;; Install the packages files for a second time to fix
+        ;; any potential mess that could have been made from the
+        ;; previous rm.
+        ;;(kiss--install-files extr-dir ... t)
+
+        )
+
 
       ;; FIXME: finish this func
       nil)))
