@@ -177,6 +177,10 @@
 ;; Internal function definitions, these are considered to not be stable.
 ;; It's best not to rely on them outside of this file.
 
+(defun kiss--normalize-file-path (file-path)
+  "(I) Normalize the number of '/' in FILE-PATH."
+  (replace-regexp-in-string (rx (1+ "/") "/") "/" file-path))
+
 (defun kiss--lst-to-str (lst)
   "(I) Convert LST to a string."
   (mapconcat (lambda (s) (format "%s" s)) lst " "))
