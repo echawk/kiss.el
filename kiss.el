@@ -1589,6 +1589,15 @@ are the same."
           " | grep -v " (concat pkg "/manifest:")))
         "\n" t)))))
 
+(defun kiss--dirname (file-path)
+  (mapconcat
+   #'identity
+   (seq-reverse (seq-drop (seq-reverse (string-split file-path "/")) 1))
+   "/"))
+
+(defun kiss--basename (file-path)
+  (car (seq-reverse (string-split file-path "/"))))
+
 (defun kiss--pkg-conflicts (pkg extr-dir)
   "(I) Fix up DIR for PKG so as to allow for alternatives."
   (let ((conf-files (kiss--get-pkg-conflict-files pkg extr-dir)))
