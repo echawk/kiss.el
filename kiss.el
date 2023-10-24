@@ -1849,20 +1849,19 @@ are the same."
       ;; generate a list of files which exist in the current (installed)
       ;; manifest that do not exist in the new (to be installed) manifest.
 
-      (let ((files-not-present-in-new-manifest
+      ;; FIXME: need to ensure that there is no breakage when
+      ;; installing a package that is not presently intsalled.
+      (let ((new-manifest (kiss--read-file (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))
+            (old-manifest (kiss--read-file (concat kiss/installed-db-dir pkg "/manifest")))
+            (files-not-present-in-new-manifest
              ;; NOTE: the order here is backwards from upstream.
-             (seq-difference
-              (kiss--read-file
-               (concat kiss/installed-db-dir pkg "/manifest"))
-
-              (kiss--read-file
-               (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))))
+             (seq-difference old-manifest new-manifest)))
         ;; Reverse the manifest file so that we start shallow, and go deeper
         ;; as we iterate through each item. This is needed so that directories
         ;; are created in the proper order
 
         ;; Install the packages files.
-        ;;(kiss--install-files extr-dir ... nil)
+        (kiss--install-files extr-dir (reverse new-manifest) pkg nil)
 
         ;; Remove any files that were in the old manifest that aren't
         ;; in the new one.
@@ -1871,11 +1870,8 @@ are the same."
         ;; Install the packages files for a second time to fix
         ;; any potential mess that could have been made from the
         ;; previous rm.
-        ;;(kiss--install-files extr-dir ... t)
-
+        (kiss--install-files extr-dir (reverse new-manifest) pkg t)
         )
-
-
       ;; FIXME: finish this func
       nil)))
 
