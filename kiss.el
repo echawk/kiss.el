@@ -612,6 +612,15 @@ when using this function compared with the iterative version."
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
   (tsort (kiss--get-pkg-dependency-graph pkg-lst)))
 
+(defun kiss--remove-redundant-dependencies (dep-lst)
+  "(I) Remove redundant dependencies from DEP-LST."
+  (seq-remove
+   (lambda (pkg)
+     (member
+      pkg
+      (seq-uniq (flatten-list (mapcar #'kiss--get-pkg-dependencies dep-lst)))))
+   dep-lst))
+
 ;; TODO: make the output list prettier (ie, should be a list of pkgs,
 ;; not depends files)
 (defun kiss--get-pkg-make-dependents (pkg)
