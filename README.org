@@ -2,7 +2,7 @@
 
 This is an implementation of the [[https://codeberg.org/kiss-community/kiss][kiss]] package manager in Emacs lisp.
 
-Currently is very much WIP.
+Currently is WIP, yet usable for my day-to-day use.
 
 ** Features Implemented:
 
@@ -11,13 +11,13 @@ Currently is very much WIP.
 - [X] checksum
 - [X] download
 - [X] fork
-- [ ] install
+- [X] install^*
 - [X] list
 - [X] preferred
-- [ ] remove
+- [X] remove^*
 - [X] search
 - [X] update
-- [ ] upgrade
+- [X] upgrade^*
 - [X] version
 
 - [ ] hooks
@@ -25,6 +25,10 @@ Currently is very much WIP.
 *NOTE*: Some of these features are /partially/ supported.
 
 Feel free to submit issues & PRs!
+
+install, remove, and upgrade are all rather new in their implementations.
+They **shouldn't** send your box to //dev/null/, but not promises (yet!).
+
 
 ** Long-term Roadmap:
 
