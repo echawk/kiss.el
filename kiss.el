@@ -582,12 +582,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
               (setq queue (append dep-deps (cdr queue)))))))
     res))
 
-;; (length  (kiss--get-pkg-dependency-graph '("gcc")))
-
-;; (equal
-;;  (kiss--get-pkg-dependency-graph '("gcc" "llvm"))
-;;  (kiss--get-pkg-dependency-graph-rec '("gcc" "llvm")))
-
 (defun kiss--get-pkg-dependency-graph-rec (pkg-lst)
   "(I) A Recursive & TCO-ed implementation of `kiss--get-pkg-dependency-graph'.
 
@@ -722,13 +716,6 @@ when using this function compared with the iterative version."
    (eq (kiss--get-pkg-hard-dependents pkg) nil)
    (eq (kiss--get-pkg-orphan-alternatives pkg) nil)))
 
-;; (length
-;;  (cl-remove-if-not
-;;   #'f-dir?
-;;   (string-split
-;;    (f-read-text (concat kiss/installed-db-dir "gcc" "/manifest"))
-;;    "\n")))
-
 ;; -> build        Build packages
 ;; ===========================================================================
 
@@ -769,6 +756,7 @@ when using this function compared with the iterative version."
                         (rx "/var/db/kiss/installed/" (1+ (not "/")) "/" eol)
                         s))
                      files-and-dirs))))
+          ;; FIXME: this doesn't seem to work at the moment (at least etcsums)
           ;; add /var/db/kiss/installed/<pkg>/manifest
           ;; and /var/db/kiss/isntalled/<pkg>/etcsums
           (if (member "/etc" files-and-dirs)
@@ -1160,8 +1148,7 @@ are the same."
                   ;; TODO: finish up this impl.
                   ;; FIXME: also need to do dependency fixing
                   (kiss--build-get-missing-dependencies
-                   install-dir potential-binary-files)
-                  )
+                   install-dir potential-binary-files))
                 )
 
               ;; Finally create the tarball
@@ -1477,10 +1464,6 @@ are the same."
                 (concat (car (kiss/search pkg)) "/" uri) dest-dir)))))))
      type-pkg-sources)))
 
-;; (kiss--get-pkg-sources "shen-cl")
-;; (concat (car (kiss/search "shen-cl")) "/" "patches/ccl-and-ecl-support.patch"))
-;; (kiss--download-pkg-sources "shen-cl")
-
 ;; pkg_source_tar()
 (defun kiss--extract-tarball (tarball dir)
   "(I) Extract TARBALL to DIR.  Emulates GNU Tar's --strip-components=1."
@@ -1752,10 +1735,6 @@ are the same."
          (extr-dir       (concat proc-dir "/extracted"))
          (decomp-tarball (kiss--make-temp-file)))
 
-    ;; (split-string
-    ;;  (shell-command-to-string (concat "tar tf " tarball)) "\n")
-
-
     (make-directory extr-dir t)
 
     ;; NOTE: I would like to switch to using my already written
@@ -1968,21 +1947,6 @@ are the same."
      #'kiss--remove-file
      symlink-queue)))
 
-;; (mapconcat #'identity
-;;            (cl-mapcar
-;;             (lambda (file-path)
-;;               (cond
-;;                ((and (file-directory-p file-path)
-;;                      (not (file-symlink-p file-path)))
-;;                 "dir")
-;;                ((file-symlink-p file-path)
-;;                 "sym")
-;;                ((file-exists-p file-path)
-;;                 "file")
-;;                (t nil)))
-;;             (kiss/manifest "xdo"))
-;;            " ")
-
 ;; NOTE: this function is slowed by the need
 ;; to use my custom file detection commands.
 (defun kiss/remove (pkgs-l)
@@ -2076,7 +2040,6 @@ are the same."
   (interactive)
   (message "kiss/update")
   (kiss--update-git-repos))
-;; (async-shell-command "KISS_PROMPT=0 kiss update"))
 
 ;; -> upgrade      Update the system
 ;; ===========================================================================
@@ -2104,15 +2067,6 @@ are the same."
       (setq oodpkgs (remove "kiss" oodpkgs)))
 
     (kiss--build-install oodpkgs)))
-
-;; (let ((pkgs (kiss--get-out-of-date-pkgs)))
-;; ;; If kiss is a member of the pkgs to be updated, make sure to update
-;; ;; it first.
-;; (if (member "kiss" pkgs)
-;;     (progn
-;;       (kiss/download "kiss")
-;;       (kiss/build    "kiss")
-;;       (kiss/install  "kiss")))
 
 (defun kiss--pkgs-without-repo ()
   "(I) Return all packages that are installed that are not in a remote repo."
