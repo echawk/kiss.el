@@ -1201,6 +1201,8 @@ are the same."
   (interactive)
   (cond ((listp pkgs-l)
          (progn
+           ;; Download the package sources now.
+           (kiss/download pkgs-l)
            (mapcar #'kiss--build-pkg
                    (kiss--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
@@ -1897,7 +1899,7 @@ are the same."
   (interactive)
   (cond
    ((listp pkgs-l)
-    (mapcar #'kiss/install pkgs-l))
+    (mapcar #'kiss/install (kiss--get-pkg-order pkgs-l)))
    ((atom pkgs-l)
     (let* ((tarball
             (cond ((file-exists-p pkgs-l) pkgs-l)
@@ -2135,24 +2137,11 @@ are the same."
   (interactive)
 
   (let* ((oodpkgs (kiss--get-out-of-date-pkgs)))
-    ;; FIXME: need to move this step to the actual building of the pkg
-    ;; Need to check if kiss is being updated, since we need to make sure
-    ;; to install it *first*, because it may have bug fixes/breaking changes.
+    (when (member "kiss" oodpkgs)
+      (kiss--build-install "kiss")
+      (setq oodpkgs (remove "kiss" oodpkgs)))
 
-    ;; NOTE: need think about how we will deal with a kiss update from
-    ;; kiss.el's perspective.
-    ;; (if (member "kiss" oodpkgs)
-    ;;     (kiss/build-install "kiss"))
-
-    ;; Now that we potentially have kiss updated, we need to now update
-    ;; the packages in oodpkgs in the proper order.
-    ;; This should prevent us from having to do any backtracking
-    ;; as well, since we are always going to build the packages in the order
-    ;; that they are required for.
-
-    ;; (mapcar #'kiss/build-install
-    ;;         (kiss--get-pkg-order oodpkgs))
-    oodpkgs))
+    (kiss--build-install oodpkgs)))
 
 ;; (let ((pkgs (kiss--get-out-of-date-pkgs)))
 ;; ;; If kiss is a member of the pkgs to be updated, make sure to update
