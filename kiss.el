@@ -543,19 +543,23 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         " /dev/null"))))
     "\n")))
 
+(defun kiss--get-dependencies-from-file (file-path)
+  "(I) Return the dependencies in FILE-PATH."
+  (when (file-exists-p file-path)
+    (seq-remove
+     #'string-empty-p
+     ;; All of this below is to emulate `awk '{print $1}' < file'
+     (mapcar (lambda (s) (car (string-split s " ")))
+             (string-split
+              (replace-regexp-in-string
+               "#.*$" ""
+               (f-read-text file-path))
+              "\n")))))
+
 (defun kiss--get-pkg-dependencies (pkg)
   "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies."
   (let ((depends-file (concat (car (kiss/search pkg)) "/depends")))
-    (if (file-exists-p depends-file)
-        (seq-remove
-         #'string-empty-p
-         ;; All of this below is to emulate `awk '{print $1}' < file'
-         (mapcar (lambda (s) (car (string-split s " ")))
-                 (string-split
-                  (replace-regexp-in-string
-                   "#.*$" ""
-                   (f-read-text depends-file))
-                  "\n"))))))
+    (kiss--get-dependencies-from-file depends-file)))
 
 (defun kiss--get-pkg-dependency-graph (pkg-lst)
   "(I) Generate a graph of the dependencies for PKG-LST."
