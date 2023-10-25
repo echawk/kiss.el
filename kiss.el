@@ -1670,22 +1670,22 @@ are the same."
   ;; The 'test $1' will run w/ '-z' for overwrite and '-e' for verify.
   (let ((rn (kiss--get-random-number)))
     (dolist (file file-path-lst)
-      (let ((actual-file (kiss--normalize-file-path (concat kiss/root file))))
-        (pcase (kiss--file-identify actual-file)
+      (let ((actual-file (kiss--normalize-file-path (concat kiss/root file)))
+            (source-file (concat source-dir file)))
+        (pcase (kiss--file-identify source-file)
 
           ('directory
            (unless (kiss--file-is-directory-p actual-file)
              (kiss--shell-command-as-user
               (concat
-               "mkdir -m " (kiss--file-rwx (concat source-dir file)) " "
+               "mkdir -m " (kiss--file-rwx source-file) " "
                (kiss--single-quote-string actual-file))
               ;; FIXME: see if this is correct???
               (kiss--get-owner-name kiss/root))))
 
           ('symlink
            (kiss--shell-command-as-user
-            (concat "cp -fP " (kiss--single-quote-string
-                               (concat source-dir file))
+            (concat "cp -fP " (kiss--single-quote-string source-file)
                     " " (kiss--single-quote-string
                          (concat (kiss--dirname actual-file) "/.")))
             ;; FIXME: see if this is correct???
@@ -1700,8 +1700,7 @@ are the same."
                    "-" rn)))
 
              (kiss--shell-command-as-user
-              (concat "cp -fP " (kiss--single-quote-string
-                                 (concat source-dir file))
+              (concat "cp -fP " (kiss--single-quote-string source-file)
                       " " tmp)
               ;; FIXME: see if this is correct???
               (kiss--get-owner-name kiss/root))
