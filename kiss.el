@@ -1522,14 +1522,19 @@ are the same."
          (kiss--shell-command-as-user
           (concat "rm -rf -- " temp-d) (kiss--get-owner-name temp-d))))
 
-     ;; Get a list of all of the top level directories in the tarball.
-     ;; TODO: see if I can remove the pipe into sort.
-     (seq-remove
-      #'string-empty-p
-      (string-split
-       (shell-command-to-string
-        (concat "tar tf " tarball " | sort -ut / -k1,1"))
-       "\n")))
+     ;; Make sure we only go through each top level directory *once*.
+     (seq-uniq
+      (mapcar
+       ;; Get rid of any possible junk after the /.
+       (lambda (str) (replace-regexp-in-string (rx "/" (0+ any) eol) "/" str))
+       (seq-filter
+        (lambda (line)
+          ;; Keep lines that have only **1** / in them.
+          (string-match-p (rx bol (0+ (not "/")) "/" (0+ (not "/")) eol) line))
+        ;; TODO: can I remove this seq-uniq?
+        (string-split
+         (shell-command-to-string (concat "tar tf " tarball))
+         "\n" t)))))
 
     ;; Remove our decompressed tarball now that we are done with it.
     (kiss--shell-command-as-user
