@@ -1723,54 +1723,7 @@ are the same."
               (kiss--get-owner-name kiss/root))))
 
           ))))
-
-  ;; while { read -r file && _file=$KISS_ROOT$file; } do case $file in
-  ;;     */)
-  ;;         # Skip directories if they already exist in the file system.
-  ;;         # (Think /usr/bin, /usr/lib, etc).
-  ;;         [ -d "$_file" ] || {
-  ;;             file_rwx "$2/${file#/}"
-  ;;             mkdir -m "$oct" "$_file"
-  ;;         }
-  ;;     ;;
-
-  ;;     *)
-  ;;         # Skip directories and files which exist in verify mode.
-  ;;         [ -d "$_file" ] || ! test "$1" "$_file" ||
-  ;;             continue
-
-  ;;         case $file in /etc/*[!/])
-  ;;             # Handle /etc/ files in a special way (via a 3-way checksum) to
-  ;;             # determine how these files should be installed. Do we overwrite
-  ;;             # the existing file? Do we install it as $file.new to avoid
-  ;;             # deleting user configuration? etc.
-  ;;             #
-  ;;             # This is more or less similar to Arch Linux's Pacman with the
-  ;;             # user manually handling the .new files when and if they appear.
-  ;;             pkg_etc || continue
-  ;;         esac
-
-  ;;         if [ -h "$_file" ]; then
-  ;;             # Copy the file to the destination directory overwriting
-  ;;             # any existing file.
-  ;;             cp -fP "$2$file" "${_file%/*}/."
-
-  ;;         else
-  ;;             # Construct a temporary filename which is a) unique and
-  ;;             # b) identifiable as related to the package manager.
-  ;;             __tmp=${_file%/*}/__kiss-tmp-$_pkg-${file##*/}-$KISS_PID
-
-  ;;             # Copy the file to the destination directory with the
-  ;;             # temporary name created above.
-  ;;             cp -fP "$2$file" "$__tmp" &&
-
-  ;;             # Atomically move the temporary file to its final
-  ;;             # destination. The running processes will either get
-  ;;             # the old file or the new one.
-  ;;             mv -f "$__tmp" "$_file"
-  ;;         fi
-  ;; esac || return 1; done
-
+  ;; FIXME: have a better return than nil
   nil
   )
 
