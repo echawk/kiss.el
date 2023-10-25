@@ -1142,7 +1142,11 @@ are the same."
 
                   ;; Next, create the manifest
                   (f-write-text
-                   (kiss--manifest-to-string manifest-lst)
+                   ;; FIXME: I don't think this should be needed,
+                   ;; since, *technically* kiss--get-manifest-for-dir
+                   ;; should have already taken care of this...
+                   (kiss--manifest-to-string
+                    (kiss--get-manifest-for-dir install-dir))
                    'utf-8 (concat pkg-install-db pkg "/manifest")))
 
                 (let ((potential-binary-files
