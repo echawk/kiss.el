@@ -89,7 +89,6 @@
   (require 'pcase)
   (require 'rx)
   (require 'seq)
-  (require 'subp)
   (require 'subr-x)
   (require 'tsort))
 
