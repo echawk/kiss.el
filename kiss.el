@@ -1833,10 +1833,7 @@ are the same."
         (when (kiss--file-exists-p extr-depends)
           (when (seq-contains-p
                  (mapcar #'kiss--pkg-is-installed-p
-                         (seq-remove
-                          (lambda (line)
-                            (string-match-p (rx bol (0+ " ") "#") line))
-                          (kiss--read-file extr-depends)))
+                         (kiss--get-dependencies-from-file extr-depends))
                  nil)
             (error "kiss/install: Missing dependencies!"))))
 
