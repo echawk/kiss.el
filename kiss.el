@@ -1041,6 +1041,105 @@ are the same."
    (lambda (fp) (kiss--strip-file (concat dir fp)))
    file-path-lst))
 
+;; Food for though w/ regards to using bubblewrap for builds...
+;; (mapconcat
+;;  (lambda (fp) (concat "--ro-bind " fp " " fp))
+;;  (seq-remove
+;;   (lambda (str) (string-match-p (rx "/" eol) str))
+;;   (seq-uniq
+;;    (flatten-list
+;;     (mapcar #'kiss/manifest (cdr (reverse (kiss--get-pkg-dependency-order "kiss")))))))
+;;  " ")
+
+(defun bubble-wrap-build-test ()
+
+  ;; Also, theoretically, this should be doable w/ hardlinks, provided
+  ;; that the target dir is on the same file system as the source files.
+
+  ;; NOTE: if any of the packages that we are copying files
+  ;; over from have any of their files in the alternatives system, then
+  ;; we need to ensure that we copy over the provider of that file too
+  ;; -OR- we can do some magic on the fly to copy over the files to the
+  ;; proper place?
+  ;; I'm leaning towards the former option.
+
+  (let ((alts (kiss/alternatives))
+        (needed-pkgs
+         (kiss--get-pkg-dependency-order
+          (seq-uniq
+           (append
+            (cdr (reverse (kiss--get-pkg-dependency-order "python")))
+            '("baselayout" "certs" "musl"
+              "linux-headers" "zlib" "b3sum"
+              "bzip2" "pigz" "xz"
+              "m4" "flex" "bison"
+              "binutils" "gmp" "mpfr"
+              "libmpc" "gcc" "busybox"
+              "openssl" "curl" "git"
+              "kiss" "make"))))))
+
+    ;; FIXME:
+    ;; We could enforce a different strategy of looking up these files,
+    ;; where instead of adding more packages into the chroot, we instead
+    ;; "remove" the user's current alternatives, and instead replace
+    ;; the files with the file provided by the package.
+    ;; This is rather easy to do (at least in kiss.el) since we send
+    ;; both file names through the alternatives system.
+
+    ;; The user should be able to swap between the two strategies, since
+    ;; there are times where you do not want to link to a an executable
+    ;; or etc.
+
+    ;; We need to look up the package owners who own any of the alternatives.
+    ;; this is to ensure that all expected utilites are present in the
+    ;; system.
+
+    (setq missing-pkgs
+
+          ;; TODO: make this code somewhat less ugly (if possible)
+          (seq-uniq
+           (mapcar
+            #'kiss/owns
+            (seq-uniq
+             (flatten-list
+              (mapcar
+               (lambda (pkg)
+                 (seq-remove
+                  (lambda (s) (string-match-p "/$" s))
+                  (mapcar
+                   (lambda (t) (nth 1 t))
+                   (seq-filter (lambda (triple) (string= pkg (car triple))) alts))))
+               needed-pkgs))))))
+
+    (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
+          (needed-files
+           (seq-sort
+            #'string-lessp
+            (seq-uniq
+             (flatten-list
+              (mapcar #'kiss/manifest (append missing-pkgs needed-pkgs)))))))
+
+      (dolist (file needed-files)
+        (pcase file
+          ((rx "/" eol)
+           (shell-command
+            (concat
+             "mkdir -p "
+             (kiss--normalize-file-path
+              (concat fake-chroot-dir file)))))
+          (_
+           (shell-command
+            (concat
+             "cp -aRP " file " "
+             (kiss--normalize-file-path
+              (concat fake-chroot-dir file))))
+           )
+          )
+        )
+      )
+    )
+  )
+
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: should try to see what functionality I can move out of this
 ;; function
