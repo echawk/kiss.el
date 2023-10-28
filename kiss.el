@@ -1151,14 +1151,9 @@ are the same."
         ;; Extract pkg's sources to the build directory.
         (kiss--extract-pkg-sources pkg build-dir)
         (let* ((log-dir
-                (concat
-                 kiss/KISS_LOGDIR
-                 (format-time-string "%Y-%m-%d" (current-time))
-                 "/"))
+                (concat kiss/KISS_LOGDIR (format-time-string "%Y-%m-%d" (current-time)) "/"))
                (log-file
-                (concat
-                 log-dir
-                 pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
+                (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
           (make-directory log-dir t)
           (kiss--build-make-script k-el-build
                                    build-script
