@@ -1025,26 +1025,16 @@ are the same."
     ;; .o & .a files.
     (when (or
            (and
-            (string-match-p
-             elf-rx
-             (nth 0 od-cmd-output))
-            (string-match-p
-             (rx "0000020 001" )
-             (nth 1 od-cmd-output)))
-           (string-match-p
-            arch-rx
-            (nth 0 od-cmd-output)))
+            (string-match-p elf-rx (nth 0 od-cmd-output))
+            (string-match-p (rx "0000020 001") (nth 1 od-cmd-output)))
+           (string-match-p arch-rx (nth 0 od-cmd-output)))
       (message (concat "strip -g -R .comment -R .note " file))
       (shell-command (concat "strip -g -R .comment -R .note " file)))
 
     ;; .so & executables
     (when (and
-           (string-match-p
-            elf-rx
-            (nth 0 od-cmd-output))
-           (string-match-p
-            (rx "0000020 00" (or "2" "3"))
-            (nth 1 od-cmd-output)))
+           (string-match-p elf-rx (nth 0 od-cmd-output))
+           (string-match-p (rx "0000020 00" (or "2" "3")) (nth 1 od-cmd-output)))
       (message (concat "strip -s -R .comment -R .note " file))
       (shell-command (concat "strip -s -R .comment -R .note " file)))))
 
