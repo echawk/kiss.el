@@ -1820,6 +1820,8 @@ are the same."
         ;; as we iterate through each item. This is needed so that directories
         ;; are created in the proper order
 
+        (message (concat "kiss/install: Installing " pkg "..."))
+
         ;; Install the packages files.
         (kiss--install-files extr-dir (reverse new-manifest) pkg nil)
 
@@ -1831,6 +1833,9 @@ are the same."
         ;; any potential mess that could have been made from the
         ;; previous rm.
         (kiss--install-files extr-dir (reverse new-manifest) pkg t)
+
+        (message (concat "kiss/install: Installation of " pkg " Finished."))
+
         )
       ;; FIXME: finish this func
       nil)))
@@ -2064,8 +2069,10 @@ are the same."
     (when (member "kiss" oodpkgs)
       (kiss--build-install "kiss")
       (setq oodpkgs (remove "kiss" oodpkgs)))
-
-    (kiss--build-install oodpkgs)))
+    ;; Build & install each package individually
+    ;; - ensures that new dependencies are installed before their dependents.
+    (dolist (pkg (kiss--get-pkg-order oodpkgs))
+      (kiss--try-install-build pkg))))
 
 (defun kiss--pkgs-without-repo ()
   "(I) Return all packages that are installed that are not in a remote repo."
