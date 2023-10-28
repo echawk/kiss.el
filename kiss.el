@@ -1051,7 +1051,7 @@ are the same."
 ;;     (mapcar #'kiss/manifest (cdr (reverse (kiss--get-pkg-dependency-order "kiss")))))))
 ;;  " ")
 
-(defun bubble-wrap-build-test ()
+(defun kiss--make-chroot-dir-for-pkg (dir package)
 
   ;; Also, theoretically, this should be doable w/ hardlinks, provided
   ;; that the target dir is on the same file system as the source files.
@@ -1062,13 +1062,12 @@ are the same."
   ;; -OR- we can do some magic on the fly to copy over the files to the
   ;; proper place?
   ;; I'm leaning towards the former option.
-
   (let ((alts (kiss/alternatives))
         (needed-pkgs
          (kiss--get-pkg-dependency-order
           (seq-uniq
            (append
-            (cdr (reverse (kiss--get-pkg-dependency-order "python")))
+            (cdr (reverse (kiss--get-pkg-dependency-order package)))
             '("baselayout" "certs" "musl"
               "linux-headers" "zlib" "b3sum"
               "bzip2" "pigz" "xz"
@@ -1077,7 +1076,6 @@ are the same."
               "libmpc" "gcc" "busybox"
               "openssl" "curl" "git"
               "kiss" "make"))))))
-
     ;; FIXME:
     ;; We could enforce a different strategy of looking up these files,
     ;; where instead of adding more packages into the chroot, we instead
@@ -1085,17 +1083,13 @@ are the same."
     ;; the files with the file provided by the package.
     ;; This is rather easy to do (at least in kiss.el) since we send
     ;; both file names through the alternatives system.
-
     ;; The user should be able to swap between the two strategies, since
     ;; there are times where you do not want to link to a an executable
     ;; or etc.
-
     ;; We need to look up the package owners who own any of the alternatives.
-    ;; this is to ensure that all expected utilites are present in the
+    ;; this is to ensure that all expected utilities are present in the
     ;; system.
-
     (setq missing-pkgs
-
           ;; TODO: make this code somewhat less ugly (if possible)
           (seq-uniq
            (mapcar
@@ -1108,10 +1102,12 @@ are the same."
                   (lambda (s) (string-match-p "/$" s))
                   (mapcar
                    (lambda (t) (nth 1 t))
-                   (seq-filter (lambda (triple) (string= pkg (car triple))) alts))))
+                   (seq-filter
+                    (lambda (triple) (string= pkg (car triple)))
+                    alts))))
                needed-pkgs))))))
 
-    (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
+    (let ((fake-chroot-dir dir)
           (needed-files
            (seq-sort
             #'string-lessp
@@ -1120,25 +1116,14 @@ are the same."
               (mapcar #'kiss/manifest (append missing-pkgs needed-pkgs)))))))
 
       (dolist (file needed-files)
-        (pcase file
-          ((rx "/" eol)
-           (shell-command
-            (concat
-             "mkdir -p "
-             (kiss--normalize-file-path
-              (concat fake-chroot-dir file)))))
-          (_
-           (shell-command
-            (concat
-             "cp -aRP " file " "
-             (kiss--normalize-file-path
-              (concat fake-chroot-dir file))))
-           )
-          )
-        )
-      )
-    )
-  )
+        (let ((normalized-file (kiss--normalize-file-path
+                                (concat fake-chroot-dir file))))
+          (pcase file
+            ((rx "/" eol)
+             (shell-command (concat "mkdir -p '" normalized-file "'")))
+            (_
+             (shell-command (concat "cp -aRP '" file "' '" normalized-file"'")))))))))
+
 
 ;; FIXME: rm missing-deps check here and move that up to the caller.
 ;; FIXME: should try to see what functionality I can move out of this
