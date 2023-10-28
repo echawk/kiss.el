@@ -1182,6 +1182,33 @@ are the same."
 
         ;; (kiss--run-hook "pre-build" pkg build-dir)
 
+
+        ;; This expression below will conduct builds using bubblewrap!
+        ;; This feature is *very* experimental, and may not work with
+        ;; every package.
+        (when (and (boundp 'kiss-use-bubblewrap) kiss-use-bubblewrap)
+          (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
+                (fake-home-dir "/tmp/kiss-fake-home/"))
+
+            (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
+            (make-directory install-dir t)
+            (make-directory fake-home-dir t)
+
+            (shell-command
+             (concat
+              "bwrap "
+              " --unshare-net "
+              ;; TODO: enforce / being read-only
+              " --bind " fake-chroot-dir " / "
+              " --bind " fake-home-dir " /home "
+              " --bind " k-el-build " " k-el-build " "
+              " --bind " build-script " " build-script " "
+              " --bind " build-dir " " build-dir " "
+              " --bind " install-dir " " install-dir " "
+              " --bind " log-dir " " log-dir" "
+              " -- sh -xe " k-el-build))
+            (error "FIXME: acutally finish up this impl!")))
+
         (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
             ;; Success
             (progn
