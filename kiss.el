@@ -73,6 +73,14 @@
 ;; FIXME: in addition to these messages, there also needs to be
 ;; assertions/error checking done throughout the code.
 
+;; FIXME: need to go through and fixup some of the bulid-install-download
+;; logic to ensure that *every* missing dependency is accounted for.
+;; Also, need to make sure that they return values which are *sensible*
+;; and that can be used for further reasoning.
+
+;; FIXME: generally speaking, we don't do a great job of respecting
+;; the potential dependencies of /var/db/kiss/installed/*pkg
+
 ;; Also, need to go through this code once I get a fully working POC done
 ;; and ruthlessly remove all duplicated code, since rn there are many
 ;; little redundancies spread about the current source.
@@ -83,6 +91,10 @@
 ;; https://github.com/dylanaraps/community/commit/e370a224520d07e6e42ba045845674b39dea03a4
 
 ;;; Code:
+
+;; FIXME: see if I can drop 'f...
+
+;;(require 'subp)
 (eval-when-compile
   (require 'cl-lib)
   (require 'f)
