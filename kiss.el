@@ -1146,21 +1146,19 @@ are the same."
              (proc-dir     (kiss--get-tmp-destdir))
              (build-dir    (concat proc-dir "/build/" pkg "/"))
              (install-dir  (concat proc-dir "/pkg/" pkg))
-             (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el")))
+             (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el"))
+             (log-dir      (concat kiss/KISS_LOGDIR (format-time-string "%Y-%m-%d" (current-time)) "/"))
+             (log-file     (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
 
         ;; Extract pkg's sources to the build directory.
         (kiss--extract-pkg-sources pkg build-dir)
-        (let* ((log-dir
-                (concat kiss/KISS_LOGDIR (format-time-string "%Y-%m-%d" (current-time)) "/"))
-               (log-file
-                (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
-          (make-directory log-dir t)
-          (kiss--build-make-script k-el-build
-                                   build-script
-                                   build-dir
-                                   install-dir
-                                   pkg-ver
-                                   log-file))
+        (make-directory log-dir t)
+        (kiss--build-make-script k-el-build
+                                 build-script
+                                 build-dir
+                                 install-dir
+                                 pkg-ver
+                                 log-file)
 
         ;; NOTE: will need to be somewhat more clever when
         ;; executing the build script, since I would like to be able
