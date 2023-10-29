@@ -1123,7 +1123,7 @@ are the same."
                  (seq-remove
                   (lambda (s) (string-match-p "/$" s))
                   (mapcar
-                   (lambda (t) (nth 1 t))
+                   (lambda (tr) (nth 1 tr))
                    (seq-filter
                     (lambda (triple) (string= pkg (car triple)))
                     alts))))
