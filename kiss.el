@@ -1081,7 +1081,10 @@ are the same."
          (kiss--get-pkg-dependency-order
           (seq-uniq
            (append
-            (cdr (reverse (kiss--get-pkg-dependency-order package)))
+            (cdr (reverse (kiss--get-pkg-dependency-order package t)))
+            ;; FIXME: need to discuss *how* this should be
+            ;; done w/ the rest of the community.
+            ;; I'm personally in favor of having a "kiss-system" package.
             '("baselayout" "certs" "musl"
               "linux-headers" "zlib" "b3sum"
               "bzip2" "pigz" "xz"
@@ -1089,7 +1092,8 @@ are the same."
               "binutils" "gmp" "mpfr"
               "libmpc" "gcc" "busybox"
               "openssl" "curl" "git"
-              "kiss" "make"))))))
+              "kiss" "make")))
+          t)))
     ;; FIXME:
     ;; We could enforce a different strategy of looking up these files,
     ;; where instead of adding more packages into the chroot, we instead
@@ -1105,9 +1109,13 @@ are the same."
     ;; system.
     (setq missing-pkgs
           ;; TODO: make this code somewhat less ugly (if possible)
+          ;; Figure out which packages we will also need to include
+          ;; in the chroot
           (seq-uniq
            (mapcar
             #'kiss/owns
+            ;; Ensure that if there are multiple providers (for example
+            ;; /usr/bin/ls), that it only shows up once.
             (seq-uniq
              (flatten-list
               (mapcar
