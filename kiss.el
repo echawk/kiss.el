@@ -1174,6 +1174,7 @@ are the same."
 
         ;; Extract pkg's sources to the build directory.
         (kiss--extract-pkg-sources pkg build-dir)
+        (make-directory install-dir t)
         (make-directory log-dir t)
         (kiss--build-make-script k-el-build
                                  build-script
@@ -1196,12 +1197,17 @@ are the same."
         ;; This expression below will conduct builds using bubblewrap!
         ;; This feature is *very* experimental, and may not work with
         ;; every package.
+        ;; FIXME: figure out why this code will fail the first
+        ;; time that it is ran, but succeed the second time it is ran.
         (when (and (boundp 'kiss-use-bubblewrap) kiss-use-bubblewrap)
           (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
                 (fake-home-dir "/tmp/kiss-fake-home/"))
 
+            ;; NOTE: If the below command is ran, then the code will
+            ;; never successfully run. I'm rather confused as to
+            ;; how this bug works.
+            ;; (shell-command "/usr/bin/rm -rvf -- " fake-chroot-dir)
             (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
-            (make-directory install-dir t)
             (make-directory fake-home-dir t)
 
             (shell-command
