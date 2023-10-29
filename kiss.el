@@ -1019,7 +1019,7 @@ are the same."
 
 (defun kiss--build-get-missing-dependencies (dir file-path-lst)
   (message dir)
-  (message file-path-lst)
+  (message (kiss--lst-to-str file-path-lst))
   nil
   )
 
@@ -1997,7 +1997,9 @@ are the same."
     (mapcar #'kiss-install (kiss--get-pkg-order pkgs-l)))
    ((atom pkgs-l)
     (let* ((tarball
-            (cond ((file-exists-p pkgs-l) pkgs-l)
+            (cond ((and (file-exists-p pkgs-l)
+                        (kiss--str-tarball-p pkgs-l))
+                   pkgs-l)
                   (t (kiss--get-pkg-cached-bin pkgs-l)))))
       (when tarball
         (kiss--install-tarball tarball))))))
