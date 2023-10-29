@@ -113,16 +113,16 @@
 (defconst kiss-installed-db-dir (concat kiss-root "var/db/kiss/installed/"))
 (defconst kiss-choices-db-dir (concat kiss-root "var/db/kiss/choices/"))
 
-(defconst KISS-TMPDIR
+(defconst kiss-tmpdir
   (concat (getenv "HOME") "/.cache/kiss/proc/"))
 
-(defconst KISS-SRCDIR
+(defconst kiss-srcdir
   (concat (getenv "HOME") "/.cache/kiss/sources/"))
 
-(defconst KISS-BINDIR
+(defconst kiss-bindir
   (concat (getenv "HOME") "/.cache/kiss/bin/"))
 
-(defconst KISS-LOGDIR
+(defconst kiss-logdir
   (concat (getenv "HOME") "/.cache/kiss/logs/"))
 
 (defconst kiss-version "0.0.1"
@@ -130,13 +130,13 @@
 (defconst kiss-compat-version "5.6.4"
   "The version of kiss that kiss.el is compatible with.")
 
-(defcustom KISS-GET
+(defcustom kiss-get
   (car (seq-filter #'executable-find
                    '("aria2c" "axel" "curl" "wget" "wget2")))
   "The utility for downloading http sources."
   :type 'string)
 
-(defcustom KISS-CHK
+(defcustom kiss-chk
   (car (seq-filter #'executable-find
                    '("openssl" "sha256sum" "sha256" "shasum" "digest")))
   "The utility for computing SHA256 checksums."
@@ -144,13 +144,13 @@
 
 ;; FIXME: when root, we do as root does - we don't need any of this.
 ;; FIXME: Using 'su' is currently not supported by this package manager.
-(defcustom KISS-SU
+(defcustom kiss-su
   (car (seq-filter #'executable-find
                    '("ssu" "sudo" "doas" "su")))
   "The utility that will be used to elevate priviledges."
   :type 'string)
 
-(defcustom KISS-ELF
+(defcustom kiss-elf
   (car (seq-filter #'executable-find
                    '("readelf" "eu-readelf" "llvm-readelf" "ldd")))
   "The utility that will be used to dump elf information."
@@ -158,28 +158,28 @@
 
 ;; Valid options:
 ;; bz2, gz, lz, lzma, xz, zst
-(defcustom KISS-COMPRESS
+(defcustom kiss-compress
   "gz"
   "The compression algorithm that should be used when making packages."
   :type 'string)
 
-(defcustom KISS-CHOICE
+(defcustom kiss-choice
   1
   "Set to '0' disable the alternatives system and error on any file conflicts."
   :type 'integer)
 
 ;; FIXME: make the default 1, once package stripping actually works.
-(defcustom KISS-STRIP
+(defcustom kiss-strip
   0
   "Set to '1' to enable the stripping of packages."
   :type 'integer)
 
-(defcustom KISS-PATH
+(defcustom kiss-path
   (let ((kp (getenv "KISS_PATH"))) (when kp (split-string kp ":")))
   "A list of directories in decreasing precedence to look for packages in."
   :type '(string))
 
-(defcustom KISS-HOOK
+(defcustom kiss-hook
   (let ((kh (getenv "KISS_HOOK"))) (when kh (split-string kh ":")))
   "A list of absolute paths to executable files."
   :type '(string))
@@ -252,8 +252,8 @@
    (kiss--get-owner file-path)))
 
 (defun kiss--shell-command-as-user (command user)
-  "(I) Run COMMAND as USER using `KISS-SU'."
-  (shell-command (concat KISS-SU " -u " user " -- " command)))
+  "(I) Run COMMAND as USER using `kiss-su'."
+  (shell-command (concat kiss-su " -u " user " -- " command)))
 
 (defun kiss--decompress (file-path out-path)
   "(I) Decompress FILE-PATH to OUT-PATH based on the file name."
@@ -280,9 +280,9 @@
     " ")))
 
 (defun kiss--sh256 (file-path)
-  "(I) Run `KISS-CHK' with proper arguments on FILE-PATH."
+  "(I) Run `kiss-chk' with proper arguments on FILE-PATH."
   (let ((args
-         (pcase KISS-CHK
+         (pcase kiss-chk
            ("openssl"   " dgst -sha256 -r ")
            ("sha256sum" "")
            ("sha256"    " -r ")
@@ -293,7 +293,7 @@
       (replace-regexp-in-string
        "\n$" ""
        (shell-command-to-string
-        (concat KISS-CHK args file-path)))))))
+        (concat kiss-chk args file-path)))))))
 
 ;; Public code below.
 
@@ -330,10 +330,10 @@
 ;;    escalation is required to preserve ownership.
 
 (defun kiss--run-hook (hook &optional arg2 arg3 arg4)
-  "(I) Run all hooks in `KISS-HOOK'."
-  (dolist (kiss-hook KISS-HOOK)
+  "(I) Run all hooks in `kiss-hook'."
+  (dolist (kh kiss-hook)
     (shell-command
-     (concat kiss-hook " " hook " " arg2 " " arg3 " " arg4))))
+     (concat kh " " hook " " arg2 " " arg3 " " arg4))))
 
 ;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
@@ -816,11 +816,11 @@ when using this function compared with the iterative version."
   "(I) Return the proper name for the binary for PKG at VERSION."
   (concat pkg "@"
           (replace-regexp-in-string " " "-" (string-trim-right version))
-          ".tar." KISS-COMPRESS ))
+          ".tar." kiss-compress ))
 
 (defun kiss--get-compression-command ()
-  "(I) Return the proper command for based on `KISS-COMPRESS'."
-  (pcase KISS-COMPRESS
+  "(I) Return the proper command for based on `kiss-compress'."
+  (pcase kiss-compress
     ("bz2"  "bzip2 -c")
     ("gz"   "gzip -c")
     ("lz"   "lzip -c")
@@ -832,7 +832,7 @@ when using this function compared with the iterative version."
   "(I) Return the path of the binary for PKG, nil if binary is not in the cache."
   (let ((ver (kiss--get-pkg-version pkg)))
     (if ver
-        (let ((bin (concat KISS-BINDIR
+        (let ((bin (concat kiss-bindir
                            (kiss--get-pkg-bin-name pkg ver))))
           (if (file-exists-p bin) bin)))))
 
@@ -848,10 +848,10 @@ when using this function compared with the iterative version."
   ;; do the pid trick that the shell implementation of kiss does.
   ;; So the compromise is to pick a random number from 1 to 30000.
   (let ((rn (kiss--get-random-number)))
-    (while (file-exists-p (concat KISS-TMPDIR rn))
+    (while (file-exists-p (concat kiss-tmpdir rn))
       (setq rn (kiss--get-random-number)))
-    (make-directory (concat KISS-TMPDIR rn) t)
-    (concat KISS-TMPDIR rn)))
+    (make-directory (concat kiss-tmpdir rn) t)
+    (concat kiss-tmpdir rn)))
 
 ;;;###autoload
 (defun kiss/fork (pkg dir)
@@ -1177,7 +1177,7 @@ are the same."
              (build-dir    (concat proc-dir "/build/" pkg "/"))
              (install-dir  (concat proc-dir "/pkg/" pkg))
              (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el"))
-             (log-dir      (concat KISS-LOGDIR (format-time-string "%Y-%m-%d" (current-time)) "/"))
+             (log-dir      (concat kiss-logdir (format-time-string "%Y-%m-%d" (current-time)) "/"))
              (log-file     (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
 
         ;; Extract pkg's sources to the build directory.
@@ -1280,7 +1280,7 @@ are the same."
                        (kiss--get-potential-binary-files
                         (kiss--read-file
                          (concat pkg-install-db pkg "/manifest")))))
-                  (when (eq 1 KISS-STRIP)
+                  (when (eq 1 kiss-strip)
                     (kiss--build-strip-files
                      install-dir potential-binary-files))
 
@@ -1294,11 +1294,11 @@ are the same."
               (message (concat "Creating tarball for " pkg))
               (kiss--make-tarball-of-dir
                install-dir
-               (concat KISS-BINDIR
+               (concat kiss-bindir
                        (kiss--get-pkg-bin-name pkg pkg-ver)))
 
               ;; (kiss--run-hook "post-package" pkg
-              ;;                 (concat KISS-BINDIR
+              ;;                 (concat kiss-bindir
               ;;                         (kiss--get-pkg-bin-name pkg pkg-ver)))
 
               ;; rm the build directory
@@ -1359,7 +1359,7 @@ are the same."
 (defmacro kiss--tps-env (pkg tps expr)
   ;; "(I) Macro to aide in parsing TPS, and using the values in EXPR."
   ;; Extract out each of the variables.
-  `(let* ((pkg-source-cache-dir (concat KISS-SRCDIR ,pkg "/"))
+  `(let* ((pkg-source-cache-dir (concat kiss-srcdir ,pkg "/"))
           (type                 (car  ,tps))
           (uri                  (car  (cdr ,tps)))
           (sub-dir              (cadr (cdr ,tps)))
@@ -1458,7 +1458,7 @@ are the same."
 ;; since that information would also be useful for other vc systems like
 ;; fossil and hg.
 (defun kiss--download-git-source (url dest-dir)
-  "(I) Download git URL to `KISS-SRCDIR' in the folder DEST-DIR."
+  "(I) Download git URL to `kiss-srcdir' in the folder DEST-DIR."
   ;; NOTE: This currently does not support sources like the following:
   ;; git+https://github.com/user/project@somebranch#somecommit
   ;; However, I have yet to see this combo out in the wild in kiss linux.
@@ -1502,8 +1502,8 @@ are the same."
   (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
 
 (defun kiss--get-download-utility-arguments ()
-  "(I) Get the proper arguments for the `KISS-GET' utility."
-  (pcase KISS-GET
+  "(I) Get the proper arguments for the `kiss-get' utility."
+  (pcase kiss-get
     ("aria2c" " -d / -o ")
     ("axel"   " -o ")
     ("curl"   " -fLo ")
@@ -1511,14 +1511,14 @@ are the same."
     ("wget2"  " -O ")))
 
 (defun kiss--download-remote-source (url dest-dir)
-  "(I) Download URL to DEST-DIR using `KISS-GET'."
+  "(I) Download URL to DEST-DIR using `kiss-get'."
   ;; TODO: check and make sure this is the right way to create this file name.
   (let* ((file-name (car (reverse (string-split url "/"))))
          (dest-path (concat dest-dir "/" file-name)))
     ;; Only download if the file doesn't already exist.
     (unless (file-exists-p dest-path)
       (shell-command
-       (concat KISS-GET " "
+       (concat kiss-get " "
                url
                (kiss--get-download-utility-arguments)
                dest-path)))))
@@ -1534,8 +1534,8 @@ are the same."
                " " (concat dest-dir file-name))))))
 
 (defun kiss--get-pkg-sources-cache-path (pkg)
-  "(I) Return the cache path in `KISS-SRCDIR' for each of PKG's sources."
-  (let* ((pkg-source-cache-dir (concat KISS-SRCDIR pkg "/"))
+  "(I) Return the cache path in `kiss-srcdir' for each of PKG's sources."
+  (let* ((pkg-source-cache-dir (concat kiss-srcdir pkg "/"))
          (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
     (cl-mapcar
      (lambda (tps)
@@ -1582,8 +1582,8 @@ are the same."
      pkg-sources)))
 
 (defun kiss--download-pkg-sources (pkg)
-  "(I) Download the sources for PKG into `KISS-SRCDIR'."
-  (let* ((pkg-source-cache-dir (concat KISS-SRCDIR pkg "/"))
+  "(I) Download the sources for PKG into `kiss-srcdir'."
+  (let* ((pkg-source-cache-dir (concat kiss-srcdir pkg "/"))
          (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
     (mapcar
      (lambda (tps)
@@ -1925,8 +1925,8 @@ are the same."
       ;; (kiss--run-hook "pre-install" pkg extr-dir)
 
       (when (kiss--get-pkg-conflict-files pkg extr-dir)
-        (if (eq 0 KISS-CHOICE)
-            (error "kiss/install: KISS-CHOICE is equal to 0, erroring out!")
+        (if (eq 0 kiss-choice)
+            (error "kiss/install: kiss-choice is equal to 0, erroring out!")
           (kiss--pkg-conflicts pkg extr-dir)))
 
       ;; FIXME: This code is *technically* not needed, but hey, might as well.
@@ -2120,7 +2120,7 @@ are the same."
   (interactive "sQuery: ")
   (seq-filter 'file-exists-p
               (mapcar (lambda (repo) (concat repo "/" q))
-                      `(,@KISS-PATH
+                      `(,@kiss-path
                         ,kiss-installed-db-dir))))
 
 ;; -> update       Update the repositories
@@ -2155,11 +2155,11 @@ are the same."
       (concat "git -C " repo " rev-parse --show-toplevel")))))
 
 (defun kiss--kiss-path-git-repos ()
-  "(I) Return only the repos in `KISS-PATH' that are git repos."
-  (seq-filter 'kiss--dir-is-git-repo-p KISS-PATH))
+  "(I) Return only the repos in `kiss-path' that are git repos."
+  (seq-filter 'kiss--dir-is-git-repo-p kiss-path))
 
 (defun kiss--update-git-repos ()
-  "(I) Update all git repos in `KISS-PATH'."
+  "(I) Update all git repos in `kiss-path'."
   (let ((git-repos (delete-dups
                     (cl-mapcar 'kiss--get-git-dir-toplevel
                                (kiss--kiss-path-git-repos)))))
