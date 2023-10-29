@@ -633,13 +633,12 @@ when using this function compared with the iterative version."
 ;; (benchmark-elapse (kiss--get-pkg-dependency-graph (mapcar #'car (kiss/list))))
 ;; (benchmark-elapse (kiss--get-pkg-dependency-graph-rec (mapcar #'car (kiss/list))))
 
-;; (kiss--get-pkg-dependency-graph '("kiss" "cmake"))
-;; (kiss--get-pkg-dependency-order "cmake")
-;; TODO: consider moving invert-pkg-dependency-graph to tsort.el
-
-(defun kiss--get-pkg-dependency-order (pkg-lst)
+(defun kiss--get-pkg-dependency-order (pkg-lst &optional installed-p)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
-  (tsort (kiss--get-pkg-dependency-graph pkg-lst)))
+  (tsort
+   (if installed-p
+       (kiss--get-pkg-dependency-graph pkg-lst t)
+     (kiss--get-pkg-dependency-graph pkg-lst))))
 
 (defun kiss--remove-redundant-dependencies (dep-lst)
   "(I) Remove redundant dependencies from DEP-LST."
