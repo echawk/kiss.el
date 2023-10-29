@@ -1007,19 +1007,12 @@ are the same."
                           (subp-cond cmd (success stdout))))
                       (kiss--get-potential-binary-files
                        (kiss--get-manifest-for-dir "/home/ethan/tmp/h")))) "\n")
-         "\n")
-        )
-       )
-      )
-     )
-    )
-  )
+         "\n")))))))
 
 (defun kiss--build-get-missing-dependencies (dir file-path-lst)
   (message dir)
   (message (kiss--lst-to-str file-path-lst))
-  nil
-  )
+  nil)
 
 (defun kiss--strip-file (file)
   "(I) Run strip(1) on FILE with the proper arguments."
@@ -1288,8 +1281,7 @@ are the same."
                   ;; TODO: finish up this impl.
                   ;; FIXME: also need to do dependency fixing
                   (kiss--build-get-missing-dependencies
-                   install-dir potential-binary-files))
-                )
+                   install-dir potential-binary-files)))
 
               ;; Finally create the tarball
               (message (concat "Creating tarball for " pkg))
@@ -1845,8 +1837,7 @@ are the same."
                       " " (kiss--single-quote-string actual-file))
               (kiss--get-owner-name kiss-root))))))))
   ;; FIXME: have a better return than nil
-  nil
-  )
+  nil)
 
 (defun kiss--get-pkg-from-manifest (file-path-lst)
   "(I) Determine the package name from a manifest."
@@ -1972,9 +1963,7 @@ are the same."
         ;; previous rm.
         (kiss--install-files extr-dir (reverse new-manifest) pkg t)
 
-        (message (concat "kiss/install: Installation of " pkg " Finished."))
-
-        )
+        (message (concat "kiss/install: Installation of " pkg " Finished.")))
       ;; FIXME: finish this func
       nil)))
 
