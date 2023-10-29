@@ -1081,7 +1081,7 @@ are the same."
          (kiss--get-pkg-dependency-order
           (seq-uniq
            (append
-            (cdr (reverse (kiss--get-pkg-dependency-order package t)))
+            (cdr (reverse (kiss--get-pkg-dependency-order package)))
             ;; FIXME: need to discuss *how* this should be
             ;; done w/ the rest of the community.
             ;; I'm personally in favor of having a "kiss-system" package.
