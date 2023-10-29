@@ -577,8 +577,12 @@ read instead."
        (concat kiss/installed-db-dir pkg "/depends")
      (concat (car (kiss/search pkg)) "/depends"))))
 
-(defun kiss--get-pkg-dependency-graph (pkg-lst)
-  "(I) Generate a graph of the dependencies for PKG-LST."
+(defun kiss--get-pkg-dependency-graph (pkg-lst &optional installed-p)
+  "(I) Generate a graph of the dependencies for PKG-LST.
+
+Optionally, if INSTALLED-P is t, then the dependencies for each
+package in PKG-LST are queried from the installed dependency file,
+provided that the package is actually installed."
   (let ((queue
          (cond
           ((atom pkg-lst) `(,pkg-lst))
@@ -591,7 +595,11 @@ read instead."
           (progn
             (setq seen (cons (car queue) seen))
             (let* ((dep (car queue))
-                   (dep-deps (kiss--get-pkg-dependencies dep))
+                   (dep-deps
+                    ;; If installed-p is t and the package is installed.
+                    (if (and installed-p (kiss--pkg-is-installed-p dep))
+                        (kiss--get-pkg-dependencies dep t)
+                      (kiss--get-pkg-dependencies dep)))
                    (item `(,dep ,dep-deps)))
               (if (not (member item res))
                   (setq res (cons item res)))
