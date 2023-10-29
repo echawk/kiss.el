@@ -1713,6 +1713,8 @@ are the same."
       ;;(mapcar #'kiss/owns dir-files)
       ;; TODO: would like to investigate the penalty of using a pure
       ;; Emacs lisp based solution for this.
+      ;; FIXME: when installing big packages (like nodejs)
+      ;; we run into issues with the length of the argument list.
       (mapcar
        (lambda (str) (reverse (string-split str ":")))
        (split-string
