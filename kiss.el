@@ -208,7 +208,7 @@
 ;; FIXME: potentially change this function
 ;; to simply remove the final newline at the end of the text
 ;; and to then split on the newlines - it should result in the same
-;; code as the following for kiss/manifest, but would allow this
+;; code as the following for kiss-manifest, but would allow this
 ;; code to be used other places too
 (defun kiss--read-file (file-path)
   "(I) Read FILE-PATH as a list of lines, with empty newlines removed."
@@ -340,7 +340,7 @@
 ;; ===========================================================================
 
 ;;;###autoload
-(defun kiss/alternatives (&optional pkg path)
+(defun kiss-alternatives (&optional pkg path)
   (interactive)
   (if (or (eq nil pkg) (eq nil path))
       (mapcar
@@ -352,10 +352,10 @@
        (nthcdr 2 (directory-files kiss-choices-db-dir)))
     (kiss--pkg-swap pkg path)))
 
-;; (benchmark-elapse (kiss/alternatives))
-;; (kiss/alternatives "util-linux" "/usr/bin/mkswap")
-;; (kiss/alternatives "busybox" "/usr/bin/mkswap")
-;; (kiss/alternatives)
+;; (benchmark-elapse (kiss-alternatives))
+;; (kiss-alternatives "util-linux" "/usr/bin/mkswap")
+;; (kiss-alternatives "busybox" "/usr/bin/mkswap")
+;; (kiss-alternatives)
 
 ;; FIXME?: may need to have this code take in a general path
 ;; for pkg - this is so that this code can be reused to implement
@@ -373,7 +373,7 @@
                       (reverse
                        (seq-sort 'string-lessp
                                  (cl-mapcar (lambda (s) (if (string= s old) new s))
-                                            (kiss/manifest pkg)))))))
+                                            (kiss-manifest pkg)))))))
 
     (f-write-text manifest-t 'utf-8 temp-f)
 
@@ -390,7 +390,7 @@
      (concat "mv -f " temp-f " " manifest-f)
      owner)))
 
-;; (kiss--manifest-to-string (kiss/manifest "xdo"))
+;; (kiss--manifest-to-string (kiss-manifest "xdo"))
 
 ;; FIXME: this function should not need to exist.
 (defun kiss--file-is-regular-file-p (file-path)
@@ -440,7 +440,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
       ;; esacped.
       (let* ((alt      (string-replace "/" ">" path))
              (alt-path (concat kiss-choices-db-dir pkg alt))
-             (path-own (kiss/owns path)))
+             (path-own (kiss-owns path)))
         (if (kiss--file-exists-p  alt-path)
             (progn
               ;; If the file is owned by a package in the database.
@@ -469,34 +469,34 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; (f-symlink-p "/var/db/kiss/choices/gawk\\>usr\\>bin\\>awk")
 ;; (f-exists?  "/var/db/kiss/choices/busybox\\>usr\\>bin\\>sh")
 ;; (kiss--file-exists-p "/var/db/kiss/choices/gawk\\>usr\\>bin\\>awk")
-;; (if (kiss/owns "/usr/bin/awk") 1)
+;; (if (kiss-owns "/usr/bin/awk") 1)
 ;; (cl-remove-if-not
 ;;  (lambda (s) (string= "gawk" s))
-;;  (cl-mapcar #'car (kiss/alternatives)))
+;;  (cl-mapcar #'car (kiss-alternatives)))
 ;; (concat "mawk" (string-replace "/" ">" "/usr/bin/awk"))
 
 (defun kiss--manifest-to-string (pkg-manifest)
   "(I) Convert our internal representation of PKG-MANIFEST into a string."
   (concat (mapconcat #'identity pkg-manifest "\n") "\n"))
 
-;; (kiss--manifest-to-string (kiss/manifest "xdo"))
+;; (kiss--manifest-to-string (kiss-manifest "xdo"))
 
 ;;;###autoload
-(defun kiss/manifest (pkg)
+(defun kiss-manifest (pkg)
   "Return a list of all files owned by PKG."
   (kiss--read-file
    (concat kiss-installed-db-dir pkg "/manifest")))
 
-;; (benchmark-elapse (kiss/manifest "kiss"))
+;; (benchmark-elapse (kiss-manifest "kiss"))
 
 (defun kiss--get-installed-manifest-files ()
   "(I) Return a list of all of the installed manifest files."
   (mapcar
    (lambda (pkg) (concat kiss-installed-db-dir pkg "/manifest"))
-   (mapcar 'car (kiss/list))))
+   (mapcar 'car (kiss-list))))
 
 ;;;###autoload
-(defun kiss/owns (file-path)
+(defun kiss-owns (file-path)
   ;; TODO: See if this can be made a little less ugly.
   (let* ((cmd (concat "grep " (rx bol (literal file-path) eol) " "
                       (kiss--lst-to-str
@@ -509,14 +509,14 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 ;; (cl-mapcar
 ;;  (lambda (file)
-;;    (list (kiss/owns file) file))
-;;  (delete-dups (cl-mapcar #'cadr (kiss/alternatives))))
+;;    (list (kiss-owns file) file))
+;;  (delete-dups (cl-mapcar #'cadr (kiss-alternatives))))
 
 ;; (rgrep "/usr/bin/awk$" "manifest" "/var/db/kiss/installed/")
 
 ;; FIXME: this function will include '("")  in the return.
 ;;;###autoload
-(defun kiss/preferred ()
+(defun kiss-preferred ()
   (mapcar
    ;; NOTE: this may split files with ':' in the name...
    ;; Do the final split of package and file.
@@ -579,7 +579,7 @@ read instead."
   (kiss--get-dependencies-from-file
    (if (and installed-p (kiss--pkg-is-installed-p pkg))
        (concat kiss-installed-db-dir pkg "/depends")
-     (concat (car (kiss/search pkg)) "/depends"))))
+     (concat (car (kiss-search pkg)) "/depends"))))
 
 (defun kiss--get-pkg-dependency-graph (pkg-lst &optional installed-p)
   "(I) Generate a graph of the dependencies for PKG-LST.
@@ -634,8 +634,8 @@ when using this function compared with the iterative version."
                (append dep-deps (cdr new-queue)) new-seen new-res))
           res)))))
 
-;; (benchmark-elapse (kiss--get-pkg-dependency-graph (mapcar #'car (kiss/list))))
-;; (benchmark-elapse (kiss--get-pkg-dependency-graph-rec (mapcar #'car (kiss/list))))
+;; (benchmark-elapse (kiss--get-pkg-dependency-graph (mapcar #'car (kiss-list))))
+;; (benchmark-elapse (kiss--get-pkg-dependency-graph-rec (mapcar #'car (kiss-list))))
 
 (defun kiss--get-pkg-dependency-order (pkg-lst &optional installed-p)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
@@ -682,7 +682,7 @@ when using this function compared with the iterative version."
      (and (eq (kiss--get-pkg-hard-dependents pkg) nil)
           (not
            (eq (kiss--get-pkg-make-dependents pkg) nil))))
-   (mapcar #'car (kiss/list))))
+   (mapcar #'car (kiss-list))))
 
 ;; (kiss--get-pkg-make-orphans)
 ;; (length (kiss--get-pkg-make-orphans))
@@ -724,7 +724,7 @@ when using this function compared with the iterative version."
   (let ((orphaned-alternatives
          (seq-filter
           (lambda (pair) (seq-contains-p pair pkg))
-          (kiss/preferred))))
+          (kiss-preferred))))
     ;; Return the files associated with PKG.
     (if orphaned-alternatives
         (mapcar #'cadr orphaned-alternatives))))
@@ -802,8 +802,8 @@ when using this function compared with the iterative version."
          (kiss--read-file manifest-file)))
 
 (defun kiss--get-pkg-version (pkg)
-  "(I) Get the version for PKG using the car of `kiss/search'."
-  (let ((ks (kiss/search pkg)))
+  "(I) Get the version for PKG using the car of `kiss-search'."
+  (let ((ks (kiss-search pkg)))
     (when ks
       (let ((pdir (car ks)))
         (replace-regexp-in-string
@@ -854,10 +854,10 @@ when using this function compared with the iterative version."
     (concat kiss-tmpdir rn)))
 
 ;;;###autoload
-(defun kiss/fork (pkg dir)
+(defun kiss-fork (pkg dir)
   "Fork PKG to DIR."
   (eq 0 (shell-command
-         (concat "cp -Lrf " (car (kiss/search pkg)) " " dir))))
+         (concat "cp -Lrf " (car (kiss-search pkg)) " " dir))))
 
 
 ;; FIXME: need kiss--single-quote-string?
@@ -986,7 +986,7 @@ are the same."
       (mapcar
        (lambda (line)
          (let ((libpath
-                ;; FIXME: don't concat '/usr' just so kiss/owns will work.
+                ;; FIXME: don't concat '/usr' just so kiss-owns will work.
                 ;; Make this a grep?
                 (concat
                  "/usr"
@@ -994,7 +994,7 @@ are the same."
                   (string-split
                    (string-trim-left (car (reverse (string-split line "=>")))))))))
            (when libpath
-             (kiss/owns libpath))))
+             (kiss-owns libpath))))
        (seq-uniq
         (string-split
          (mapconcat (lambda (str)
@@ -1069,7 +1069,7 @@ are the same."
 ;;   (lambda (str) (string-match-p (rx "/" eol) str))
 ;;   (seq-uniq
 ;;    (flatten-list
-;;     (mapcar #'kiss/manifest (cdr (reverse (kiss--get-pkg-dependency-order "kiss")))))))
+;;     (mapcar #'kiss-manifest (cdr (reverse (kiss--get-pkg-dependency-order "kiss")))))))
 ;;  " ")
 
 (defun kiss--make-chroot-dir-for-pkg (dir package)
@@ -1084,7 +1084,7 @@ are the same."
   ;; proper place?
   ;; I'm leaning towards the former option.
   (let ((missing-pkgs '())
-        (alts (kiss/alternatives))
+        (alts (kiss-alternatives))
         (needed-pkgs
          (kiss--get-pkg-dependency-order
           (seq-uniq
@@ -1121,7 +1121,7 @@ are the same."
           ;; in the chroot
           (seq-uniq
            (mapcar
-            #'kiss/owns
+            #'kiss-owns
             ;; Ensure that if there are multiple providers (for example
             ;; /usr/bin/ls), that it only shows up once.
             (seq-uniq
@@ -1143,7 +1143,7 @@ are the same."
             #'string-lessp
             (seq-uniq
              (flatten-list
-              (mapcar #'kiss/manifest (append missing-pkgs needed-pkgs)))))))
+              (mapcar #'kiss-manifest (append missing-pkgs needed-pkgs)))))))
 
       (dolist (file needed-files)
         (let ((normalized-file (kiss--normalize-file-path
@@ -1172,7 +1172,7 @@ are the same."
     (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
 
     (unless missing-deps
-      (let* ((build-script (concat (car (kiss/search pkg)) "/build"))
+      (let* ((build-script (concat (car (kiss-search pkg)) "/build"))
              (proc-dir     (kiss--get-tmp-destdir))
              (build-dir    (concat proc-dir "/build/" pkg "/"))
              (install-dir  (concat proc-dir "/pkg/" pkg))
@@ -1241,7 +1241,7 @@ are the same."
               (let ((pkg-install-db
                      (concat install-dir "/var/db/kiss/installed/")))
                 (make-directory pkg-install-db t)
-                (kiss/fork pkg pkg-install-db)
+                (kiss-fork pkg pkg-install-db)
                 (message (concat "Successful Build!"))
 
                 ;; (kiss--run-hook "post-build" pkg install-dir)
@@ -1318,38 +1318,38 @@ are the same."
 ;; FIXME: add in checks to the appropriate places.
 (defun kiss--build-install (pkg)
   "(I) Attempt to build and install PKG, nil if unsuccessful."
-  (when (kiss/build pkg)
-    (kiss/install pkg)))
+  (when (kiss-build pkg)
+    (kiss-install pkg)))
 
 (defun kiss--try-install-build (pkg)
   "(I) Attempt to install a binary of PKG, else build and install PKG."
   (if (kiss--get-pkg-cached-bin pkg)
-      (kiss/install pkg)
+      (kiss-install pkg)
     (kiss--build-install pkg)))
 
 ;;;###autoload
-(defun kiss/build (pkgs-l)
+(defun kiss-build (pkgs-l)
   (interactive)
   (cond ((listp pkgs-l)
          (progn
            ;; Download the package sources now.
-           (kiss/download pkgs-l)
+           (kiss-download pkgs-l)
            (mapcar #'kiss--build-pkg
                    (kiss--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
          (progn
-           (kiss/download pkgs-l)
+           (kiss-download pkgs-l)
            (kiss--build-pkg pkgs-l)))))
 
 ;; -> checksum     Generate checksums
 ;; ===========================================================================
 
-;; Initial working impl of kiss/checksum below; need to refactor some of
-;; the functionality since kiss/download has similar needs.
+;; Initial working impl of kiss-checksum below; need to refactor some of
+;; the functionality since kiss-download has similar needs.
 
 (defun kiss--get-pkg-repo-checksums (pkg)
   "(I) Return the list of repo checksums for PKG."
-  (let ((checksums-file (concat (car (kiss/search pkg)) "/checksums")))
+  (let ((checksums-file (concat (car (kiss-search pkg)) "/checksums")))
     (if (file-exists-p checksums-file)
         (seq-remove
          #'string-empty-p
@@ -1391,12 +1391,12 @@ are the same."
         (kiss--get-pkg-local-checksums pkg)))))
 
 ;;;###autoload
-(defun kiss/checksum (pkgs-l)
+(defun kiss-checksum (pkgs-l)
   (cond
    ((listp pkgs-l)
-    (cl-mapcar #'kiss/checksum pkgs-l))
+    (cl-mapcar #'kiss-checksum pkgs-l))
    ((atom pkgs-l)
-    (let* ((pkg-path (car (kiss/search pkgs-l)))
+    (let* ((pkg-path (car (kiss-search pkgs-l)))
            (chk-path (concat pkg-path "/checksums"))
            (chk-sums (mapconcat
                       #'identity
@@ -1413,20 +1413,20 @@ are the same."
 ;; ===========================================================================
 
 ;;;###autoload
-(defun kiss/download (pkgs-l)
+(defun kiss-download (pkgs-l)
   (interactive "sQuery: ")
   (cond ((listp pkgs-l)
-         (mapcar #'kiss/download pkgs-l))
+         (mapcar #'kiss-download pkgs-l))
         ((atom pkgs-l)
          (kiss--download-pkg-sources pkgs-l))
         (t nil)))
 
-;; (kiss/download '("kiss" "gdb"))
-;; (kiss/download '("hugs"))
+;; (kiss-download '("kiss" "gdb"))
+;; (kiss-download '("hugs"))
 
 (defun kiss--get-pkg-sources (pkg)
   "(I) Return a list of sources for PKG, or nil if PKG has no sources file."
-  (let* ((pkg-repo    (car (kiss/search pkg)))
+  (let* ((pkg-repo    (car (kiss-search pkg)))
          (pkg-sources (concat pkg-repo "/sources")))
     (when (file-exists-p pkg-sources)
       ;; Remove any non source lines.
@@ -1565,7 +1565,7 @@ are the same."
                                ;; Absolute path.
                                uri
                              ;; Relative path.
-                             (concat (car (kiss/search pkg)) "/" uri)))))))
+                             (concat (car (kiss-search pkg)) "/" uri)))))))
      type-pkg-sources)))
 
 (defun kiss--pkg-sources-available-p (pkg)
@@ -1603,7 +1603,7 @@ are the same."
                  (kiss--download-local-source uri dest-dir)
                ;; Relative path.
                (kiss--download-local-source
-                (concat (car (kiss/search pkg)) "/" uri) dest-dir)))))))
+                (concat (car (kiss-search pkg)) "/" uri) dest-dir)))))))
      type-pkg-sources)))
 
 ;; pkg_source_tar()
@@ -1726,7 +1726,7 @@ are the same."
             (lambda (str) (string-match-p "/$" str))
             (kiss--read-file manifest-file))))
 
-      ;;(mapcar #'kiss/owns dir-files)
+      ;;(mapcar #'kiss-owns dir-files)
       ;; TODO: would like to investigate the penalty of using a pure
       ;; Emacs lisp based solution for this.
       ;; FIXME: when installing big packages (like nodejs)
@@ -1985,11 +1985,11 @@ are the same."
       nil)))
 
 ;;;###autoload
-(defun kiss/install (pkgs-l)
+(defun kiss-install (pkgs-l)
   (interactive)
   (cond
    ((listp pkgs-l)
-    (mapcar #'kiss/install (kiss--get-pkg-order pkgs-l)))
+    (mapcar #'kiss-install (kiss--get-pkg-order pkgs-l)))
    ((atom pkgs-l)
     (let* ((tarball
             (cond ((file-exists-p pkgs-l) pkgs-l)
@@ -2003,7 +2003,7 @@ are the same."
 
 (defun kiss--install-if-not-installed (pkgs-l)
   "Only install packages in PKGS-L if they are not already installed."
-  (kiss/install (seq-remove 'kiss--pkg-is-installed-p pkgs-l)))
+  (kiss-install (seq-remove 'kiss--pkg-is-installed-p pkgs-l)))
 
 ;; -> list         List installed packages
 ;; ===========================================================================
@@ -2021,7 +2021,7 @@ are the same."
 ;; TODO: add docstring.
 ;; FIXME: comply w/ upstream kiss (this can take a list of packages.)
 ;;;###autoload
-(defun kiss/list (&optional pkg-q)
+(defun kiss-list (&optional pkg-q)
   (if (eq nil pkg-q)
       (let ((pkgs (nthcdr 2 (directory-files kiss-installed-db-dir))))
         (cl-mapcar (lambda (p)
@@ -2100,23 +2100,23 @@ are the same."
 ;; NOTE: this function is slowed by the need
 ;; to use my custom file detection commands.
 ;;;###autoload
-(defun kiss/remove (pkgs-l)
+(defun kiss-remove (pkgs-l)
   (interactive)
 
   (cond ((listp pkgs-l)
-         (cl-mapcar #'kiss/remove
+         (cl-mapcar #'kiss-remove
                     (reverse
                      (kiss--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
          (if (kiss--pkg-is-removable-p pkgs-l)
              (kiss--remove-files
-              (kiss/manifest pkgs-l))))
+              (kiss-manifest pkgs-l))))
         (t nil)))
 
 ;; -> search       Search for packages
 ;; ===========================================================================
 ;;;###autoload
-(defun kiss/search (q)
+(defun kiss-search (q)
   (interactive "sQuery: ")
   (seq-filter 'file-exists-p
               (mapcar (lambda (repo) (concat repo "/" q))
@@ -2189,9 +2189,9 @@ are the same."
 ;; FIXME: will need to rethink how the pre-update & post-update hooks
 ;; will work since we have a different arch to how kiss is presently.
 ;;;###autoload
-(defun kiss/update ()
+(defun kiss-update ()
   (interactive)
-  (message "kiss/update")
+  (message "kiss-update")
   (kiss--update-git-repos))
 
 ;; -> upgrade      Update the system
@@ -2201,7 +2201,7 @@ are the same."
   "(I) Return t if the version of PKG is the same locally and from the remotes."
   (string=
    (kiss--sanitize-ver-str
-    (f-read-text (concat (car (kiss/search pkg)) "/version")))
+    (f-read-text (concat (car (kiss-search pkg)) "/version")))
    (kiss--sanitize-ver-str
     (kiss--get-installed-pkg-version pkg))))
 
@@ -2209,10 +2209,10 @@ are the same."
 (defun kiss--get-out-of-date-pkgs ()
   "(I) Return a list of PKGS that are out of date."
   (seq-remove 'kiss--pkg-remote-eq-pkg-local-p
-              (cl-mapcar 'car (kiss/list))))
+              (cl-mapcar 'car (kiss-list))))
 
 ;;;###autoload
-(defun kiss/upgrade ()
+(defun kiss-upgrade ()
   (interactive)
 
   (let* ((oodpkgs (kiss--get-out-of-date-pkgs)))
@@ -2226,7 +2226,7 @@ are the same."
 
 (defun kiss--pkgs-without-repo ()
   "(I) Return all packages that are installed that are not in a remote repo."
-  (let ((pkgs-l (mapcar 'car (kiss/list))))
+  (let ((pkgs-l (mapcar 'car (kiss-list))))
     (seq-filter
      (lambda (p)
        ;; Naturally, anything that was only *installed* will have 0 other
@@ -2236,7 +2236,7 @@ are the same."
             ;; Remove the installed-db-dir *repo* from the list.
             (seq-remove
              (lambda (repo) (string-match-p kiss-installed-db-dir repo))
-             (kiss/search p)))))
+             (kiss-search p)))))
      pkgs-l)))
 
 ;; FIXME: add in a fast path for lists of 1 - can just return the list
@@ -2257,7 +2257,7 @@ are the same."
 ;;    (lambda (pair)
 ;;      (let ((ver (car (cdr pair))))
 ;;        (string-match "git" ver)))
-;;    (kiss/list)))
+;;    (kiss-list)))
 
 ;; -> version      Package manager version
 ;; SEE const.
