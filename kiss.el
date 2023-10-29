@@ -567,10 +567,15 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                (f-read-text file-path))
               "\n")))))
 
-(defun kiss--get-pkg-dependencies (pkg)
-  "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies."
-  (let ((depends-file (concat (car (kiss/search pkg)) "/depends")))
-    (kiss--get-dependencies-from-file depends-file)))
+(defun kiss--get-pkg-dependencies (pkg &optional installed-p)
+  "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies.
+
+Optionally, if INSTALLED-P is t, then the system installed package will be
+read instead."
+  (kiss--get-dependencies-from-file
+   (if (and installed-p (kiss--pkg-is-installed-p pkg))
+       (concat kiss/installed-db-dir pkg "/depends")
+     (concat (car (kiss/search pkg)) "/depends"))))
 
 (defun kiss--get-pkg-dependency-graph (pkg-lst)
   "(I) Generate a graph of the dependencies for PKG-LST."
