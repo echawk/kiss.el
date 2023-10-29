@@ -1670,7 +1670,7 @@ are the same."
                (kiss--extract-tarball cache outdir)
              (shell-command (concat "cp -PRf " cache " " outdir)))))))
    ;; Get the type of each cached pkg source w/ the source itself.
-   (-zip
+   (-zip-pair
     (cl-mapcar (lambda (tps) (cons (car tps) (nth 2 tps))) (kiss--get-type-pkg-sources pkg))
     (kiss--get-pkg-sources-cache-path pkg))))
 
