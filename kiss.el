@@ -1685,7 +1685,6 @@ are the same."
   (string-match-p
    (rx
     (or (: "t" any "z")
-        (: "tar")
         (: "tar." any any)
         (: "tar." any any any)
         (: "tar." any any any any)) eol) str))
