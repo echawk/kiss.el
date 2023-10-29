@@ -671,7 +671,7 @@ when using this function compared with the iterative version."
 ;; (kiss--get-pkg-make-dependents "ant")
 
 (defun kiss--get-pkg-make-orphans ()
-  "(I) Return a list of installed packages that were only required as a make dependency."
+  "(I) Return a list of packages which only have make dependents."
   ;; NOTE: This function is pretty slow at the moment.
   (seq-filter
    (lambda (pkg)
@@ -684,7 +684,7 @@ when using this function compared with the iterative version."
 ;; (length (kiss--get-pkg-make-orphans))
 
 (defun kiss--get-pkg-hard-dependents (pkg)
-  "(I) Return a list of installed packages that have a runtime dependency on PKG, nil if there are no dependents."
+  "(I) Return a list of installed packages that have a runtime dependency on PKG."
   (mapcar
    (lambda (dep-file)
      (replace-regexp-in-string
@@ -1013,6 +1013,8 @@ are the same."
   )
 
 (defun kiss--build-get-missing-dependencies (dir file-path-lst)
+  (message dir)
+  (message file-path-lst)
   nil
   )
 
@@ -1076,7 +1078,8 @@ are the same."
   ;; -OR- we can do some magic on the fly to copy over the files to the
   ;; proper place?
   ;; I'm leaning towards the former option.
-  (let ((alts (kiss/alternatives))
+  (let ((missing-pkgs '())
+        (alts (kiss/alternatives))
         (needed-pkgs
          (kiss--get-pkg-dependency-order
           (seq-uniq
@@ -1158,7 +1161,7 @@ are the same."
                   (string-trim-right (kiss--get-pkg-version pkg)))))
     ;; Install/build missing dependencies
     (when missing-deps
-      (mapcar #'kiss--try-install-build missing-deps))
+      (mapc #'kiss--try-install-build missing-deps))
 
     ;; Recheck to make sure that we aren't missing any deps.
     (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
@@ -1373,7 +1376,7 @@ are the same."
       (kiss--get-pkg-sources-cache-path pkg))))))
 
 (defun kiss--pkg-verify-local-checksums (pkg)
-  "(I) Return t if local checksums match up with the repo checksums for PKG, nil otherwise."
+  "(I) Return t if local checksums equal the repo checksums for PKG, nil otherwise."
   (eq nil
       (seq-remove
        (lambda (pair) (string= (car pair) (cdr pair)))
@@ -1566,7 +1569,7 @@ are the same."
 (defun kiss--get-type-pkg-sources (pkg)
   "(I) Return a list containing the source type, followed by the source for PKG."
   (let ((pkg-sources (kiss--get-pkg-sources pkg)))
-    (-zip
+    (-zip-pair
      (mapcar 'kiss--get-pkg-sources-type pkg-sources)
      pkg-sources)))
 
@@ -1604,7 +1607,7 @@ are the same."
     ;; Extract the tarball.
     (shell-command (concat "tar xf " decomp-tarball " -C " dir))
     ;; Get all of the top level directories from the tarball.
-    (mapcar
+    (mapc
      (lambda (tld)
        (let* ((temp-f (kiss--make-temp-file))
               (temp-d (concat temp-f "-" tld)))
@@ -1614,7 +1617,7 @@ are the same."
 
          ;; NOTE: we need to call directory-files twice here, since
          ;; First do the mv's
-         (mapcar
+         (mapc
           (lambda (f)
             (shell-command
              (concat "mv -f " (concat temp-d f) " " dir)))
@@ -1623,7 +1626,7 @@ are the same."
          ;; Then do the cp's
          (let ((files (nthcdr 2 (directory-files temp-d))))
            (if files
-               (mapcar
+               (mapc
                 (lambda (f)
                   (shell-command
                    (concat "cp -fRPp " (concat temp-d f) " " dir)))
@@ -2071,7 +2074,7 @@ are the same."
   ;; separately.
   ;; FIXME: mapcar -> mapc?
   (let ((symlink-queue '()))
-    (mapcar
+    (mapc
      (lambda (file-path)
        (pcase (kiss--file-identify file-path)
          ('directory (kiss--remove-directory file-path))
