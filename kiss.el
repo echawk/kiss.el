@@ -1152,7 +1152,7 @@ are the same."
             ((rx "/" eol)
              (shell-command (concat "mkdir -p '" normalized-file "'")))
             (_
-             (shell-command (concat "cp -aRP '" file "' '" normalized-file"'")))))))))
+             (shell-command (concat "cp -fP '" file "' '" normalized-file "'")))))))))
 
 
 ;; FIXME: rm missing-deps check here and move that up to the caller.
@@ -1211,10 +1211,14 @@ are the same."
           (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
                 (fake-home-dir "/tmp/kiss-fake-home/"))
 
+            ;; Currently run this, since once the build occurs successfully
+            ;; after this is removed, then we will have a working system...
+            (when (kiss--file-is-directory-p fake-chroot-dir)
+              (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
+
             ;; NOTE: If the below command is ran, then the code will
             ;; never successfully run. I'm rather confused as to
             ;; how this bug works.
-            ;; (shell-command "/usr/bin/rm -rvf -- " fake-chroot-dir)
             (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
             (make-directory fake-home-dir t)
 
@@ -1222,6 +1226,7 @@ are the same."
              (concat
               "bwrap "
               " --unshare-net "
+              " --new-session "
               ;; TODO: enforce / being read-only
               " --bind " fake-chroot-dir " / "
               " --bind " fake-home-dir " /home "
