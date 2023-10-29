@@ -168,7 +168,7 @@
   "Set to '0' disable the alternatives system and error on any file conflicts."
   :type 'integer)
 
-;; FIXME: make the default 1, once package stripping actually works.
+;; TODO: make the default 1, once package stripping actually works.
 (defcustom kiss-strip
   0
   "Set to '1' to enable the stripping of packages."
@@ -212,7 +212,7 @@
 ;; code to be used other places too
 (defun kiss--read-file (file-path)
   "(I) Read FILE-PATH as a list of lines, with empty newlines removed."
-  (when (f-exists-p file-path)
+  (when (kiss--file-exists-p file-path)
     (seq-remove
      (lambda (s) (string= "" s))
      (string-split (f-read-text file-path) "\n"))))
@@ -383,6 +383,7 @@
     (kiss--shell-command-as-user
      (concat "chown " owner ":" owner " " temp-f) owner)
     ;; Ensure the permissions are set correctly.
+    ;; TODO: impl my file-rwx code here
     (kiss--shell-command-as-user
      (concat "chmod 644 " temp-f) owner)
     ;; Move it into place.
@@ -392,7 +393,7 @@
 
 ;; (kiss--manifest-to-string (kiss-manifest "xdo"))
 
-;; FIXME: this function should not need to exist.
+;; TODO: Look into rm'ing these funcs since they should not have to exist.
 (defun kiss--file-is-regular-file-p (file-path)
   "(I) Return T if FILE-PATH exists and is a regular file."
   (eq 0 (shell-command (concat "test -f "
@@ -415,7 +416,6 @@
    ((kiss--file-is-symbolic-link-p file-path) 'symlink)
    ((kiss--file-is-regular-file-p  file-path) 'file)))
 
-;; FIXME: Either fix upstream Emacs/f.el or keep using this.
 ;; NOTE: DO NOT USE THIS ANYWHERE THAT ISN'T ABSOLUTELY NECESSARY.
 (defun kiss--file-exists-p (file-path)
   "(I) This function should NOT exist.
@@ -763,7 +763,7 @@ when using this function compared with the iterative version."
           (lambda (file-path)
             (let ((cfp (replace-regexp-in-string dir "" file-path)))
               (cond
-               ((f-dir? file-path) (concat cfp "/"))
+               ((kiss--file-is-directory-p file-path) (concat cfp "/"))
                (t cfp ))))
 
           ;; Filter out libtool .la files and charset.alias
@@ -859,17 +859,15 @@ when using this function compared with the iterative version."
   (eq 0 (shell-command
          (concat "cp -Lrf " (car (kiss-search pkg)) " " dir))))
 
-
-;; FIXME: need kiss--single-quote-string?
 (defun kiss--make-tarball-of-dir (dir file-path)
   "(I) Make a compressed tarball of DIR saved into FILE-PATH."
   ;; FIXME: need to remove the reliance on tar's -C flag, since it
   ;; is noted in upstream kiss as being a source of portability issues.
   (eq 0
       (shell-command
-       (concat "tar -cf - -C " dir " . | "
+       (concat "tar -cf - -C " (kiss--single-quote-string dir) " . | "
                (kiss--get-compression-command)
-               " > " file-path))))
+               " > " (kiss--single-quote-string file-path)))))
 
 (defun kiss--get-potential-binary-files (file-path-lst)
   "(I) Return a list of files in FILE-PATH-LST that `strip` or `ldd` could use."
@@ -1155,9 +1153,7 @@ are the same."
              (shell-command (concat "cp -fP '" file "' '" normalized-file "'")))))))))
 
 
-;; FIXME: rm missing-deps check here and move that up to the caller.
-;; FIXME: should try to see what functionality I can move out of this
-;; function
+;; FIXME: should try to see what functionality I can move out of this function
 (defun kiss--build-pkg (pkg)
   "(I) Build PKG, return t if PKG was built successfully, nil otherwise."
   (let ((missing-deps (kiss--get-pkg-missing-dependencies pkg))
@@ -1822,7 +1818,6 @@ are the same."
               (concat
                "mkdir -m " (kiss--file-rwx source-file) " "
                (kiss--single-quote-string actual-file))
-              ;; FIXME: see if this is correct???
               (kiss--get-owner-name kiss-root))))
 
           ('symlink
@@ -1830,7 +1825,6 @@ are the same."
             (concat "cp -fP " (kiss--single-quote-string source-file)
                     " " (kiss--single-quote-string
                          (concat (kiss--dirname actual-file) "/.")))
-            ;; FIXME: see if this is correct???
             (kiss--get-owner-name kiss-root)))
 
           ('file
@@ -1844,16 +1838,12 @@ are the same."
              (kiss--shell-command-as-user
               (concat "cp -fP " (kiss--single-quote-string source-file)
                       " " tmp)
-              ;; FIXME: see if this is correct???
               (kiss--get-owner-name kiss-root))
 
              (kiss--shell-command-as-user
               (concat "mv -f " (kiss--single-quote-string tmp)
                       " " (kiss--single-quote-string actual-file))
-              ;; FIXME: see if this is correct???
-              (kiss--get-owner-name kiss-root))))
-
-          ))))
+              (kiss--get-owner-name kiss-root))))))))
   ;; FIXME: have a better return than nil
   nil
   )
@@ -1875,7 +1865,6 @@ are the same."
 
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
-  ;; FIXME: maybe error out here?
   (unless (kiss--file-exists-p tarball)
     (error (concat "kiss/install: " tarball " doesn't exist!")))
 
@@ -2042,7 +2031,6 @@ are the same."
 
 ;; TODO: need to account for symlinks w/ (file-symlink-p
 
-;; FIXME: I think the `-f' flag is required to be added to rm(1).
 (defun kiss--remove-file (file-path)
   "(I) Remove FILE-PATH as the appropriate user using rm(1)."
   (if (kiss--file-exists-p file-path)
@@ -2067,9 +2055,6 @@ are the same."
 (defun kiss--remove-files (file-path-lst)
   "(I) Remove all files and empty directories in FILE-PATH-LST."
 
-  ;; FIXME: does *not* take all cases into account yet, do NOT
-  ;; use
-
   ;; TODO: Check this function with packages that have more elaborate
   ;; symlink structures, and ensure that this function removes all of the
   ;; files in the manifest properly.
@@ -2089,7 +2074,6 @@ are the same."
 
   ;; Make this local variable since we need to rm the symlinks
   ;; separately.
-  ;; FIXME: mapcar -> mapc?
   (let ((symlink-queue '()))
     (mapc
      (lambda (file-path)
@@ -2177,6 +2161,8 @@ are the same."
             (am-owner-p   (kiss--am-owner-p repo))
             (git-pull-cmd (concat "git -C " repo " pull" ))
             (git-subm-cmd (concat "git -C " repo " submodule update --remote --init -f")))
+        ;; TODO: would like to make this a macro so that way this
+        ;; code can be deduped
         (if am-owner-p
             (progn
               (shell-command git-pull-cmd)
@@ -2246,7 +2232,6 @@ are the same."
              (kiss-search p)))))
      pkgs-l)))
 
-;; FIXME: add in a fast path for lists of 1 - can just return the list
 (defun kiss--get-pkg-order (pkgs-lst)
   "(I) Get the proper build order for the packages in PKGS-LST."
   (seq-filter
