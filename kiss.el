@@ -2198,13 +2198,14 @@ are the same."
   (interactive)
 
   (let* ((oodpkgs (kiss--get-out-of-date-pkgs)))
-    (when (member "kiss" oodpkgs)
-      (kiss--build-install "kiss")
-      (setq oodpkgs (remove "kiss" oodpkgs)))
-    ;; Build & install each package individually
-    ;; - ensures that new dependencies are installed before their dependents.
-    (dolist (pkg (kiss--get-pkg-order oodpkgs))
-      (kiss--try-install-build pkg))))
+    (when oodpkgs
+      (when (member "kiss" oodpkgs)
+        (kiss--build-install "kiss")
+        (setq oodpkgs (remove "kiss" oodpkgs)))
+      ;; Build & install each package individually
+      ;; - ensures that new dependencies are installed before their dependents.
+      (dolist (pkg (kiss--get-pkg-order oodpkgs))
+        (kiss--try-install-build pkg)))))
 
 (defun kiss--pkgs-without-repo ()
   "(I) Return all packages that are installed that are not in a remote repo."
