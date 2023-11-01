@@ -261,7 +261,7 @@
          (pcase file-path
            ((rx ".tar" eol)             "cat ")
            ((rx (or ".tbz" ".bz2") eol) "bzip2 -dc ")
-           ((rx ".lz" eol)              "lzip -dc")
+           ((rx ".lz" eol)              "lzip -dc ")
            ((rx (or ".tgz" ".gz") eol)  "gzip -dc ")
            ((rx ".lzma" eol)            "lzma -dcT0 ")
            ((rx (or ".txz" ".xz") eol)  "xz -dcT0 ")
