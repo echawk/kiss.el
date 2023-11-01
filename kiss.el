@@ -222,7 +222,7 @@
   (car
    (remove
     nil
-    (cl-mapcar
+    (mapcar
      (lambda (str)
        (if (string-match
             (rx bol
@@ -372,8 +372,8 @@
          (manifest-t (kiss--manifest-to-string
                       (reverse
                        (seq-sort 'string-lessp
-                                 (cl-mapcar (lambda (s) (if (string= s old) new s))
-                                            (kiss-manifest pkg)))))))
+                                 (mapcar (lambda (s) (if (string= s old) new s))
+                                         (kiss-manifest pkg)))))))
 
     (f-write-text manifest-t 'utf-8 temp-f)
 
@@ -1361,9 +1361,9 @@ are the same."
 
 (defun kiss--get-pkg-local-checksums (pkg)
   "(I) Return the list of checksums for PKG from the files on disk, or nil."
-  (cl-mapcar
+  (mapcar
    #'kiss--b3
-   (cl-mapcar
+   (mapcar
     #'cdr
     (seq-remove
      ;; Filter out 'git' sources.
@@ -1387,7 +1387,7 @@ are the same."
 (defun kiss-checksum (pkgs-l)
   (cond
    ((listp pkgs-l)
-    (cl-mapcar #'kiss-checksum pkgs-l))
+    (mapcar #'kiss-checksum pkgs-l))
    ((atom pkgs-l)
     (let* ((pkg-path (car (kiss-search pkgs-l)))
            (chk-path (concat pkg-path "/checksums"))
@@ -1530,7 +1530,7 @@ are the same."
   "(I) Return the cache path in `kiss-srcdir' for each of PKG's sources."
   (let* ((pkg-source-cache-dir (concat kiss-srcdir pkg "/"))
          (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
-    (cl-mapcar
+    (mapcar
      (lambda (tps)
        (kiss--tps-env pkg tps
                       (progn
@@ -1563,7 +1563,7 @@ are the same."
 
 (defun kiss--pkg-sources-available-p (pkg)
   "(I) Return t if all of the sources for PKG are available locally, nil otherwise."
-  (not (member nil (cl-mapcar
+  (not (member nil (mapcar
                     #'file-exists-p
                     (kiss--get-pkg-sources-cache-path pkg)))))
 
@@ -1662,7 +1662,7 @@ are the same."
 ;; pkg_extract() in kiss
 (defun kiss--extract-pkg-sources (pkg dir)
   "(I) Extract the cached sources of PKG to DIR."
-  (cl-mapcar
+  (mapcar
    (lambda (type-path)
      (let* ((type   (car  (car type-path)))
             (subdir (cdr (car type-path)))
@@ -1681,7 +1681,7 @@ are the same."
              (shell-command (concat "cp -PRf " cache " " outdir)))))))
    ;; Get the type of each cached pkg source w/ the source itself.
    (-zip-pair
-    (cl-mapcar (lambda (tps) (cons (car tps) (nth 2 tps))) (kiss--get-type-pkg-sources pkg))
+    (mapcar (lambda (tps) (cons (car tps) (nth 2 tps))) (kiss--get-type-pkg-sources pkg))
     (kiss--get-pkg-sources-cache-path pkg))))
 
 (defun kiss--str-tarball-p (str)
@@ -2009,9 +2009,9 @@ are the same."
 (defun kiss-list (&optional pkg-q)
   (if (eq nil pkg-q)
       (let ((pkgs (nthcdr 2 (directory-files kiss-installed-db-dir))))
-        (cl-mapcar (lambda (p)
-                     (list p (kiss--get-installed-pkg-version p)))
-                   pkgs))
+        (mapcar (lambda (p)
+                  (list p (kiss--get-installed-pkg-version p)))
+                pkgs))
     (when (kiss--pkg-is-installed-p pkg-q)
       (list pkg-q (kiss--get-installed-pkg-version pkg-q)))))
 
@@ -2084,9 +2084,9 @@ are the same."
   (interactive)
 
   (cond ((listp pkgs-l)
-         (cl-mapcar #'kiss-remove
-                    (reverse
-                     (kiss--get-pkg-order pkgs-l))))
+         (mapcar #'kiss-remove
+                 (reverse
+                  (kiss--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
          (if (kiss--pkg-is-removable-p pkgs-l)
              (kiss--remove-files
@@ -2141,8 +2141,8 @@ are the same."
 (defun kiss--update-git-repos ()
   "(I) Update all git repos in `kiss-path'."
   (let ((git-repos (delete-dups
-                    (cl-mapcar 'kiss--get-git-dir-toplevel
-                               (kiss--kiss-path-git-repos)))))
+                    (mapcar 'kiss--get-git-dir-toplevel
+                            (kiss--kiss-path-git-repos)))))
     (dolist (repo git-repos)
       (message (concat "kiss/update: Updating " repo))
       ;; FIXME: prevent this from stalling Emacs.
@@ -2191,7 +2191,7 @@ are the same."
 (defun kiss--get-out-of-date-pkgs ()
   "(I) Return a list of PKGS that are out of date."
   (seq-remove 'kiss--pkg-remote-eq-pkg-local-p
-              (cl-mapcar 'car (kiss-list))))
+              (mapcar 'car (kiss-list))))
 
 ;;;###autoload
 (defun kiss-upgrade ()
