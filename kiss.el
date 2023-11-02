@@ -416,6 +416,8 @@
    ((kiss--file-is-symbolic-link-p file-path) 'symlink)
    ((kiss--file-is-regular-file-p  file-path) 'file)))
 
+;; FIXME: go back through the code and make this also check if a directory
+;; exists as well.
 ;; NOTE: DO NOT USE THIS ANYWHERE THAT ISN'T ABSOLUTELY NECESSARY.
 (defun kiss--file-exists-p (file-path)
   "(I) This function should NOT exist.
@@ -1086,8 +1088,16 @@ are the same."
   ;; then each file is checked for it's *existence*, if it doesn't
   ;; exist, then it is appropriately installed.
 
+  ;; TODO: see if we can reuse some of the logic that I use for the
+  ;; installation of files here as well. Just have to source the files
+  ;; from current system instead of the tarballs.
+
+  ;; TODO: assert that we have all of the dependencies for package
+  ;; installed before we try copying over files.
+
   ;; Also, theoretically, this should be doable w/ hardlinks, provided
   ;; that the target dir is on the same file system as the source files.
+  ;; Linking also has the added bonus of being *much* faster than copying.
 
   ;; NOTE: if any of the packages that we are copying files
   ;; over from have any of their files in the alternatives system, then
@@ -1098,6 +1108,12 @@ are the same."
   (let ((missing-pkgs '())
         (alts (kiss-alternatives))
         (needed-pkgs
+         ;; The reason we have to call out to get-pkg-dependency-order twice
+         ;; is because for the first call, we are only interested in the
+         ;; package graph of the dependencies for package, as they are
+         ;; upstream. The second get-pkg-dependency-order will add any packages
+         ;; that our locally installed version of the packages also requires
+         ;; (dependencies that could have been dynamically picked up).
          (kiss--get-pkg-dependency-order
           (seq-uniq
            (append
@@ -1114,6 +1130,10 @@ are the same."
               "openssl" "curl" "git"
               "kiss" "make")))
           t)))
+    ;; TODO: at present, the only issue I really think that would occur
+    ;; with the below solution, would be in the case that there are 3
+    ;; providers for a package (lets say ls) and two of them are going
+    ;; to be in the chroot, how do we decide which one to use?
     ;; FIXME:
     ;; We could enforce a different strategy of looking up these files,
     ;; where instead of adding more packages into the chroot, we instead
@@ -1157,14 +1177,21 @@ are the same."
              (flatten-list
               (mapcar #'kiss-manifest (append missing-pkgs needed-pkgs)))))))
 
-      (dolist (file needed-files)
-        (let ((normalized-file (kiss--normalize-file-path
-                                (concat fake-chroot-dir file))))
-          (pcase file
-            ((rx "/" eol)
-             (shell-command (concat "mkdir -p '" normalized-file "'")))
-            (_
-             (shell-command (concat "cp -fP '" file "' '" normalized-file "'")))))))))
+      ;; We have to run the below code *twice* since it is possible for
+      ;; the installation of symlinks to potentially fail.
+      ;; This isn't ideal, but it works.
+      (dotimes (_ 2)
+        (dolist (file needed-files)
+          (let ((normalized-file (kiss--normalize-file-path
+                                  (concat fake-chroot-dir file))))
+            ;; TODO: make this also take in the validate argument?
+            (unless (or (kiss--file-exists-p normalized-file)
+                        (kiss--file-is-directory-p normalized-file))
+              (pcase file
+                ((rx "/" eol)
+                 (shell-command (concat "mkdir -p '" normalized-file "'")))
+                (_
+                 (shell-command (concat "cp -fP '" file "' '" normalized-file "'")))))))))))
 
 
 ;; FIXME: should try to see what functionality I can move out of this function
@@ -1230,11 +1257,6 @@ are the same."
             ;; never successfully run. I'm rather confused as to
             ;; how this bug works.
             (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
-            ;; FIXME: would like to remove the need for a second call
-            ;; to make-chroot-dir-for-pkg, and instead rely on just the
-            ;; **1** call. Biggest issue w/ func is that it doesn't
-            ;; properly make the /bin symlink.
-            (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
             (make-directory fake-home-dir t)
 
             ;; Example of an isolated build that uses proot.
@@ -1266,7 +1288,7 @@ are the same."
               " --bind " install-dir " " install-dir " "
               " --bind " log-dir " " log-dir" "
               " -- sh -xe " k-el-build))
-            (error "FIXME: acutally finish up this impl!")))
+            ))
 
         (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
             ;; Success
@@ -1836,6 +1858,8 @@ are the same."
          (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
          'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))))))
 
+;; TODO: make this take a root directory - that way this same code
+;; can be used over in `kiss--make-chroot-dir-for-pkg'.
 (defun kiss--install-files (source-dir file-path-lst pkg verify-p)
   ;; Copy files and create directories (while preserving permissions)
   ;; The 'test $1' will run w/ '-z' for overwrite and '-e' for verify.
