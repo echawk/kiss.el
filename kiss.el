@@ -1053,17 +1053,11 @@ are the same."
    (lambda (fp) (kiss--strip-file (concat dir fp)))
    file-path-lst))
 
-;; Food for though w/ regards to using bubblewrap for builds...
-;; (mapconcat
-;;  (lambda (fp) (concat "--ro-bind " fp " " fp))
-;;  (seq-remove
-;;   (lambda (str) (string-match-p (rx "/" eol) str))
-;;   (seq-uniq
-;;    (flatten-list
-;;     (mapcar #'kiss-manifest (cdr (reverse (kiss--get-pkg-dependency-order "kiss")))))))
-;;  " ")
-
-(defun kiss--make-chroot-dir-for-pkg (dir package)
+(defun kiss--make-chroot-dir-for-pkg (dir package &optional overwrite-p)
+  ;; FIXME: implement overwrite protection.
+  ;; Default is to overwrite files in dir - when overwrite-p is nil
+  ;; then each file is checked for it's *existence*, if it doesn't
+  ;; exist, then it is appropriately installed.
 
   ;; Also, theoretically, this should be doable w/ hardlinks, provided
   ;; that the target dir is on the same file system as the source files.
@@ -1209,8 +1203,28 @@ are the same."
             ;; never successfully run. I'm rather confused as to
             ;; how this bug works.
             (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
+            ;; FIXME: would like to remove the need for a second call
+            ;; to make-chroot-dir-for-pkg, and instead rely on just the
+            ;; **1** call. Biggest issue w/ func is that it doesn't
+            ;; properly make the /bin symlink.
+            (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
             (make-directory fake-home-dir t)
 
+            ;; Example of an isolated build that uses proot.
+            ;; (shell-command
+            ;;  (concat
+            ;;   "proot "
+            ;;   " -r " fake-chroot-dir " "
+            ;;   " -b " fake-home-dir ":" "/home" " "
+            ;;   " -b " k-el-build ":" k-el-build " "
+            ;;   " -b " build-script ":" build-script " "
+            ;;   " -b " build-dir ":" build-dir " "
+            ;;   " -b " install-dir ":" install-dir " "
+            ;;   " -b " log-dir ":" log-dir" "
+            ;;   " -w " build-dir " "
+            ;;   k-el-build))
+
+            ;; Example of an isolated build that uses bubblewrap.
             (shell-command
              (concat
               "bwrap "
