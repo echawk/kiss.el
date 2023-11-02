@@ -976,6 +976,33 @@ are the same."
   ;; Mark the script as executable.
   (shell-command (concat "chmod +x " (kiss--single-quote-string k-el-build))))
 
+(defun kiss--lib-is-system-p (lib-string)
+  "(I) Return T if the lib indicated by LIB-STRING is expected on a posix system."
+  (string-match-p
+   (rx
+    (or
+     (: "ld-" (0+ any))
+     (: "ldd")
+     (:
+      (or
+       (: "lib" (or "c" "m"))
+       (: "libc++")
+       (: "libc++abi")
+       (: "libcrypt")
+       (: "libdl")
+       (: "libgcc_s")
+       (: "libmvec")
+       (: "libpthread")
+       (: "libresolv")
+       (: "librt")
+       (: "libstdc++")
+       (: "libtrace")
+       (: "libunwind")
+       (: "libutil")
+       (: "libxnet"))
+      ".so" (0+ any))))
+   lib-string))
+
 ;; FIXME: maybe not depend on a library this is *NOT* in melpa???
 (defun dependency-find-test ()
   (let ((elfcmd "ldd"))
