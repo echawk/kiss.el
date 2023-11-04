@@ -541,7 +541,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         ;; TODO: think about factoring this code out.
         (mapconcat
          #'identity
-         (delete-dups
+         (seq-uniq
           (mapcar
            (lambda (file-str)
              (concat
@@ -713,7 +713,7 @@ when using this function compared with the iterative version."
   "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
   (seq-remove
    #'kiss--pkg-is-installed-p
-   (delete-dups
+   (seq-uniq
     (flatten-list
      (mapcar #'cadr
              (kiss--get-pkg-dependency-graph pkg))))))
@@ -796,7 +796,7 @@ when using this function compared with the iterative version."
 
     ;; sort -ur
     (reverse
-     (seq-sort 'string-lessp (delete-dups files-and-dirs)))))
+     (seq-sort 'string-lessp (seq-uniq files-and-dirs)))))
 
 (defun kiss--dir-matches-manifest-p (dir manifest-file)
   "(I) Return t or nil depending on whether a DIR matches MANIFEST-FILE."
@@ -2205,7 +2205,7 @@ are the same."
 
 (defun kiss--update-git-repos ()
   "(I) Update all git repos in `kiss-path'."
-  (let ((git-repos (delete-dups
+  (let ((git-repos (seq-uniq
                     (mapcar 'kiss--get-git-dir-toplevel
                             (kiss--kiss-path-git-repos)))))
     (dolist (repo git-repos)
