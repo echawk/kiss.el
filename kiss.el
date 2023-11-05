@@ -1124,6 +1124,25 @@ are the same."
          ;; upstream. The second get-pkg-dependency-order will add any packages
          ;; that our locally installed version of the packages also requires
          ;; (dependencies that could have been dynamically picked up).
+
+         ;; FIXME: when building a "system" package (such as curl), the installed
+         ;; dependencies are also copied over aswell, breaking the attempt at
+         ;; isolation. I'm sure that something will have to be modified here
+         ;; with this get-pkg-dependency-order to take into account this edge
+         ;; case.
+         ;; The motivation behind this fixme is to help facilitate people
+         ;; removing random (picked up) dependencies that a package might
+         ;; have on their system.
+
+         ;; One (potentially clever) way to do this would be to
+         ;; check which packages are installed on the system version of
+         ;; the package, and which ones are expected in the upsteam version
+         ;; and remove the appropriate libraries...
+         ;; (let ((package "curl"))
+         ;;   (seq-difference
+         ;;    (kiss--get-pkg-dependency-graph package)
+         ;;    (kiss--get-pkg-dependency-graph package t)))
+
          (kiss--get-pkg-dependency-order
           (seq-uniq
            (append
