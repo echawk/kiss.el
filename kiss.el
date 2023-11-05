@@ -2022,13 +2022,6 @@ are the same."
 
     (make-directory extr-dir t)
 
-    ;; NOTE: I would like to switch to using my already written
-    ;; extract-tarball function instead of having to spell it out
-    ;; manually here, however when attempting to use it I end
-    ;; up getting odd errors likely due to the extra processing that
-    ;; occurs.
-    ;; (kiss--extract-tarball tarball proc-dir)
-
     (kiss--decompress tarball decomp-tarball)
     (shell-command
      (concat "tar xf " decomp-tarball " -C " extr-dir))
