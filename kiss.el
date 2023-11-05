@@ -1227,9 +1227,6 @@ are the same."
                (seq-uniq)
                (seq-sort #'string-lessp))))
 
-        ;; FIXME: still have to enforce 'prohibit-user-alternatives
-        ;; and copy over the proper files. Thinking after this section?
-
         ;; We have to run the below code *twice* since it is possible for
         ;; the installation of symlinks to potentially fail.
         ;; This isn't ideal, but it works.
