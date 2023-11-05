@@ -996,7 +996,7 @@ are the same."
     ;; TODO: this might not be explicitly needed at this part?
     ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
 
-    build-script " " install-dir " " pkg-ver " | tee " log-file)
+    build-script " " install-dir " " pkg-ver " > " log-file)
    ;; Write this script to a temporary location.
    'utf-8 k-el-build)
   ;; Mark the script as executable.
