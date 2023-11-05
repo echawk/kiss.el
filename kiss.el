@@ -655,9 +655,12 @@ when using this function compared with the iterative version."
   "(I) Remove redundant dependencies from DEP-LST."
   (seq-remove
    (lambda (pkg)
-     (member
-      pkg
-      (seq-uniq (flatten-list (mapcar #'kiss--get-pkg-dependencies dep-lst)))))
+     (member pkg
+             (thread-last
+               dep-lst
+               (mapcar #'kiss--get-pkg-dependencies)
+               (flatten-list)
+               (seq-uniq))))
    dep-lst))
 
 ;; TODO: make the output list prettier (ie, should be a list of pkgs,
