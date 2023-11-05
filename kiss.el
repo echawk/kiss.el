@@ -388,9 +388,8 @@
     (kiss--shell-command-as-user
      (concat "chown " owner ":" owner " " temp-f) owner)
     ;; Ensure the permissions are set correctly.
-    ;; TODO: impl my file-rwx code here
     (kiss--shell-command-as-user
-     (concat "chmod 644 " temp-f) owner)
+     (concat "chmod " (kiss--file-rwx manifest-f) " " temp-f) owner)
     ;; Move it into place.
     (kiss--shell-command-as-user
      (concat "mv -f " temp-f " " manifest-f)
