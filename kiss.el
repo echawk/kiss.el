@@ -1012,6 +1012,20 @@ are the same."
 
 ;; FIXME: maybe not depend on a library this is *NOT* in melpa???
 (defun dependency-find-test ()
+
+  ;; NOTE: only works w/ ldd.
+  (thread-last
+    "/home/ethan/tmp/freetype-harfbuzz"
+    (kiss--get-manifest-for-dir)
+    (kiss--get-potential-binary-files)
+    (mapcar (lambda (fp) (shell-command-to-string (concat "ldd " fp))))
+    (string-join)
+    (string-split)
+    (seq-filter (lambda (s) (string-match-p (rx ".so") s)))
+    (mapcar #'kiss--basename)
+    (seq-uniq)
+    (seq-remove #'kiss--lib-is-system-p))
+
   (let ((elfcmd "ldd"))
     (-non-nil
      (seq-uniq
