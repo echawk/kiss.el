@@ -1283,7 +1283,8 @@ are the same."
     (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
 
     (unless missing-deps
-      (let* ((build-script (concat (car (kiss-search pkg)) "/build"))
+      (let* ((build-cmd    "")
+             (build-script (concat (car (kiss-search pkg)) "/build"))
              (proc-dir     (kiss--get-tmp-destdir))
              (build-dir    (concat proc-dir "/build/" pkg "/"))
              (install-dir  (concat proc-dir "/pkg/" pkg))
