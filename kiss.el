@@ -1312,59 +1312,60 @@ are the same."
 
         ;; (kiss--run-hook "pre-build" pkg build-dir)
 
+        ;; Additionally, we can use jails on freebsd to
+        ;; achieve similar isolation.
+        ;; https://docs.freebsd.org/en/books/handbook/jails/
 
-        ;; This expression below will conduct builds using bubblewrap!
-        ;; This feature is *very* experimental, and may not work with
-        ;; every package.
-        ;; FIXME: figure out why this code will fail the first
-        ;; time that it is ran, but succeed the second time it is ran.
-        (when (and (boundp 'kiss-use-bubblewrap) kiss-use-bubblewrap)
-          (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
-                (fake-home-dir "/tmp/kiss-fake-home/"))
+        ;; FIXME: add check for linux...
+        (if kiss-perfom-build-in-sandbox
+            (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
+                  (fake-home-dir "/tmp/kiss-fake-home/"))
 
-            ;; Currently run this, since once the build occurs successfully
-            ;; after this is removed, then we will have a working system...
-            (when (kiss--file-is-directory-p fake-chroot-dir)
-              (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
+              ;; Currently run this, since once the build occurs successfully
+              ;; after this is removed, then we will have a working system...
+              (when (kiss--file-is-directory-p fake-chroot-dir)
+                (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
 
-            ;; NOTE: If the below command is ran, then the code will
-            ;; never successfully run. I'm rather confused as to
-            ;; how this bug works.
-            (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
-            (make-directory fake-home-dir t)
+              ;; NOTE: If the below command is ran, then the code will
+              ;; never successfully run. I'm rather confused as to
+              ;; how this bug works.
+              (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
+              (make-directory fake-home-dir t)
+              (setq
+               build-cmd
+               (pcase kiss-sandbox-utility
+                 ("proot"
+                  (concat
+                   "proot "
+                   " -r " fake-chroot-dir " "
+                   " -b " fake-home-dir ":" "/home" " "
+                   " -b " (kiss--dirname k-el-build) ":" (kiss--dirname k-el-build) " "
+                   " -b " (kiss--dirname build-script) ":" (kiss--dirname build-script) " "
+                   " -b " build-dir ":" build-dir " "
+                   " -b " install-dir ":" install-dir " "
+                   " -b " log-dir ":" log-dir" "
+                   " -w " build-dir " "
+                   k-el-build))
+                 ("bwrap"
+                  (concat
+                   "bwrap "
+                   " --unshare-net "
+                   ;; TODO: enforce / being read-only
+                   " --bind " fake-chroot-dir " / "
+                   " --bind " fake-home-dir " /home "
+                   " --bind " (kiss--dirname k-el-build) " " (kiss--dirname k-el-build) " "
+                   " --bind " (kiss--dirname build-script) " " (kiss--dirname build-script) " "
+                   " --bind " build-dir " " build-dir " "
+                   " --bind " install-dir " " install-dir " "
+                   " --bind " log-dir " " log-dir " "
+                   " -- sh -xe " k-el-build))
+                 (_ (error (concat kiss-sandbox-utility " is not supported!"))))))
+          (setq build-cmd (concat "sh -xe " k-el-build)))
 
-            ;; Example of an isolated build that uses proot.
-            ;; (shell-command
-            ;;  (concat
-            ;;   "proot "
-            ;;   " -r " fake-chroot-dir " "
-            ;;   " -b " fake-home-dir ":" "/home" " "
-            ;;   " -b " k-el-build ":" k-el-build " "
-            ;;   " -b " build-script ":" build-script " "
-            ;;   " -b " build-dir ":" build-dir " "
-            ;;   " -b " install-dir ":" install-dir " "
-            ;;   " -b " log-dir ":" log-dir" "
-            ;;   " -w " build-dir " "
-            ;;   k-el-build))
-
-            ;; Example of an isolated build that uses bubblewrap.
-            (shell-command
-             (concat
-              "bwrap "
-              " --unshare-net "
-              " --new-session "
-              ;; TODO: enforce / being read-only
-              " --bind " fake-chroot-dir " / "
-              " --bind " fake-home-dir " /home "
-              " --bind " k-el-build " " k-el-build " "
-              " --bind " build-script " " build-script " "
-              " --bind " build-dir " " build-dir " "
-              " --bind " install-dir " " install-dir " "
-              " --bind " log-dir " " log-dir" "
-              " -- sh -xe " k-el-build))
-            ))
-
-        (if (eq 0 (shell-command (concat "sh -xe " k-el-build)))
+        (message "-----")
+        (message build-cmd)
+        (message "-----")
+        (if (eq 0 (shell-command build-cmd))
             ;; Success
             (progn
               ;; Now we have to fork over the package files that we
