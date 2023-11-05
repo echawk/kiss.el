@@ -1199,7 +1199,7 @@ are the same."
            (mapc
             (lambda (pair)
               (unless (rassoc (cdr pair) package-needs-to-provide-lst)
-                (setq package-needs-to-provide-lst (cons pair package-provides-lst))))))
+                (setq package-needs-to-provide-lst (cons pair package-needs-to-provide-lst))))))
 
          (setq all-pkgs needed-pkgs)))
 
@@ -1233,7 +1233,28 @@ are the same."
                   ((rx "/" eol)
                    (shell-command (concat "mkdir -p '" normalized-file "'")))
                   (_
-                   (shell-command (concat "cp -fP '" file "' '" normalized-file "'"))))))))))))
+                   (shell-command (concat "cp -fP '" file "' '" normalized-file "'"))))))))
+        (pcase strat
+          ('prohibit-user-alternatives
+           (mapc
+            (lambda (pair)
+              (let ((pkg (car pair))
+                    (file (cdr pair)))
+                ;; We just have to move over the file from the
+                ;; choices dir in the fake chroot to the right place.
+                (shell-command
+                 (concat
+                  "mv -f "
+                  (kiss--single-quote-string
+                   (concat
+                    (kiss--normalize-file-path
+                     (concat fake-chroot-dir kiss-choices-db-dir pkg))
+                    (concat ">" (string-join (string-split file "/" t) ">"))))
+                  " "
+                  (kiss--single-quote-string
+                   (kiss--normalize-file-path
+                    (concat fake-chroot-dir file)))))))
+            package-needs-to-provide-lst)))))))
 
 
 ;; FIXME: should try to see what functionality I can move out of this function
