@@ -1089,6 +1089,12 @@ are the same."
    (lambda (fp) (kiss--strip-file (concat dir fp)))
    file-path-lst))
 
+;; FIXME: need to implement some kind of overwrite protection here,
+;; since, making new chroots for each package in a list of
+;; packages will be *very* expensive to do each time.
+;; it makes much more sense to simply add the files that are missing
+;; in the chroot each iteration, instead of rm-ing the dir and
+;; remaking from scratch
 (defun kiss--make-chroot-dir-for-pkg (dir package &optional strategy)
   ;; TODO: see if we can reuse some of the logic that I use for the
   ;; installation of files here as well. Just have to source the files
