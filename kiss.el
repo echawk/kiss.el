@@ -187,7 +187,7 @@
 (defcustom kiss-make-chroot-strategy 'permit-user-alternatives
   "Denotes the strategy that 'kiss--make-chroot-dir-for-pkg' will use.
 
-Valid strategies are: \\='permit-user-alternatives, \\='prohibit-user-alternatives  "
+Valid strategies are: \='permit-user-alternatives, \='prohibit-user-alternatives  "
   :type 'symbol)
 
 ;; ===========================================================================
