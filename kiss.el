@@ -1072,12 +1072,11 @@ are the same."
    (lambda (fp) (kiss--strip-file (concat dir fp)))
    file-path-lst))
 
-(defun kiss--make-chroot-dir-for-pkg (dir package &optional overwrite-p)
-  ;; FIXME: implement overwrite protection.
-  ;; Default is to overwrite files in dir - when overwrite-p is nil
-  ;; then each file is checked for it's *existence*, if it doesn't
-  ;; exist, then it is appropriately installed.
+(defcustom kiss-make-chroot-strategy 'permit-user-alternatives
+  "Denotes the strategy that 'kiss--make-chroot-dir-for-pkg' will use."
+  :type 'symbol)
 
+(defun kiss--make-chroot-dir-for-pkg (dir package &optional strategy)
   ;; TODO: see if we can reuse some of the logic that I use for the
   ;; installation of files here as well. Just have to source the files
   ;; from current system instead of the tarballs.
@@ -1096,6 +1095,8 @@ are the same."
   ;; proper place?
   ;; I'm leaning towards the former option.
   (let ((missing-pkgs '())
+        (package-needs-to-provide-lst '())
+        (all-pkgs '())
         (alts (kiss-alternatives))
         (needed-pkgs
          ;; The reason we have to call out to get-pkg-dependency-order twice
@@ -1120,70 +1121,117 @@ are the same."
               "openssl" "curl" "git"
               "kiss" "make")))
           t)))
-    ;; TODO: at present, the only issue I really think that would occur
-    ;; with the below solution, would be in the case that there are 3
-    ;; providers for a package (lets say ls) and two of them are going
-    ;; to be in the chroot, how do we decide which one to use?
-    ;; FIXME:
-    ;; We could enforce a different strategy of looking up these files,
-    ;; where instead of adding more packages into the chroot, we instead
-    ;; "remove" the user's current alternatives, and instead replace
-    ;; the files with the file provided by the package.
-    ;; This is rather easy to do (at least in kiss.el) since we send
-    ;; both file names through the alternatives system.
-    ;; The user should be able to swap between the two strategies, since
-    ;; there are times where you do not want to link to a an executable
-    ;; or etc.
-    ;; We need to look up the package owners who own any of the alternatives.
-    ;; this is to ensure that all expected utilities are present in the
-    ;; system.
 
-    ;; This get's the list of "missing" packages that we will also need
-    ;; in the chroot - the reason they are missing is because these
-    ;; packages provide files that would otherwise be provided by
-    ;; our current list of 'needed-pkgs'
-    (setq missing-pkgs
-          (thread-last
-            needed-pkgs
-            (mapcar
-             (lambda (pkg)
+    ;; Two strategies for making the chroot - first one is
+    ;; "permit-user-alternatives", the other is "prohibit-user-alternatives".
+    ;; The behavior between the two strategies is as follows.
+
+    ;; When using the "permit-user-alternatives" strategy,
+    ;; the package manager will simply see that there are files
+    ;; on the system that are not currently provided by needed-pkgs.
+    ;; As a result, the package manager looks up the pacakges that own
+    ;; each of the files it is missing, and adds said packages to the
+    ;; list to eventually be installed.
+
+    ;; When using the "prohibit-user-alternatives" strategy,
+    ;; the package manage will instead overwrite the user's
+    ;; chosen alternatives in the temporary chroot. This
+    ;; involves gathering the list of files that are currently
+    ;; in the choices database that are provided by needed-pkgs,
+    ;; and then ensuring that we copy them over appropriately.
+
+    (let ((strat (if strategy strategy kiss-make-chroot-strategy)))
+      (pcase strat
+        ('permit-user-alternatives
+         ;; We need to look up the package owners who own the alternatives.
+         ;; this is to ensure that all expected utilities are present in the
+         ;; system.
+
+         ;; This get's the list of "missing" packages that we will also need
+         ;; in the chroot - the reason they are missing is because these
+         ;; packages provide files that would otherwise be provided by
+         ;; our current list of 'needed-pkgs'
+         (setq missing-pkgs
                (thread-last
-                 alts
-                 (seq-filter (lambda (triple) (string= pkg (car triple))))
-                 (mapcar (lambda (tr) (nth 1 tr)))
-                 (seq-remove (lambda (s) (string-match-p "/$" s))))))
-            (flatten-list)
-            ;; Ensure that if there are multiple providers (for example
-            ;; /usr/bin/ls), that it only shows up once.
-            (seq-uniq)
-            (mapcar #'kiss-owns)
-            (seq-uniq)))
+                 needed-pkgs
+                 (mapcar
+                  (lambda (pkg)
+                    (thread-last
+                      alts
+                      (seq-filter (lambda (triple) (string= pkg (car triple))))
+                      (mapcar (lambda (tr) (nth 1 tr)))
+                      (seq-remove (lambda (s) (string-match-p "/$" s))))))
+                 (flatten-list)
+                 ;; Ensure that if there are multiple providers (for example
+                 ;; /usr/bin/ls), that it only shows up once.
+                 (seq-uniq)
+                 (mapcar #'kiss-owns)
+                 (seq-uniq)))
 
-    (let ((fake-chroot-dir dir)
-          (needed-files
-           (thread-last
-             needed-pkgs
-             (append missing-pkgs)
-             (mapcar #'kiss-manifest)
-             (flatten-list)
-             (seq-uniq)
-             (seq-sort #'string-lessp))))
+         (setq all-pkgs (append missing-pkgs needed-pkgs)))
 
-      ;; We have to run the below code *twice* since it is possible for
-      ;; the installation of symlinks to potentially fail.
-      ;; This isn't ideal, but it works.
-      (dotimes (_ 2)
-        (dolist (file needed-files)
-          (let ((normalized-file (kiss--normalize-file-path
-                                  (concat fake-chroot-dir file))))
-            ;; TODO: make this also take in the validate argument?
-            (unless (or (kiss--file-exists-p normalized-file)
-                        (kiss--file-is-directory-p normalized-file))
-              (pcase file
-                ((rx "/" eol)
-                 (shell-command (concat "mkdir -p '" normalized-file "'")))
-                (_
-                 (shell-command (concat "cp -fP '" file "' '" normalized-file "'")))))))))))
+        ('prohibit-user-alternatives
+         (thread-last
+           needed-pkgs
+           ;; This could just be enirely placebo, but
+           ;; this is intended to have packages who are closer to
+           ;; the "core" of the system be prioritized when
+           ;; having their alternatives swapped to.
+           (kiss--get-pkg-order)
+
+           ;; Get all of the manifest files and look files that are in choices dir.
+           (mapcar #'kiss-manifest)
+           (flatten-list)
+           (seq-uniq)
+           (seq-filter
+            (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
+           (mapcar (lambda (s) (split-string s ">")))
+           (mapcar (lambda (l) (list (kiss--basename (car l))
+                                     (concat "/" (string-join (cdr l) "/")))))
+           ;; Convert the pairs to dotted pairs.
+           (mapcar (lambda (p) (cons (car p) (cadr p))))
+
+           ;; We now may have multiple providers of each package in the cdr
+           ;; of each list.
+           ;; While it is not necessarily perfect, I think it
+           (mapc
+            (lambda (pair)
+              (unless (rassoc (cdr pair) package-needs-to-provide-lst)
+                (setq package-needs-to-provide-lst (cons pair package-provides-lst))))))
+
+         (setq all-pkgs needed-pkgs)))
+
+      ;; FIXME: will need to eventually update the manifests that are installed
+      ;; in the system, just in case if packages decide to (wrongly) use
+      ;; 'kiss owns' in the build script to look up who owns a particular file.
+
+      (let ((fake-chroot-dir dir)
+            (needed-files
+             (thread-last
+               all-pkgs
+               (mapcar #'kiss-manifest)
+               (flatten-list)
+               (seq-uniq)
+               (seq-sort #'string-lessp))))
+
+        ;; FIXME: still have to enforce 'prohibit-user-alternatives
+        ;; and copy over the proper files. Thinking after this section?
+
+        ;; We have to run the below code *twice* since it is possible for
+        ;; the installation of symlinks to potentially fail.
+        ;; This isn't ideal, but it works.
+        (dotimes (_ 2)
+          (dolist (file needed-files)
+            (let ((normalized-file (kiss--normalize-file-path
+                                    (concat fake-chroot-dir file))))
+              ;; TODO: make this also take in the validate argument?
+              (unless (or (kiss--file-exists-p normalized-file)
+                          (kiss--file-is-directory-p normalized-file))
+                (pcase file
+                  ((rx "/" eol)
+                   (shell-command (concat "mkdir -p '" normalized-file "'")))
+                  (_
+                   (shell-command (concat "cp -fP '" file "' '" normalized-file "'"))))))))))))
 
 
 ;; FIXME: should try to see what functionality I can move out of this function
