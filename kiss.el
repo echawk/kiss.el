@@ -1026,38 +1026,7 @@ are the same."
     (seq-filter (lambda (s) (string-match-p (rx ".so") s)))
     (mapcar #'kiss--basename)
     (seq-uniq)
-    (seq-remove #'kiss--lib-is-system-p))
-
-  (let ((elfcmd "ldd"))
-    (-non-nil
-     (seq-uniq
-      (mapcar
-       (lambda (line)
-         (let ((libpath
-                ;; FIXME: don't concat '/usr' just so kiss-owns will work.
-                ;; Make this a grep?
-                (concat
-                 "/usr"
-                 (car
-                  (string-split
-                   (string-trim-left (car (reverse (string-split line "=>")))))))))
-           (when libpath
-             (kiss-owns libpath))))
-       (seq-uniq
-        (string-split
-         (mapconcat (lambda (str)
-                      (string-trim
-                       (replace-regexp-in-string
-                        (rx "(" (1+ any) ")") "" str)))
-                    (seq-filter
-                     #'identity
-                     (mapcar
-                      (lambda (fp)
-                        (let ((cmd (concat elfcmd " " "/home/ethan/tmp/h" fp)))
-                          (subp-cond cmd (success stdout))))
-                      (kiss--get-potential-binary-files
-                       (kiss--get-manifest-for-dir "/home/ethan/tmp/h")))) "\n")
-         "\n")))))))
+    (seq-remove #'kiss--lib-is-system-p)))
 
 (defun kiss--build-get-missing-dependencies (dir file-path-lst)
   (message dir)
