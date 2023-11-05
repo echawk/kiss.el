@@ -191,6 +191,16 @@
 Valid strategies are: \='permit-user-alternatives, \='prohibit-user-alternatives  "
   :type 'symbol)
 
+(defcustom kiss-perfom-build-in-sandbox nil
+  "Set to t if you want build to be performed in a sandbox."
+  :type 'boolean)
+
+(defcustom kiss-sandbox-utility "bwrap"
+  "set to an executable for sandboxing.
+
+Valid strings: bwrap, proot."
+  :type 'string)
+
 ;; ===========================================================================
 
 ;; Internal function definitions, these are considered to not be stable.
