@@ -184,6 +184,12 @@
   "A list of absolute paths to executable files."
   :type '(string))
 
+(defcustom kiss-make-chroot-strategy 'permit-user-alternatives
+  "Denotes the strategy that 'kiss--make-chroot-dir-for-pkg' will use.
+
+Valid strategies are: \\='permit-user-alternatives, \\='prohibit-user-alternatives  "
+  :type 'symbol)
+
 ;; ===========================================================================
 
 ;; Internal function definitions, these are considered to not be stable.
@@ -1071,10 +1077,6 @@ are the same."
   (mapcar
    (lambda (fp) (kiss--strip-file (concat dir fp)))
    file-path-lst))
-
-(defcustom kiss-make-chroot-strategy 'permit-user-alternatives
-  "Denotes the strategy that 'kiss--make-chroot-dir-for-pkg' will use."
-  :type 'symbol)
 
 (defun kiss--make-chroot-dir-for-pkg (dir package &optional strategy)
   ;; TODO: see if we can reuse some of the logic that I use for the
