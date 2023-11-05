@@ -1107,12 +1107,6 @@ are the same."
   ;; that the target dir is on the same file system as the source files.
   ;; Linking also has the added bonus of being *much* faster than copying.
 
-  ;; NOTE: if any of the packages that we are copying files
-  ;; over from have any of their files in the alternatives system, then
-  ;; we need to ensure that we copy over the provider of that file too
-  ;; -OR- we can do some magic on the fly to copy over the files to the
-  ;; proper place?
-  ;; I'm leaning towards the former option.
   (let ((missing-pkgs '())
         (package-needs-to-provide-lst '())
         (all-pkgs '())
