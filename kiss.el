@@ -1674,7 +1674,7 @@ are the same."
 (defun kiss--download-local-source (uri dest-dir)
   "(I) Copy URI to DEST-DIR using cp(1)."
   (let ((file-name (car (reverse (string-split uri "/")))))
-    ;; FIXME: double check to make sure this is correct - I have a hunch
+    ;; TODO: double check to make sure this is correct - I have a hunch
     ;; that it's not.
     (unless (file-exists-p uri)
       (shell-command
@@ -2263,7 +2263,7 @@ are the same."
 ;; -> update       Update the repositories
 ;; ===========================================================================
 
-;; FIXME: see if Emacs has something built-in to do most of this (vc.el).
+;; TODO: see if Emacs has something built-in to do most of this (vc.el).
 
 (defun kiss--dir-is-git-repo-p (dir)
   "(I) Return t if DIR is a git repo, nil otherwise."
