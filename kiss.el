@@ -1306,14 +1306,15 @@ are the same."
     (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
 
     (unless missing-deps
-      (let* ((build-cmd    "")
-             (build-script (concat (car (kiss-search pkg)) "/build"))
-             (proc-dir     (kiss--get-tmp-destdir))
-             (build-dir    (concat proc-dir "/build/" pkg "/"))
-             (install-dir  (concat proc-dir "/pkg/" pkg))
-             (k-el-build   (concat proc-dir "/build-" pkg "-kiss-el"))
-             (log-dir      (concat kiss-logdir (format-time-string "%Y-%m-%d" (current-time)) "/"))
-             (log-file     (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
+      (let* ((build-cmd       "")
+             (build-exit-code 1)
+             (build-script    (concat (car (kiss-search pkg)) "/build"))
+             (proc-dir        (kiss--get-tmp-destdir))
+             (build-dir       (concat proc-dir "/build/" pkg "/"))
+             (install-dir     (concat proc-dir "/pkg/" pkg))
+             (k-el-build      (concat proc-dir "/build-" pkg "-kiss-el"))
+             (log-dir         (concat kiss-logdir (format-time-string "%Y-%m-%d" (current-time)) "/"))
+             (log-file        (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
 
         ;; Extract pkg's sources to the build directory.
         (kiss--extract-pkg-sources pkg build-dir)
@@ -1340,9 +1341,9 @@ are the same."
         ;; achieve similar isolation.
         ;; https://docs.freebsd.org/en/books/handbook/jails/
 
-        ;; FIXME: add check for linux...
+        ;; TODO: add check for linux...
         (if kiss-perfom-build-in-sandbox
-            ;; FIXME: make these variables user configurable
+            ;; TODO: make these variables user configurable
             (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
                   (fake-home-dir "/tmp/kiss-fake-home/"))
 
@@ -1378,91 +1379,91 @@ are the same."
                    " --bind " build-dir " " build-dir " "
                    " --bind " install-dir " " install-dir " "
                    " --bind " log-dir " " log-dir " "
-                   " -- sh -xe " k-el-build))
+                   k-el-build))
                  (_ (error (concat kiss-sandbox-utility " is not supported!"))))))
-          (setq build-cmd (concat "sh -xe " k-el-build)))
+          (setq build-cmd k-el-build))
 
         (message "-----")
         (message build-cmd)
         (message "-----")
-        (if (eq 0 (shell-command build-cmd))
-            ;; Success
-            (progn
-              ;; Now we have to fork over the package files that we
-              ;; used to the repo dir.
-              (let ((pkg-install-db
-                     (concat install-dir "/var/db/kiss/installed/")))
-                (make-directory pkg-install-db t)
-                (kiss-fork pkg pkg-install-db)
-                (message (concat "Successful Build!"))
 
-                ;; (kiss--run-hook "post-build" pkg install-dir)
+        (setq build-exit-code (shell-command build-cmd))
+        (message "%s" build-exit-code)
 
-                ;; FIXME: look over kiss code & implement /dev/null
-                ;; for symlinks
-                ;; Need to compute etcsums if they exist.
-                (let* ((manifest-lst
-                        (kiss--get-manifest-for-dir install-dir))
-                       (etc-files
-                        (seq-filter
-                         (lambda (s)
-                           (and (string-match-p (rx bol "/etc") s)
-                                (kiss--file-exists-p (concat install-dir "/" s))))
-                         manifest-lst)))
+        (when (> build-exit-code 0)
+          ;; FIXME: cleanup
+          (error "build failed"))
 
-                  ;; If we have any etcfiles, create etcsums
-                  (if etc-files
-                      (f-write-text
-                       (mapconcat
-                        #'identity
-                        (mapcar #'kiss--b3 etc-files)
-                        "\n")
-                       'utf-8 (concat pkg-install-db pkg "/etcsums")))
+        ;; Now we have to fork over the package files that we
+        ;; used to the repo dir.
+        (let ((pkg-install-db
+               (concat install-dir "/var/db/kiss/installed/")))
+          (make-directory pkg-install-db t)
+          (kiss-fork pkg pkg-install-db)
+          (message (concat "Successful Build!"))
 
-                  ;; Next, create the manifest
-                  (f-write-text
-                   ;; FIXME: I don't think this should be needed,
-                   ;; since, *technically* kiss--get-manifest-for-dir
-                   ;; should have already taken care of this...
-                   (kiss--manifest-to-string
-                    (kiss--get-manifest-for-dir install-dir))
-                   'utf-8 (concat pkg-install-db pkg "/manifest")))
+          ;; (kiss--run-hook "post-build" pkg install-dir)
 
-                (let ((potential-binary-files
-                       (kiss--get-potential-binary-files
-                        (kiss--read-file
-                         (concat pkg-install-db pkg "/manifest")))))
-                  (when (eq 1 kiss-strip)
-                    (kiss--build-strip-files
-                     install-dir potential-binary-files))
+          ;; FIXME: look over kiss code & implement /dev/null
+          ;; for symlinks
+          ;; Need to compute etcsums if they exist.
+          (let* ((manifest-lst
+                  (kiss--get-manifest-for-dir install-dir))
+                 (etc-files
+                  (seq-filter
+                   (lambda (s)
+                     (and (string-match-p (rx bol "/etc") s)
+                          (kiss--file-exists-p (concat install-dir "/" s))))
+                   manifest-lst)))
 
-                  ;; TODO: finish up this impl.
-                  ;; FIXME: also need to do dependency fixing
-                  (kiss--build-get-missing-dependencies
-                   install-dir potential-binary-files)))
+            ;; If we have any etcfiles, create etcsums
+            (if etc-files
+                (f-write-text
+                 (mapconcat
+                  #'identity
+                  (mapcar #'kiss--b3 etc-files)
+                  "\n")
+                 'utf-8 (concat pkg-install-db pkg "/etcsums")))
 
-              ;; Finally create the tarball
-              (message (concat "Creating tarball for " pkg))
-              (kiss--make-tarball-of-dir
-               install-dir
-               (concat kiss-bindir
-                       (kiss--get-pkg-bin-name pkg pkg-ver)))
+            ;; Next, create the manifest
+            (f-write-text
+             ;; FIXME: I don't think this should be needed,
+             ;; since, *technically* kiss--get-manifest-for-dir
+             ;; should have already taken care of this...
+             (kiss--manifest-to-string
+              (kiss--get-manifest-for-dir install-dir))
+             'utf-8 (concat pkg-install-db pkg "/manifest")))
 
-              ;; (kiss--run-hook "post-package" pkg
-              ;;                 (concat kiss-bindir
-              ;;                         (kiss--get-pkg-bin-name pkg pkg-ver)))
+          (let ((potential-binary-files
+                 (kiss--get-potential-binary-files
+                  (kiss--read-file
+                   (concat pkg-install-db pkg "/manifest")))))
+            (when (eq 1 kiss-strip)
+              (kiss--build-strip-files
+               install-dir potential-binary-files))
 
-              ;; rm the build directory
-              (message (concat "Removing the build directory (" proc-dir ")"))
-              ;; FIXME: need kiss--single-quote-string?
-              (shell-command (concat "rm -rf -- " proc-dir))
-              ;; Have the expr eval to t.
-              t)
-          ;; Failure
-          (progn
-            (message "Build failed")
-            ;; Have the expr eval to nil.
-            nil))))))
+            ;; TODO: finish up this impl.
+            ;; FIXME: also need to do dependency fixing
+            (kiss--build-get-missing-dependencies
+             install-dir potential-binary-files)))
+
+        ;; Finally create the tarball
+        (message (concat "Creating tarball for " pkg))
+        (kiss--make-tarball-of-dir
+         install-dir
+         (concat kiss-bindir
+                 (kiss--get-pkg-bin-name pkg pkg-ver)))
+
+        ;; (kiss--run-hook "post-package" pkg
+        ;;                 (concat kiss-bindir
+        ;;                         (kiss--get-pkg-bin-name pkg pkg-ver)))
+
+        ;; rm the build directory
+        (message (concat "Removing the build directory (" proc-dir ")"))
+        ;; FIXME: need kiss--single-quote-string?
+        (shell-command (concat "rm -rf -- " proc-dir))
+        ;; Have the expr eval to t.
+        t))))
 
 ;; (kiss--build-pkg "xdo")
 
