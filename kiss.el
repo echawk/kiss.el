@@ -97,6 +97,7 @@
 ;;(require 'subp)
 (eval-when-compile
   (require 'cl-lib)
+  (require 'dash)
   (require 'f)
   (require 'pcase)
   (require 'rx)
