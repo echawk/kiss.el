@@ -1146,27 +1146,27 @@ are the same."
     ;; We need to look up the package owners who own any of the alternatives.
     ;; this is to ensure that all expected utilities are present in the
     ;; system.
+
+    ;; This get's the list of "missing" packages that we will also need
+    ;; in the chroot - the reason they are missing is because these
+    ;; packages provide files that would otherwise be provided by
+    ;; our current list of 'needed-pkgs'
     (setq missing-pkgs
-          ;; TODO: make this code somewhat less ugly (if possible)
-          ;; Figure out which packages we will also need to include
-          ;; in the chroot
-          (seq-uniq
-           (mapcar
-            #'kiss-owns
+          (thread-last
+            needed-pkgs
+            (mapcar
+             (lambda (pkg)
+               (thread-last
+                 alts
+                 (seq-filter (lambda (triple) (string= pkg (car triple))))
+                 (mapcar (lambda (tr) (nth 1 tr)))
+                 (seq-remove (lambda (s) (string-match-p "/$" s))))))
+            (flatten-list)
             ;; Ensure that if there are multiple providers (for example
             ;; /usr/bin/ls), that it only shows up once.
-            (seq-uniq
-             (flatten-list
-              (mapcar
-               (lambda (pkg)
-                 (seq-remove
-                  (lambda (s) (string-match-p "/$" s))
-                  (mapcar
-                   (lambda (tr) (nth 1 tr))
-                   (seq-filter
-                    (lambda (triple) (string= pkg (car triple)))
-                    alts))))
-               needed-pkgs))))))
+            (seq-uniq)
+            (mapcar #'kiss-owns)
+            (seq-uniq)))
 
     (let ((fake-chroot-dir dir)
           (needed-files
