@@ -1170,11 +1170,13 @@ are the same."
 
     (let ((fake-chroot-dir dir)
           (needed-files
-           (seq-sort
-            #'string-lessp
-            (seq-uniq
-             (flatten-list
-              (mapcar #'kiss-manifest (append missing-pkgs needed-pkgs)))))))
+           (thread-last
+             needed-pkgs
+             (append missing-pkgs)
+             (mapcar #'kiss-manifest)
+             (flatten-list)
+             (seq-uniq)
+             (seq-sort #'string-lessp))))
 
       ;; We have to run the below code *twice* since it is possible for
       ;; the installation of symlinks to potentially fail.
