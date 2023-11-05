@@ -188,7 +188,7 @@
 (defcustom kiss-make-chroot-strategy 'permit-user-alternatives
   "Denotes the strategy that kiss--make-chroot-dir-for-pkg will use.
 
-Valid strategies are: \='permit-user-alternatives, \='prohibit-user-alternatives  "
+Valid strategies are: \\='permit-user-alternatives, \\='prohibit-user-alternatives  "
   :type 'symbol)
 
 (defcustom kiss-perfom-build-in-sandbox nil
@@ -1233,12 +1233,15 @@ are the same."
 
          (setq all-pkgs needed-pkgs)))
 
-      ;; FIXME: will need to eventually update the manifests that are installed
-      ;; in the system, just in case if packages decide to (wrongly) use
-      ;; 'kiss owns' in the build script to look up who owns a particular file.
-
-      (let ((fake-chroot-dir dir)
-            (needed-files
+      ;; Remove any packages that have already been installed into dir
+      ;; from all-packages
+      (let ((dir-install-db (kiss--normalize-file-path
+                             (concat dir kiss-installed-db-dir))))
+        (when (kiss--file-is-directory-p dir-install-db)
+          (setq all-pkgs (seq-difference
+                          all-pkgs
+                          (nthcdr 2 (directory-files dir-install-db))))))
+      (let ((needed-files
              (thread-last
                all-pkgs
                (mapcar #'kiss-manifest)
@@ -1252,7 +1255,7 @@ are the same."
         (dotimes (_ 2)
           (dolist (file needed-files)
             (let ((normalized-file (kiss--normalize-file-path
-                                    (concat fake-chroot-dir file))))
+                                    (concat dir file))))
               ;; TODO: make this also take in the validate argument?
               (unless (or (kiss--file-exists-p normalized-file)
                           (kiss--file-is-directory-p normalized-file))
@@ -1261,6 +1264,10 @@ are the same."
                    (shell-command (concat "mkdir -p '" normalized-file "'")))
                   (_
                    (shell-command (concat "cp -fP '" file "' '" normalized-file "'"))))))))
+
+        ;; FIXME: will need to eventually update the manifests that are installed
+        ;; in the system, just in case if packages decide to (wrongly) use
+        ;; 'kiss owns' in the build script to look up who owns a particular file.
         (pcase strat
           ('prohibit-user-alternatives
            (mapc
@@ -1275,12 +1282,12 @@ are the same."
                   (kiss--single-quote-string
                    (concat
                     (kiss--normalize-file-path
-                     (concat fake-chroot-dir kiss-choices-db-dir pkg))
+                     (concat dir kiss-choices-db-dir pkg))
                     (concat ">" (string-join (string-split file "/" t) ">"))))
                   " "
                   (kiss--single-quote-string
                    (kiss--normalize-file-path
-                    (concat fake-chroot-dir file)))))))
+                    (concat dir file)))))))
             package-needs-to-provide-lst)))))))
 
 
@@ -1335,17 +1342,13 @@ are the same."
 
         ;; FIXME: add check for linux...
         (if kiss-perfom-build-in-sandbox
+            ;; FIXME: make these variables user configurable
             (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
                   (fake-home-dir "/tmp/kiss-fake-home/"))
 
-              ;; Currently run this, since once the build occurs successfully
-              ;; after this is removed, then we will have a working system...
               (when (kiss--file-is-directory-p fake-chroot-dir)
                 (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
 
-              ;; NOTE: If the below command is ran, then the code will
-              ;; never successfully run. I'm rather confused as to
-              ;; how this bug works.
               (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
               (make-directory fake-home-dir t)
               (setq
