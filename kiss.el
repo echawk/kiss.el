@@ -902,7 +902,7 @@ are the same."
   ;; after we get the relevant lines, we extract the symbol name
   ;; that we are interested in.
   (let ((lib-symbols
-         (delete-dups
+         (seq-uniq
           (mapcar
            #'intern
            (flatten-list
