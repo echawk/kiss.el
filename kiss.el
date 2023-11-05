@@ -219,22 +219,21 @@
 
 (defun kiss--get-user-from-uid (uid)
   "(I) Return the name for UID.  `$ getent passwd' is parsed for the information."
-  (car
-   (remove
-    nil
-    (mapcar
-     (lambda (str)
-       (if (string-match
-            (rx bol
-                (1+ (not ":")) ":"
-                (0+ (not ":")) ":"
-                (literal (number-to-string uid)) ":")
-            str)
-           (car (string-split str ":"))))
-     ;; NOTE: there is a portability penalty here for using getent(1).
-     ;; This will work fine on Linux and the *BSDs, but not on macOS.
-     (string-split
-      (shell-command-to-string "getent passwd") "\n" t)))))
+  (let ((regex (rx bol
+                   (group-n 1 (1+ (not ":"))) ":"
+                   (0+ (not ":")) ":"
+                   (literal (number-to-string uid))
+                   (0+ any)
+                   eol))
+        ;; NOTE: there is a portability penalty here for using getent(1).
+        ;; This will work fine on Linux and the *BSDs, but not on macOS.
+        (cmd-out (string-split
+                  (shell-command-to-string "getent passwd") "\n" t)))
+    (thread-last
+      cmd-out
+      (seq-filter (lambda (s) (string-match regex s)))
+      (car)
+      (replace-regexp-in-string regex "\\1"))))
 
 (defun kiss--get-owner (file-path)
   "(I) Return the owner uid of FILE-PATH."
