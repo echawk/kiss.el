@@ -1029,26 +1029,33 @@ are the same."
       ".so" (0+ any))))
    lib-string))
 
-;; FIXME: maybe not depend on a library this is *NOT* in melpa???
-(defun dependency-find-test ()
-
+(defun kiss--build-get-missing-dependencies (dir file-path-lst package)
   ;; NOTE: only works w/ ldd.
-  (thread-last
-    "/home/ethan/tmp/freetype-harfbuzz"
-    (kiss--get-manifest-for-dir)
-    (kiss--get-potential-binary-files)
-    (mapcar (lambda (fp) (shell-command-to-string (concat "ldd " fp))))
-    (string-join)
-    (string-split)
-    (seq-filter (lambda (s) (string-match-p (rx ".so") s)))
-    (mapcar #'kiss--basename)
-    (seq-uniq)
-    (seq-remove #'kiss--lib-is-system-p)))
-
-(defun kiss--build-get-missing-dependencies (dir file-path-lst)
-  (message dir)
-  (message (kiss--lst-to-str file-path-lst))
-  nil)
+  (seq-difference
+   (thread-last
+     ;; dir
+     ;; (kiss--get-manifest-for-dir)
+     ;; (kiss--get-potential-binary-files)
+     file-path-lst
+     (mapcar (lambda (fp) (shell-command-to-string (concat "ldd " dir "/" fp))))
+     (string-join)
+     (string-split)
+     (seq-filter (lambda (s) (string-match-p (rx ".so") s)))
+     (mapcar #'kiss--basename)
+     (seq-uniq)
+     (seq-remove #'kiss--lib-is-system-p)
+     ;; Now we have to figure out where the lib is on the system.
+     (mapcar
+      ;; FIXME: It would be nice to use kiss's algo for this part
+      ;; since I don't know how portable this technique is when you are
+      ;; using kiss as a personal package manager
+      (lambda (lib) (shell-command-to-string (concat "cc -print-file-name=" lib))))
+     (mapcar (lambda (lib) (shell-command-to-string (concat "realpath " lib))))
+     (mapcar (lambda (fp) (replace-regexp-in-string "\n" "" fp)))
+     (mapcar #'kiss-owns)
+     (seq-uniq)
+     (seq-remove (lambda (p) (string= p package))))
+   (kiss--get-pkg-dependencies package)))
 
 (defun kiss--strip-file (file)
   "(I) Run strip(1) on FILE with the proper arguments."
@@ -1305,6 +1312,7 @@ are the same."
     ;; Recheck to make sure that we aren't missing any deps.
     (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
 
+    ;; FIXME: error out here instead of using unless
     (unless missing-deps
       (let* ((build-cmd       "")
              (build-exit-code 1)
@@ -1445,7 +1453,7 @@ are the same."
             ;; TODO: finish up this impl.
             ;; FIXME: also need to do dependency fixing
             (kiss--build-get-missing-dependencies
-             install-dir potential-binary-files)))
+             install-dir potential-binary-files pkg)))
 
         ;; Finally create the tarball
         (message (concat "Creating tarball for " pkg))
