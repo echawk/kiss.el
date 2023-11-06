@@ -107,7 +107,8 @@
 
 ;; FIXME: Find out what the containing group should be...
 (defgroup kiss nil
-  "The KISS package manager, in ELisp.")
+  "The KISS package manager, in ELisp."
+  :group :application)
 
 ;; TODO: cleanup these names, they're not consistent...
 (defconst kiss-root "/")
