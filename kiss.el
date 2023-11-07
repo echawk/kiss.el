@@ -1299,6 +1299,8 @@ are the same."
             package-needs-to-provide-lst)))))))
 
 
+;; FIXME: pretty sure we bug out whenever we try to build a package
+;; with zero sources. we need to support that functionality
 ;; FIXME: should try to see what functionality I can move out of this function
 (defun kiss--build-pkg (pkg)
   "(I) Build PKG, return t if PKG was built successfully, nil otherwise."
