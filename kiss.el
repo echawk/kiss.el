@@ -1447,7 +1447,8 @@ are the same."
                  (kiss--get-potential-binary-files
                   (kiss--read-file
                    (concat pkg-install-db pkg "/manifest")))))
-            (when (eq 1 kiss-strip)
+            (when (and (eq 1 kiss-strip)
+                       (not (kiss--file-exists-p (concat build-dir "nostrip"))))
               (kiss--build-strip-files
                install-dir potential-binary-files))
 
