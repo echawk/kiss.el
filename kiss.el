@@ -2171,16 +2171,19 @@ are the same."
          (f-read-text (concat pdir "/version"))))))
 
 ;; TODO: add docstring.
-;; FIXME: comply w/ upstream kiss (this can take a list of packages.)
 ;;;###autoload
 (defun kiss-list (&optional pkg-q)
-  (if (eq nil pkg-q)
-      (let ((pkgs (nthcdr 2 (directory-files kiss-installed-db-dir))))
-        (mapcar (lambda (p)
-                  (list p (kiss--get-installed-pkg-version p)))
-                pkgs))
+  (cond
+   ((eq nil pkg-q)
+    (let ((pkgs (nthcdr 2 (directory-files kiss-installed-db-dir))))
+      (mapcar (lambda (p)
+                (list p (kiss--get-installed-pkg-version p)))
+              pkgs)))
+   ((listp pkg-q)
+    (mapcar #'kiss-list pkg-q))
+   ((atom pkg-q)
     (when (kiss--pkg-is-installed-p pkg-q)
-      (list pkg-q (kiss--get-installed-pkg-version pkg-q)))))
+      (list pkg-q (kiss--get-installed-pkg-version pkg-q))))))
 
 ;; -> remove       Remove packages
 ;; ===========================================================================
