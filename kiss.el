@@ -997,6 +997,10 @@ are the same."
     ;; TODO: this might not be explicitly needed at this part?
     ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
 
+    ;; TODO: see if I can't implement something like this?
+    ;; https://codeberg.org/kiss-community/repo/issues/121
+    ;; thinking of doing kiss-build-env-hooks, which will take the package name
+
     build-script " " install-dir " " pkg-ver " > " log-file)
    ;; Write this script to a temporary location.
    'utf-8 k-el-build)
