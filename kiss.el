@@ -1329,6 +1329,9 @@ are the same."
            (log-dir         (concat kiss-logdir (format-time-string "%Y-%m-%d" (current-time)) "/"))
            (log-file        (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
 
+
+      ;;(kiss--run-hook "pre-extract" pkg install-dir)
+
       ;; Extract pkg's sources to the build directory.
       (kiss--extract-pkg-sources pkg build-dir)
       (make-directory install-dir t)
@@ -1406,6 +1409,7 @@ are the same."
       (message "%s" build-exit-code)
 
       (when (> build-exit-code 0)
+        ;;(kiss--run-hook "build-fail" pkg build-dir)
         ;; FIXME: cleanup
         (error "build failed"))
 
