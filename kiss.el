@@ -1884,31 +1884,32 @@ are the same."
     (unless (kiss--file-exists-p manifest-file)
       (error "manifest file does not exit!"))
 
-    (let ((dir-files
-           ;; Ensure we are only looking at *files* and *not* directories.
-           (seq-remove
-            (lambda (str) (string-match-p "/$" str))
-            (kiss--read-file manifest-file))))
+    ;; TODO: would like to investigate the penalty of using a pure
+    ;; Emacs lisp based solution for this.
+    (let ((res '())
+          (temp-file (kiss--make-temp-file)))
+      (f-write-text
+       (thread-last
+         manifest-file
+         (kiss--read-file)
+         (seq-remove (lambda (str) (string-match-p "/$" str)))
+         (kiss--manifest-to-string))
+       'utf-8 temp-file)
 
-      ;;(mapcar #'kiss-owns dir-files)
-      ;; TODO: would like to investigate the penalty of using a pure
-      ;; Emacs lisp based solution for this.
-      ;; FIXME: when installing big packages (like nodejs)
-      ;; we run into issues with the length of the argument list.
-      (mapcar
-       (lambda (str) (reverse (string-split str ":")))
-       (split-string
-        (shell-command-to-string
-         (concat
-          "printf '"
-          (kiss--manifest-to-string dir-files)
-          "'"
-          " | "
-          "grep -Fxf - "
-          (kiss--lst-to-str
-           (kiss--get-installed-manifest-files))
-          " | grep -v " (concat pkg "/manifest:")))
-        "\n" t)))))
+      (setq res
+            (mapcar
+             (lambda (str) (reverse (string-split str ":")))
+             (string-split
+              (shell-command-to-string
+               (concat "cat " temp-file
+                       " | grep -Fxf - " (kiss--lst-to-str
+                                          (kiss--get-installed-manifest-files))
+                       " | grep -v " (concat pkg "/manifest:")))
+              "\n" t)))
+
+      (kiss--remove-file temp-file)
+      res)))
+
 
 (defun kiss--rwx-lst-to-octal (lst)
   (seq-reduce
