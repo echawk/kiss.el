@@ -2142,6 +2142,8 @@ are the same."
       ;; FIXME: finish this func
       nil)))
 
+;; FIXME: this need to be faster - currently it is super super slow
+;; compared to the shell implementation.
 ;;;###autoload
 (defun kiss-install (pkgs-l)
   (interactive)
@@ -2323,7 +2325,6 @@ are the same."
                             (kiss--kiss-path-git-repos)))))
     (dolist (repo git-repos)
       (message (concat "kiss/update: Updating " repo))
-      ;; FIXME: prevent this from stalling Emacs.
       (let ((repo-owner   (kiss--get-owner-name repo))
             (am-owner-p   (kiss--am-owner-p repo))
             (git-pull-cmd (concat "git -C " repo " pull" ))
