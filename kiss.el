@@ -1315,167 +1315,171 @@ are the same."
     ;; Recheck to make sure that we aren't missing any deps.
     (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
 
-    ;; FIXME: error out here instead of using unless
-    (unless missing-deps
-      (let* ((build-cmd       "")
-             (build-exit-code 1)
-             (build-script    (concat (car (kiss-search pkg)) "/build"))
-             (proc-dir        (kiss--get-tmp-destdir))
-             (build-dir       (concat proc-dir "/build/" pkg "/"))
-             (install-dir     (concat proc-dir "/pkg/" pkg))
-             (k-el-build      (concat proc-dir "/build-" pkg "-kiss-el"))
-             (log-dir         (concat kiss-logdir (format-time-string "%Y-%m-%d" (current-time)) "/"))
-             (log-file        (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
+    (when missing-deps
+      (error (concat "missing dependencies: "
+                     (kiss--lst-to-str missing-deps))))
 
-        ;; Extract pkg's sources to the build directory.
-        (kiss--extract-pkg-sources pkg build-dir)
-        (make-directory install-dir t)
-        (make-directory log-dir t)
-        (kiss--build-make-script k-el-build
-                                 build-script
-                                 build-dir
-                                 install-dir
-                                 pkg-ver
-                                 log-file)
+    (let* ((build-cmd       "")
+           (build-exit-code 1)
+           (build-script    (concat (car (kiss-search pkg)) "/build"))
+           (proc-dir        (kiss--get-tmp-destdir))
+           (build-dir       (concat proc-dir "/build/" pkg "/"))
+           (install-dir     (concat proc-dir "/pkg/" pkg))
+           (k-el-build      (concat proc-dir "/build-" pkg "-kiss-el"))
+           (log-dir         (concat kiss-logdir (format-time-string "%Y-%m-%d" (current-time)) "/"))
+           (log-file        (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
 
-        ;; NOTE: will need to be somewhat more clever when
-        ;; executing the build script, since I would like to be able
-        ;; to see the build as it is occurring, like in
-        ;; async-shell-command
+      ;; Extract pkg's sources to the build directory.
+      (kiss--extract-pkg-sources pkg build-dir)
+      (make-directory install-dir t)
+      (make-directory log-dir t)
+      (kiss--build-make-script k-el-build
+                               build-script
+                               build-dir
+                               install-dir
+                               pkg-ver
+                               log-file)
 
-        ;; Now actually execute the script.
-        (message (concat "Building " pkg " at version: " pkg-ver))
+      ;; NOTE: will need to be somewhat more clever when
+      ;; executing the build script, since I would like to be able
+      ;; to see the build as it is occurring, like in
+      ;; async-shell-command
 
-        ;; (kiss--run-hook "pre-build" pkg build-dir)
+      ;; Now actually execute the script.
+      (message (concat "Building " pkg " at version: " pkg-ver))
 
-        ;; Additionally, we can use jails on freebsd to
-        ;; achieve similar isolation.
-        ;; https://docs.freebsd.org/en/books/handbook/jails/
+      ;; (kiss--run-hook "pre-build" pkg build-dir)
 
-        ;; TODO: add check for linux...
-        (if kiss-perfom-build-in-sandbox
-            ;; TODO: make these variables user configurable
-            (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
-                  (fake-home-dir "/tmp/kiss-fake-home/"))
+      ;; Additionally, we can use jails on freebsd to
+      ;; achieve similar isolation.
+      ;; https://docs.freebsd.org/en/books/handbook/jails/
 
-              (when (kiss--file-is-directory-p fake-chroot-dir)
-                (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
+      ;; TODO: add check for linux...
+      (if kiss-perfom-build-in-sandbox
+          ;; TODO: make these variables user configurable
+          (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
+                (fake-home-dir "/tmp/kiss-fake-home/"))
 
-              (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
-              (make-directory fake-home-dir t)
-              (setq
-               build-cmd
-               (pcase kiss-sandbox-utility
-                 ("proot"
-                  (concat
-                   "proot "
-                   " -r " fake-chroot-dir " "
-                   " -b " fake-home-dir ":" "/home" " "
-                   " -b " (kiss--dirname k-el-build) ":" (kiss--dirname k-el-build) " "
-                   " -b " (kiss--dirname build-script) ":" (kiss--dirname build-script) " "
-                   " -b " build-dir ":" build-dir " "
-                   " -b " install-dir ":" install-dir " "
-                   " -b " log-dir ":" log-dir" "
-                   " -w " build-dir " "
-                   k-el-build))
-                 ("bwrap"
-                  (concat
-                   "bwrap "
-                   " --unshare-net "
-                   ;; TODO: enforce / being read-only
-                   " --bind " fake-chroot-dir " / "
-                   " --bind " fake-home-dir " /home "
-                   " --bind " (kiss--dirname k-el-build) " " (kiss--dirname k-el-build) " "
-                   " --bind " (kiss--dirname build-script) " " (kiss--dirname build-script) " "
-                   " --bind " build-dir " " build-dir " "
-                   " --bind " install-dir " " install-dir " "
-                   " --bind " log-dir " " log-dir " "
-                   k-el-build))
-                 (_ (error (concat kiss-sandbox-utility " is not supported!"))))))
-          (setq build-cmd k-el-build))
+            ;; TODO: make this user-configurable? making chroots is
+            ;; expensive...
+            ;; (when (kiss--file-is-directory-p fake-chroot-dir)
+            ;;   (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
 
-        (message "-----")
-        (message build-cmd)
-        (message "-----")
+            (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
+            (make-directory fake-home-dir t)
+            (setq
+             build-cmd
+             (pcase kiss-sandbox-utility
+               ("proot"
+                (concat
+                 "proot "
+                 " -r " fake-chroot-dir " "
+                 " -b " fake-home-dir ":" "/home" " "
+                 " -b " (kiss--dirname k-el-build) ":" (kiss--dirname k-el-build) " "
+                 " -b " (kiss--dirname build-script) ":" (kiss--dirname build-script) " "
+                 " -b " build-dir ":" build-dir " "
+                 " -b " install-dir ":" install-dir " "
+                 " -b " log-dir ":" log-dir" "
+                 " -w " build-dir " "
+                 k-el-build))
+               ("bwrap"
+                (concat
+                 "bwrap "
+                 " --unshare-net "
+                 ;; TODO: enforce / being read-only
+                 " --bind " fake-chroot-dir " / "
+                 " --bind " fake-home-dir " /home "
+                 " --bind " (kiss--dirname k-el-build) " " (kiss--dirname k-el-build) " "
+                 " --bind " (kiss--dirname build-script) " " (kiss--dirname build-script) " "
+                 " --bind " build-dir " " build-dir " "
+                 " --bind " install-dir " " install-dir " "
+                 " --bind " log-dir " " log-dir " "
+                 k-el-build))
+               (_ (error (concat kiss-sandbox-utility " is not supported!"))))))
+        (setq build-cmd k-el-build))
 
-        (setq build-exit-code (shell-command build-cmd))
-        (message "%s" build-exit-code)
+      (message "-----")
+      (message build-cmd)
+      (message "-----")
 
-        (when (> build-exit-code 0)
-          ;; FIXME: cleanup
-          (error "build failed"))
+      (setq build-exit-code (shell-command build-cmd))
+      (message "%s" build-exit-code)
 
-        ;; Now we have to fork over the package files that we
-        ;; used to the repo dir.
-        (let ((pkg-install-db
-               (concat install-dir "/var/db/kiss/installed/")))
-          (make-directory pkg-install-db t)
-          (kiss-fork pkg pkg-install-db)
-          (message (concat "Successful Build!"))
+      (when (> build-exit-code 0)
+        ;; FIXME: cleanup
+        (error "build failed"))
 
-          ;; (kiss--run-hook "post-build" pkg install-dir)
+      ;; Now we have to fork over the package files that we
+      ;; used to the repo dir.
+      (let ((pkg-install-db
+             (concat install-dir "/var/db/kiss/installed/")))
+        (make-directory pkg-install-db t)
+        (kiss-fork pkg pkg-install-db)
+        (message (concat "Successful Build!"))
 
-          ;; FIXME: look over kiss code & implement /dev/null
-          ;; for symlinks
-          ;; Need to compute etcsums if they exist.
-          (let* ((manifest-lst
-                  (kiss--get-manifest-for-dir install-dir))
-                 (etc-files
-                  (seq-filter
-                   (lambda (s)
-                     (and (string-match-p (rx bol "/etc") s)
-                          (kiss--file-exists-p (concat install-dir "/" s))))
-                   manifest-lst)))
+        ;; (kiss--run-hook "post-build" pkg install-dir)
 
-            ;; If we have any etcfiles, create etcsums
-            (if etc-files
-                (f-write-text
-                 (mapconcat
-                  #'identity
-                  (mapcar #'kiss--b3 etc-files)
-                  "\n")
-                 'utf-8 (concat pkg-install-db pkg "/etcsums")))
+        ;; FIXME: look over kiss code & implement /dev/null
+        ;; for symlinks
+        ;; Need to compute etcsums if they exist.
+        (let* ((manifest-lst
+                (kiss--get-manifest-for-dir install-dir))
+               (etc-files
+                (seq-filter
+                 (lambda (s)
+                   (and (string-match-p (rx bol "/etc") s)
+                        (kiss--file-exists-p (concat install-dir "/" s))))
+                 manifest-lst)))
 
-            ;; Next, create the manifest
-            (f-write-text
-             ;; FIXME: I don't think this should be needed,
-             ;; since, *technically* kiss--get-manifest-for-dir
-             ;; should have already taken care of this...
-             (kiss--manifest-to-string
-              (kiss--get-manifest-for-dir install-dir))
-             'utf-8 (concat pkg-install-db pkg "/manifest")))
+          ;; If we have any etcfiles, create etcsums
+          (if etc-files
+              (f-write-text
+               (mapconcat
+                #'identity
+                (mapcar #'kiss--b3 etc-files)
+                "\n")
+               'utf-8 (concat pkg-install-db pkg "/etcsums")))
 
-          (let ((potential-binary-files
-                 (kiss--get-potential-binary-files
-                  (kiss--read-file
-                   (concat pkg-install-db pkg "/manifest")))))
-            (when (and (eq 1 kiss-strip)
-                       (not (kiss--file-exists-p (concat build-dir "nostrip"))))
-              (kiss--build-strip-files
-               install-dir potential-binary-files))
+          ;; Next, create the manifest
+          (f-write-text
+           ;; FIXME: I don't think this should be needed,
+           ;; since, *technically* kiss--get-manifest-for-dir
+           ;; should have already taken care of this...
+           (kiss--manifest-to-string
+            (kiss--get-manifest-for-dir install-dir))
+           'utf-8 (concat pkg-install-db pkg "/manifest")))
 
-            ;; TODO: finish up this impl.
-            ;; FIXME: also need to do dependency fixing
-            (kiss--build-get-missing-dependencies
-             install-dir potential-binary-files pkg)))
+        (let ((potential-binary-files
+               (kiss--get-potential-binary-files
+                (kiss--read-file
+                 (concat pkg-install-db pkg "/manifest")))))
+          (when (and (eq 1 kiss-strip)
+                     (not (kiss--file-exists-p (concat build-dir "nostrip"))))
+            (kiss--build-strip-files
+             install-dir potential-binary-files))
 
-        ;; Finally create the tarball
-        (message (concat "Creating tarball for " pkg))
-        (kiss--make-tarball-of-dir
-         install-dir
-         (concat kiss-bindir
-                 (kiss--get-pkg-bin-name pkg pkg-ver)))
+          ;; TODO: finish up this impl.
+          ;; FIXME: also need to do dependency fixing
+          (kiss--build-get-missing-dependencies
+           install-dir potential-binary-files pkg)))
 
-        ;; (kiss--run-hook "post-package" pkg
-        ;;                 (concat kiss-bindir
-        ;;                         (kiss--get-pkg-bin-name pkg pkg-ver)))
+      ;; Finally create the tarball
+      (message (concat "Creating tarball for " pkg))
+      (kiss--make-tarball-of-dir
+       install-dir
+       (concat kiss-bindir
+               (kiss--get-pkg-bin-name pkg pkg-ver)))
 
-        ;; rm the build directory
-        (message (concat "Removing the build directory (" proc-dir ")"))
-        ;; FIXME: need kiss--single-quote-string?
-        (shell-command (concat "rm -rf -- " proc-dir))
-        ;; Have the expr eval to t.
-        t))))
+      ;; (kiss--run-hook "post-package" pkg
+      ;;                 (concat kiss-bindir
+      ;;                         (kiss--get-pkg-bin-name pkg pkg-ver)))
+
+      ;; rm the build directory
+      (message (concat "Removing the build directory (" proc-dir ")"))
+      ;; FIXME: need kiss--single-quote-string?
+      (shell-command (concat "rm -rf -- " proc-dir))
+      ;; Have the expr eval to t.
+      t)))
 
 ;; (kiss--build-pkg "xdo")
 
