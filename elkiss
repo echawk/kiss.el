@@ -1,0 +1,24 @@
+#!/usr/bin/emacs --script
+;; This is a CLI wrapper for the kiss.el library.
+
+;; (progn
+;;   (require 'kiss))
+;; FIXME: figure out how to have this *just work*
+(load-file (concat user-emacs-directory "init.el"))
+(load-file "kiss.el")
+
+(setq kiss-command (nth 0 argv))
+(setq kiss-func (intern (concat "kiss-" kiss-command)))
+
+(pcase kiss-command
+  ("alternatives"
+   (message "%s" (funcall kiss-func (nth 1 argv) (nth 2 argv))))
+
+  ((or "build" "checksum" "download" "install" "list" "remove")
+   (message "%s" (funcall kiss-func (nthcdr 1 argv))))
+
+  ((or "manifest" "owns" "search")
+   (message "%s" (funcall kiss-func (nth 1 argv))))
+
+  ((or "preferred" "update" "upgrade")
+   (message "%s" (funcall kiss-func))))
