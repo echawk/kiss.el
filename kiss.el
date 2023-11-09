@@ -28,6 +28,14 @@
 
 ;; TODO: see if I can reduce the required Emacs version.
 
+;; TODO: go through and mark functions as being pure or side-effect free if
+;; they are, as it could improve the performance when byte compiled.
+
+;; NOTE: IMPORTANT ~ If I want to properly support darwin as an OS
+;; I will need to properly get group information for each user, since
+;; at least on macOS, each user is (generally) part of the staff group.
+;; see here: https://superuser.com/questions/590683/how-do-i-find-my-user-id-and-group-in-mac-os-x#590691
+
 ;; WHY??? - cuz it's good to have multiple implementations of kiss.
 ;; also, I don't want to leave Emacs, and this could lead to some
 ;; delcarative configurations of kiss.
@@ -93,6 +101,7 @@
 ;;; Code:
 
 ;; FIXME: see if I can drop 'f...
+;; Remove calls to -zip-pair, f-write-text, f-read-text
 
 ;;(require 'subp)
 (eval-when-compile
@@ -352,6 +361,9 @@ Valid strings: bwrap, proot."
 ;;    repository and '1' if they do not. In the latter case, privilege
 ;;    escalation is required to preserve ownership.
 
+;; FIXME: will need to return an exit code or some other
+;; indicator on whether the hooks were successful or not.
+;; maybe make it user-configurable?
 (defun kiss--run-hook (hook &optional arg2 arg3 arg4)
   "(I) Run all hooks in `kiss-hook'."
   (dolist (kh kiss-hook)
@@ -414,6 +426,8 @@ Valid strings: bwrap, proot."
      owner)))
 
 ;; (kiss--manifest-to-string (kiss-manifest "xdo"))
+
+;; FIXME: impl kiss--file-executable-p
 
 ;; TODO: Look into rm'ing these funcs since they should not have to exist.
 (defun kiss--file-is-regular-file-p (file-path)
@@ -2262,6 +2276,7 @@ are the same."
      #'kiss--remove-file
      symlink-queue)))
 
+;; FIXME: need to add in kiss-force support.
 ;; NOTE: this function is slowed by the need
 ;; to use my custom file detection commands.
 ;;;###autoload
@@ -2331,6 +2346,8 @@ are the same."
   "(I) Return only the repos in `kiss-path' that are git repos."
   (seq-filter 'kiss--dir-is-git-repo-p kiss-path))
 
+;; TODO: need to implement pre-update & post-update hooks here too...
+;; TODO: display whether signature verification is enabled...
 (defun kiss--update-git-repos ()
   "(I) Update all git repos in `kiss-path'."
   (let ((git-repos (seq-uniq
