@@ -4,6 +4,43 @@ This is an implementation of the [[https://codeberg.org/kiss-community/kiss][kis
 
 Currently is WIP, yet usable for my day-to-day use.
 
+** Setup/Configuration
+
+Here's a minimum viable init.el:
+#+begin_src elisp
+
+;; We require melpa because my tsort package is currently only available there.
+(require 'package)
+(setq package-archives '(("melpa" . "https://melpa.org/packages/")
+                         ("elpa"  . "https://elpa.gnu.org/packages/")))
+
+(package-initialize)
+(unless package-archive-contents
+  (package-refresh-contents))
+
+(require 'use-package)
+;; I am hoping to eventually remove the dependency on dash & f.
+(use-package dash  :ensure t)
+(use-package f     :ensure t)
+(use-package tsort :ensure t)
+
+;; Now all of the dependencies are installed, we have to point
+;; use-package to the directory where we cloned kiss.el
+
+(setq kiss-site-elisp-dir
+      "/path/to/cloned/kiss.el/")
+
+(use-package kiss
+  :ensure t
+  :if (file-exists-p kiss-site-elisp-dir)
+  :load-path kiss-site-elisp-dir)
+
+#+end_src
+
+Once that (or the equivalent) has been setup inside of Emacs, you will now
+be able to use the functions defined in kiss.el.
+
+
 ** Features Implemented:
 
 - [X] alternatives
