@@ -370,6 +370,17 @@ Valid strings: bwrap, proot."
     (shell-command
      (concat kh " " hook " " arg2 " " arg3 " " arg4))))
 
+(defun kiss--run-hook-pkg (hook pkg)
+  "(I) Run PKG's HOOK."
+  (let ((hook-fp (concat kiss-installed-db-dir pkg "/" hook)))
+    ;;(when (kiss--file-executable-p hook-fp)
+    ;; FIXME: need to expose the proper environment to this shell
+    ;; command as well.
+    (kiss--shell-command-as-user hook-fp (kiss--get-owner kiss-root))
+    ;;)
+    )
+  )
+
 ;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
 ;; ===========================================================================
