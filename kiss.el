@@ -325,25 +325,25 @@ Valid strings: bwrap, proot."
 ;;Each hook is executed in the order it appears in KISS_HOOK and is given its
 ;;own environment/arguments accordingly. The hooks are documented as follows.
 
-;;+---------------+--------+----------+--------------------+-------------------+
-;;| hook          | arg1   | arg2     | arg3               | arg4              |
-;;+---------------+--------+----------+--------------------+-------------------+
-;;|               |        |          |                    |                   |
-;;| build-fail    | Type   | Package  | Build directory    |                   |
-;;| post-build    | Type   | Package  | DESTDIR            |                   |
-;;| post-install  | Type   | Package  | Installed database |                   |
-;;| post-package  | Type   | Package  | Tarball            |                   |
-;;| post-source   | Type   | Package  | Verbatim source    | Resolved source   |
-;;| post-update   | Type   | [7]      |                    |                   |
-;;| pre-build     | Type   | Package  | Build directory    |                   |
-;;| pre-extract   | Type   | Package  | DESTDIR            |                   |
-;;| pre-install   | Type   | Package  | Extracted package  |                   |
-;;| pre-remove    | Type   | Package  | Installed database |                   |
-;;| pre-source    | Type   | Package  | Verbatim source    | Resolved source   |
-;;| pre-update    | Type   | [7] [8]  |                    |                   |
-;;| queue-status  | Type   | Package  | Number in queue    | Total in queue    |
-;;|               |        |          |                    |                   |
-;;+---------------+--------+----------+--------------------+-------------------+
+;;+---------------+--------+----------+--------------------+----------------+
+;;| hook          | arg1   | arg2     | arg3               | arg4           |
+;;+---------------+--------+----------+--------------------+----------------+
+;;|               |        |          |                    |                |
+;;| build-fail    | Type   | Package  | Build directory    |                | x
+;;| post-build    | Type   | Package  | DESTDIR            |                | x
+;;| post-install  | Type   | Package  | Installed database |                | x
+;;| post-package  | Type   | Package  | Tarball            |                | x
+;;| post-source   | Type   | Package  | Verbatim source    | Resolved source|
+;;| post-update   | Type   | [7]      |                    |                |
+;;| pre-build     | Type   | Package  | Build directory    |                | x
+;;| pre-extract   | Type   | Package  | DESTDIR            |                | x
+;;| pre-install   | Type   | Package  | Extracted package  |                | x
+;;| pre-remove    | Type   | Package  | Installed database |                | x
+;;| pre-source    | Type   | Package  | Verbatim source    | Resolved source|
+;;| pre-update    | Type   | [7] [8]  |                    |                |
+;;| queue-status  | Type   | Package  | Number in queue    | Total in queue | x
+;;|               |        |          |                    |                |
+;;+---------------+--------+----------+--------------------+----------------+
 
 ;;[7] The -update hooks start in the current repository. In other words, you can
 ;;    operate on the repository directly or grab the value from '$PWD'.
@@ -1356,6 +1356,7 @@ are the same."
       (message (concat "Building " pkg " at version: " pkg-ver))
 
       ;; (kiss--run-hook "pre-build" pkg build-dir)
+      ;; (kiss--run-hook "queue" pkg left-in-queue tot-in-queue)
 
       ;; Additionally, we can use jails on freebsd to
       ;; achieve similar isolation.
@@ -2273,8 +2274,16 @@ are the same."
                   (kiss--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
          (if (kiss--pkg-is-removable-p pkgs-l)
-             (kiss--remove-files
-              (kiss-manifest pkgs-l))))
+             (progn
+
+               ;; FIXME: impl pkg hooks...
+               ;; (kiss--run-hook-pkg "pre-remove" pkgs-l)
+
+               ;; (kiss--run-hook "pre-remove"
+               ;;                 pkgs-l (concat kiss-installed-db-dir pkgs-l))
+
+               (kiss--remove-files
+                (kiss-manifest pkgs-l)))))
         (t nil)))
 
 ;; -> search       Search for packages
@@ -2329,6 +2338,7 @@ are the same."
                             (kiss--kiss-path-git-repos)))))
     (dolist (repo git-repos)
       (message (concat "kiss/update: Updating " repo))
+      ;; (kiss--run-hook "pre-update" need-su? owner)
       (let ((repo-owner   (kiss--get-owner-name repo))
             (am-owner-p   (kiss--am-owner-p repo))
             (git-pull-cmd (concat "git -C " repo " pull" ))
