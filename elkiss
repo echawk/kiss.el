@@ -1,4 +1,5 @@
 #!/usr/bin/emacs --script
+;; -*- mode: emacs-lisp -*-
 ;; This is a CLI wrapper for the kiss.el library.
 
 ;; (progn
