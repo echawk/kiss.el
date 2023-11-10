@@ -1886,7 +1886,16 @@ are the same."
   (cond ((listp pkgs-l)
          (mapcar #'kiss-download pkgs-l))
         ((atom pkgs-l)
-         (kiss--download-pkg-sources pkgs-l))
+
+         (mapcar
+          #'kiss--download-source
+          (slot-value
+           (thread-last
+             pkgs-l
+             (kiss-search)
+             (car)
+             (kiss--dir-to-kiss-package))
+           :sources)))
         (t nil)))
 
 ;; (kiss-download '("kiss" "gdb"))
