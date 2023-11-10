@@ -141,38 +141,57 @@
 (defconst kiss-compat-version "5.6.4"
   "The version of kiss that kiss.el is compatible with.")
 
+(defcustom kiss-valid-download-utils
+  '("aria2c" "axel" "curl" "wget" "wget2")
+  "List of valid download utilities for kiss.el"
+  :type '(string))
+
 (defcustom kiss-get
-  (car (seq-filter #'executable-find
-                   '("aria2c" "axel" "curl" "wget" "wget2")))
+  (car (seq-filter #'executable-find kiss-valid-download-utils))
   "The utility for downloading http sources."
-  :type 'string)
+  :type 'string
+  :options kiss-valid-download-utils)
+
+(defcustom kiss-valid-shasum-utils
+  '("openssl" "sha256sum" "sha256" "shasum" "digest")
+  "List of valid sha256sum utils for kiss.el"
+  :type '(string))
 
 (defcustom kiss-chk
-  (car (seq-filter #'executable-find
-                   '("openssl" "sha256sum" "sha256" "shasum" "digest")))
+  (car (seq-filter #'executable-find kiss-valid-shasum-utils))
   "The utility for computing SHA256 checksums."
-  :type 'string)
+  :type 'string
+  :options kiss-valid-shasum-utils)
+
+(defcustom kiss-valid-sudo-like-utils
+  '("ssu" "sudo" "doas" "su")
+  "List of valid sudo-like utils for kiss.el"
+  :type '(string))
 
 ;; FIXME: when root, we do as root does - we don't need any of this.
 ;; FIXME: Using 'su' is currently not supported by this package manager.
 (defcustom kiss-su
-  (car (seq-filter #'executable-find
-                   '("ssu" "sudo" "doas" "su")))
+  (car (seq-filter #'executable-find kiss-valid-sudo-like-utils))
   "The utility that will be used to elevate priviledges."
-  :type 'string)
+  :type 'string
+  :options kiss-valid-sudo-like-utils)
+
+(defcustom kiss-valid-elf-utils
+  '("readelf" "eu-readelf" "llvm-readelf" "ldd")
+  "List of valid readelf-like utilities for kiss.el"
+  :type '(string))
 
 (defcustom kiss-elf
-  (car (seq-filter #'executable-find
-                   '("readelf" "eu-readelf" "llvm-readelf" "ldd")))
+  (car (seq-filter #'executable-find kiss-valid-elf-utils))
   "The utility that will be used to dump elf information."
-  :type 'string)
+  :type 'string
+  :options kiss-valid-elf-utils)
 
-;; Valid options:
-;; bz2, gz, lz, lzma, xz, zst
 (defcustom kiss-compress
   "gz"
   "The compression algorithm that should be used when making packages."
-  :type 'string)
+  :type 'string
+  :options '("bz2" "gz" "lz" "lzma" "xz" "zst"))
 
 (defcustom kiss-force
   nil
