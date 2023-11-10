@@ -252,11 +252,16 @@ Valid strings: bwrap, proot."
     :initarg :type
     :type symbol
     :options '(git remote local)
-    :documentation "A symbol to determine what kind of ")
+    :documentation "A symbol to determine what kind of source it is.")
    (uri
     :initarg :uri
     :type string
     :documentation "The URI for the kiss-source")
+   (checksum
+    :initarg :checksum
+    :type string
+    :documentation "The checksum of the source if applicable"
+    :optional)
    (extracted-path
     :initarg :extracted-path
     :initform ""
