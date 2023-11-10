@@ -335,8 +335,6 @@ Valid strings: bwrap, proot."
           (if (string-match-p (rx bol "/") u) u
             (concat (car (kiss-search p)) "/" u))))))))
 
-;; (kiss-download "lld")
-
 (defun kiss--string-to-source-obj (str)
   "(I) Generate a kiss-source object from STR. Will have an empty package slot."
 
@@ -370,29 +368,6 @@ Valid strings: bwrap, proot."
 
 (defun kiss--sources-file-to-sources-objs (file-path)
   (mapcar #'kiss--string-to-source-obj (kiss--read-file file-path)))
-
-;; (cl-defmethod get-source-cache-path (obj kiss-source)
-;;   (with-slots (pkg ))
-;;   )
-
-;; (make-instance 'kiss-source
-;;                :package "mu"
-;;                :type 'remote
-;;                :uri
-;;                "https://github.com/djcb/mu/releases/download/v1.10.7/mu-1.10.7.tar.xz")
-
-
-;; (let ((obj
-;; (make-instance 'kiss-source
-;;                :package "mu"
-;;                :type 'remote
-;;                :uri
-;;                "https://github.com/djcb/mu/releases/download/v1.10.7/mu-1.10.7.tar.xz")
-;; ))
-
-;;   (slot-unbound (class-of obj) obj 'extracted-path #'identity))
-;;   (slot-value obj 'extracted-path)))
-;; (slot-exists-p obj 'commit-or-branch))
 
 (defclass kiss-package ()
   ((name
@@ -461,16 +436,14 @@ Valid strings: bwrap, proot."
           (obj nil)
 
           (ver  nil)
-          (rel  nil)
-          (srcs nil)
+          (rel   nil)
+          (srcs  nil)
+          (deps  nil)
+          (mdeps nil)
           )
 
       (setq ver (car (string-split (car (kiss--read-file ver-file)) " " t)))
       (setq rel (cadr (string-split (car (kiss--read-file ver-file)) " " t)))
-      ;;(list source-file depends-file)
-      (when (kiss--file-exists-p source-file)
-        (setq srcs (kiss--sources-file-to-sources-objs source-file))
-        (mapc (lambda (o) (oset o :package name)) srcs))
 
       (setq obj
             (make-instance
@@ -478,10 +451,27 @@ Valid strings: bwrap, proot."
              :name name
              :build-file build-file
              :version ver
-             :release rel
-             ))
+             :release rel))
 
+      (when (kiss--file-exists-p source-file)
+        (setq srcs (kiss--sources-file-to-sources-objs source-file))
+        (mapc (lambda (o) (oset o :package name)) srcs))
       (when srcs (oset obj :sources srcs))
+
+      (let ((read-data (kiss--read-file depends-file)))
+
+        (setq deps
+              (seq-remove
+               (lambda (str) (string-match-p (rx (1+ any) (1+ " ") "make") str))
+               read-data))
+
+        (setq mdeps
+              (mapcar
+               (lambda (str)
+                 (replace-regexp-in-string (rx (1+ " ") (0+ any) eol) "" str))
+               (seq-difference read-data deps))))
+      (when deps  (oset obj :depends deps))
+      (when mdeps (oset obj :make-depends mdeps))
 
       obj
       )
