@@ -295,7 +295,8 @@ Valid strings: bwrap, proot."
     (with-slots
         ((ty :type)
          (u  :uri)
-         (cb :commit-or-branch))
+         (cb :commit-or-branch)
+         (p  :package))
         obj
       (pcase ty
         ('git
@@ -328,8 +329,11 @@ Valid strings: bwrap, proot."
                 (concat
                  kiss-get
                  " " u (kiss--get-download-utility-arguments) cache-path)))))
-        ;; It doesn't make sense to downlod a local source, so just return t.
-        ('local t)))))
+
+        ('local
+         (kiss--file-exists-p
+          (if (string-match-p (rx bol "/") u) u
+            (concat (car (kiss-search p)) "/" u))))))))
 
 ;; (kiss-download "lld")
 
