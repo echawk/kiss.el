@@ -288,6 +288,49 @@ Valid strings: bwrap, proot."
              u
            (concat (car (kiss-search p)) "/" u)))))))
 
+(cl-defmethod kiss--download-source ((obj kiss-source))
+
+  (let ((cache-path (kiss--get-cache-path obj)))
+    (make-directory (kiss--dirname cache-path) t)
+    (with-slots
+        ((ty :type)
+         (u  :uri)
+         (cb :commit-or-branch))
+        obj
+      (pcase ty
+        ('git
+
+         (progn
+           (unless (kiss--file-exists-p (concat cache-path "/.git"))
+             (make-directory cache-path t)
+             (shell-command (concat "git init " cache-path)))
+
+           ;; FIXME: replace the cd function here w/ a macro eventually.
+           (let ((opwd (getenv "PWD")))
+             (cd cache-path)
+             (unless
+                 (eq 0
+                     (shell-command
+                      (concat "git remote set-url origin " u " 2> /dev/null")))
+               (shell-command
+                (concat "git remote add origin " u)))
+             (shell-command (concat "git fetch --depth=1 origin " cb))
+             (shell-command (concat "git reset --hard FETCH_HEAD"))
+             ;; Change back to our old working directory
+             (cd opwd))
+           ;; FIXME: return wether or not we were actually successful
+           t))
+
+        ('remote
+         (if (file-exists-p cache-path) t
+           (eq 0
+               (shell-command
+                (concat
+                 kiss-get
+                 " " u (kiss--get-download-utility-arguments) cache-path)))))
+        ;; It doesn't make sense to downlod a local source, so just return t.
+        ('local t)))))
+
 ;; (kiss-download "lld")
 
 (defun kiss--string-to-source-obj (str)
