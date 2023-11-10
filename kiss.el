@@ -107,6 +107,7 @@
 (eval-when-compile
   (require 'cl-lib)
   (require 'dash)
+  (require 'eieio)
   (require 'f)
   (require 'pcase)
   (require 'rx)
@@ -238,6 +239,70 @@ Valid strategies are: \\='permit-user-alternatives, \\='prohibit-user-alternativ
 
 Valid strings: bwrap, proot."
   :type 'string)
+
+;; EIEIO Classes
+
+(defclass kiss-source ()
+  ((package
+    :initarg :package
+    :initform ""
+    :type string
+    :documentation "The package which this source is a source of.")
+   (type
+    :initarg :type
+    :type symbol
+    :options '(git remote local)
+    :documentation "A symbol to determine what kind of ")
+   (uri
+    :initarg :uri
+    :type string
+    :documentation "The URI for the kiss-source")
+   (commit-or-branch
+    :initarg :uri
+    :initform "HEAD"
+    :type string
+    :documentation "The relevant commit or branch for a git source."
+    :optional)))
+
+;; (with-slots ((pkg              :package)
+;;              (type             :type)
+;;              (uri              :uri)
+;;              (commit-or-branch :commit-or-branch))
+;;     (kiss-source
+;;      :package "mu"
+;;      :type 'remote
+;;      :uri
+;;      "https://github.com/djcb/mu/releases/download/v1.10.7/mu-1.10.7.tar.xz")
+;;   )
+
+;; (defclass kiss-package ()
+;;   ((name
+;;     :initarg :name
+;;     :initform ""
+;;     :type string
+;;     :custom string
+;;     :documentation "The name of a kiss-package.")
+;;    (build-file
+;;     :initarg :build-script
+;;     :initform ""
+;;     :type string
+;;     :custom string
+;;     :documentation "The file path to the build file for a kiss-package.")
+;;    (depends
+;;     :initarg :depends
+;;     :initform '()
+;;     :type (string)
+;;     :custom (string)
+;;     :documentation "List of strings that are other package that this kiss-package depends on.")
+;;    (sources
+;;     :initarg :sources
+;;     :initform '()
+;;     :type (kiss-source)
+;;     :custom (kiss-source)
+;;     :documentation "List of kiss-source objects for the kiss-package"
+;;     )
+;;    )
+;;   )
 
 ;; ===========================================================================
 
