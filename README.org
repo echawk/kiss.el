@@ -37,6 +37,20 @@ Here's a minimum viable init.el:
 
 #+end_src
 
+Alternatively, you can use the following use-package declaration
+if you are using Emacs 30+:
+
+#+begin_src elisp
+
+(use-package kiss
+  :ensure t
+  :if (>= emacs-major-version 30)
+  :vc (:url "https://github.com/ehawkvu/kiss.el"
+            :rev :newest))
+
+#+end_src
+
+
 Once that (or the equivalent) has been setup inside of Emacs, you will now
 be able to use the functions defined in kiss.el.
 
