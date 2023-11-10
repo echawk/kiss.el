@@ -296,7 +296,8 @@ Valid strings: bwrap, proot."
   (let ((type      nil)
         (uri       nil)
         (extr-path nil)
-        (c-or-b    nil))
+        (c-or-b    nil)
+        (obj       nil))
     (setq type
           (pcase str
             ((rx bol "git+") 'git)
@@ -304,32 +305,36 @@ Valid strings: bwrap, proot."
             (_ 'local)))
     (setq c-or-b
           (pcase type
-            ('git (car (string-split str (rx (or "#" "@")))))
+            ('git (nth 1 (string-split str (rx (or "#" "@")))))
             (_ "")))
-    (setq extr-path
-          (let ((ep (nth 1 (string-split str " " t))))
-            (if ep ep "")))
+    (setq extr-path (nth 1 (string-split str " " t)))
     (setq uri
           (replace-regexp-in-string
            (rx bol "git+")
            ""
            (car (string-split str " " t))))
-    (make-instance 'kiss-source
-                   :type type
-                   :uri uri
-                   :extracted-path extr-path
-                   :commit-or-branch c-or-b)))
+
+
+    (setq obj (make-instance 'kiss-source :type type :uri uri))
+    (when c-or-b (oset obj :commit-or-branch c-or-b))
+    (when extr-path (oset obj :extracted-path extr-path))
+
+    obj))
 
 (defun kiss--sources-file-to-sources-objs (file-path)
-  (let ((objs
+  (let ((pkg "odin")
+        (objs
          (mapcar
           #'kiss--string-to-source-obj
           (kiss--read-file
-           (concat (car (kiss-search "hugs")) "/sources")))))
+           (concat (car (kiss-search "odin")) "/sources")))))
 
-    (mapc (lambda (obj) (oset obj :package "hugs")) objs)
+    (mapc (lambda (obj) (oset obj :package "odin")) objs)
 
-    (mapcar #'kiss--get-cache-path objs)
+    (mapcar #'kiss--download-source objs)
+
+    ;;(mapcar #'kiss--get-cache-path objs)
+
     )
   )
 
