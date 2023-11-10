@@ -369,22 +369,7 @@ Valid strings: bwrap, proot."
     obj))
 
 (defun kiss--sources-file-to-sources-objs (file-path)
-  (let* ((pkg "hugs")
-         (objs
-          (mapcar
-           #'kiss--string-to-source-obj
-           (kiss--read-file
-            (concat (car (kiss-search pkg)) "/sources")))))
-
-    (mapc (lambda (obj) (oset obj :package pkg)) objs)
-
-    (mapcar #'kiss--download-source objs)
-
-    ;;(mapcar #'kiss--get-cache-path objs)
-
-    )
-  )
-
+  (mapcar #'kiss--string-to-source-obj (kiss--read-file file-path)))
 
 ;; (cl-defmethod get-source-cache-path (obj kiss-source)
 ;;   (with-slots (pkg ))
@@ -409,34 +394,99 @@ Valid strings: bwrap, proot."
 ;;   (slot-value obj 'extracted-path)))
 ;; (slot-exists-p obj 'commit-or-branch))
 
-;; (defclass kiss-package ()
-;;   ((name
-;;     :initarg :name
-;;     :initform ""
-;;     :type string
-;;     :custom string
-;;     :documentation "The name of a kiss-package.")
-;;    (build-file
-;;     :initarg :build-script
-;;     :initform ""
-;;     :type string
-;;     :custom string
-;;     :documentation "The file path to the build file for a kiss-package.")
-;;    (depends
-;;     :initarg :depends
-;;     :initform '()
-;;     :type (string)
-;;     :custom (string)
-;;     :documentation "List of strings that are other package that this kiss-package depends on.")
-;;    (sources
-;;     :initarg :sources
-;;     :initform '()
-;;     :type (kiss-source)
-;;     :custom (kiss-source)
-;;     :documentation "List of kiss-source objects for the kiss-package"
-;;     )
-;;    )
-;;   )
+(defclass kiss-package ()
+  ((name
+    :initarg :name
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The name of a kiss-package.")
+   (version
+    :initarg :version
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The version of a kiss-package")
+   (release
+    :initarg :release
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The release of a kiss-package")
+   (build-file
+    :initarg :build-file
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The file path to the build file for a kiss-package."
+    :optional
+    )
+   (depends
+    :initarg :depends
+    :initform '()
+    :type (string)
+    :custom (string)
+    :documentation "List of packages that are dependencies of this package."
+    :optional
+    )
+   (make-depends
+    :initarg :make-depends
+    :initform '()
+    :type (string)
+    :custom (string)
+    :documentation "List of packages that are make depends of this kiss-package."
+    :optional
+    )
+   (sources
+    :initarg :sources
+    :initform '()
+    :type (kiss-source)
+    :custom (kiss-source)
+    :documentation "List of kiss-source objects for the kiss-package"
+    :optional
+    )
+   )
+  )
+
+(defun kiss--dir-to-kiss-package (dir-path)
+  (let ((dir-path (car (kiss-search "kiss"))))
+    (let ((name          (kiss--basename dir-path))
+          (build-file    (concat dir-path "/build"))
+          (ver-file      (concat dir-path "/version"))
+          (source-file   (concat dir-path "/sources"))
+          (depends-file  (concat dir-path "/depends"))
+          (checksum-file (concat dir-path "/checksums"))
+          ;;TODO post-install & pre-remove
+
+          (obj nil)
+
+          (ver  nil)
+          (rel  nil)
+          (srcs nil)
+          )
+
+      (setq ver (car (string-split (car (kiss--read-file ver-file)) " " t)))
+      (setq rel (cadr (string-split (car (kiss--read-file ver-file)) " " t)))
+      ;;(list source-file depends-file)
+      (when (kiss--file-exists-p source-file)
+        (setq srcs (kiss--sources-file-to-sources-objs source-file))
+        (mapc (lambda (o) (oset o :package name)) srcs))
+
+      (setq obj
+            (make-instance
+             'kiss-package
+             :name name
+             :build-file build-file
+             :version ver
+             :release rel
+             ))
+
+      (when srcs (oset obj :sources srcs))
+
+      obj
+      )
+    )
+  )
 
 ;; ===========================================================================
 
