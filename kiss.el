@@ -174,6 +174,15 @@
   "The compression algorithm that should be used when making packages."
   :type 'string)
 
+(defcustom kiss-force
+  nil
+  "Set to t to force the package manager to skip certain sanity checks.
+
+This is primarily used in the installation and removal process, to force
+the package manager to execute the actions - even when dependencies
+would be broken or not present on the system."
+  :type 'boolean)
+
 (defcustom kiss-choice
   1
   "Set to '0' disable the alternatives system and error on any file conflicts."
@@ -1328,6 +1337,7 @@ are the same."
             package-needs-to-provide-lst)))))))
 
 
+;; FIXME: support kiss-force in this function
 ;; FIXME: pretty sure we bug out whenever we try to build a package
 ;; with zero sources. we need to support that functionality
 ;; FIXME: should try to see what functionality I can move out of this function
@@ -2066,6 +2076,7 @@ are the same."
          file-path-lst))
        "/" t)))))
 
+;; FIXME: respect the kiss-force variable in this function.
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
   (unless (kiss--file-exists-p tarball)
@@ -2301,7 +2312,7 @@ are the same."
                  (reverse
                   (kiss--get-pkg-order pkgs-l))))
         ((atom pkgs-l)
-         (if (kiss--pkg-is-removable-p pkgs-l)
+         (if (or kiss-force (kiss--pkg-is-removable-p pkgs-l))
              (progn
 
                ;; FIXME: impl pkg hooks...
