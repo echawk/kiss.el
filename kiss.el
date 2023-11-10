@@ -1936,49 +1936,6 @@ are the same."
       ((rx "://")      "remote")
       (_               "local"))))
 
-;; FIXME: make a macro for parsing out the clean url, the dest folder & commit
-;; since that information would also be useful for other vc systems like
-;; fossil and hg.
-(defun kiss--download-git-source (url dest-dir)
-  "(I) Download git URL to `kiss-srcdir' in the folder DEST-DIR."
-  ;; NOTE: This currently does not support sources like the following:
-  ;; git+https://github.com/user/project@somebranch#somecommit
-  ;; However, I have yet to see this combo out in the wild in kiss linux.
-  ;; So... It's not a bug (yet). Also, it just doesn't make sense to do anyways.
-  ;; TODO: consider moving this code out?
-  (let* ((u (replace-regexp-in-string
-             (rx bol "git+") ""
-             url))
-         (clean-url (car (string-split u (rx (or "#" "@")))))
-         (dest-folder
-          (concat dest-dir "/"
-                  (car (reverse (string-split clean-url "/")))))
-         ;; Set branch/commit if it's specified.
-         (com (nth 1 (string-split u (rx (or "#" "@"))))))
-
-    ;; If a specific branch/commit isn't specified, default to FETCH_HEAD.
-    (when (eq com nil)
-      (setq com "HEAD"))
-    ;; Only make the directory if it doesn't exist.
-    (unless (file-exists-p dest-folder)
-      (make-directory dest-folder))
-    ;; Initialize the git repo if it doesn't exist.
-    (unless (file-exists-p (concat dest-folder ".git"))
-      (shell-command (concat "git init " dest-folder)))
-    ;; Save our current working directory.
-    (let ((opwd (getenv "PWD")))
-      (cd dest-folder)
-      (unless
-          (eq 0
-              (shell-command
-               (concat "git remote set-url origin " clean-url " 2> /dev/null")))
-        (shell-command
-         (concat "git remote add origin " clean-url)))
-      (shell-command (concat "git fetch --depth=1 origin " com))
-      (shell-command (concat "git reset --hard FETCH_HEAD"))
-      ;; Change back to our old working directory
-      (cd opwd))))
-
 (defun kiss--make-temp-file ()
   "(I) Make a temporary file using the `mktemp' utility."
   (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
@@ -1992,28 +1949,6 @@ are the same."
     ("wget"   " -O ")
     ("wget2"  " -O ")))
 
-(defun kiss--download-remote-source (url dest-dir)
-  "(I) Download URL to DEST-DIR using `kiss-get'."
-  ;; TODO: check and make sure this is the right way to create this file name.
-  (let* ((file-name (car (reverse (string-split url "/"))))
-         (dest-path (concat dest-dir "/" file-name)))
-    ;; Only download if the file doesn't already exist.
-    (unless (file-exists-p dest-path)
-      (shell-command
-       (concat kiss-get " "
-               url
-               (kiss--get-download-utility-arguments)
-               dest-path)))))
-
-(defun kiss--download-local-source (uri dest-dir)
-  "(I) Copy URI to DEST-DIR using cp(1)."
-  (let ((file-name (car (reverse (string-split uri "/")))))
-    ;; TODO: double check to make sure this is correct - I have a hunch
-    ;; that it's not.
-    (unless (file-exists-p uri)
-      (shell-command
-       (concat "cp " uri
-               " " (concat dest-dir file-name))))))
 
 (defun kiss--get-pkg-sources-cache-path (pkg)
   "(I) Return the cache path in `kiss-srcdir' for each of PKG's sources."
