@@ -424,59 +424,57 @@ Valid strings: bwrap, proot."
   )
 
 (defun kiss--dir-to-kiss-package (dir-path)
-  (let ((dir-path (car (kiss-search "kiss"))))
-    (let ((name          (kiss--basename dir-path))
-          (build-file    (concat dir-path "/build"))
-          (ver-file      (concat dir-path "/version"))
-          (source-file   (concat dir-path "/sources"))
-          (depends-file  (concat dir-path "/depends"))
-          (checksum-file (concat dir-path "/checksums"))
-          ;;TODO post-install & pre-remove
+  (let ((name          (kiss--basename dir-path))
+        (build-file    (concat dir-path "/build"))
+        (ver-file      (concat dir-path "/version"))
+        (source-file   (concat dir-path "/sources"))
+        (depends-file  (concat dir-path "/depends"))
+        (checksum-file (concat dir-path "/checksums"))
+        ;;TODO post-install & pre-remove
 
-          (obj nil)
+        (obj nil)
 
-          (ver  nil)
-          (rel   nil)
-          (srcs  nil)
-          (deps  nil)
-          (mdeps nil)
-          )
+        (ver  nil)
+        (rel   nil)
+        (srcs  nil)
+        (deps  nil)
+        (mdeps nil)
+        )
 
-      (setq ver (car (string-split (car (kiss--read-file ver-file)) " " t)))
-      (setq rel (cadr (string-split (car (kiss--read-file ver-file)) " " t)))
+    (setq ver (car (string-split (car (kiss--read-file ver-file)) " " t)))
+    (setq rel (cadr (string-split (car (kiss--read-file ver-file)) " " t)))
 
-      (setq obj
-            (make-instance
-             'kiss-package
-             :name name
-             :build-file build-file
-             :version ver
-             :release rel))
+    (setq obj
+          (make-instance
+           'kiss-package
+           :name name
+           :build-file build-file
+           :version ver
+           :release rel))
 
-      (when (kiss--file-exists-p source-file)
-        (setq srcs (kiss--sources-file-to-sources-objs source-file))
-        (mapc (lambda (o) (oset o :package name)) srcs))
-      (when srcs (oset obj :sources srcs))
+    (when (kiss--file-exists-p source-file)
+      (setq srcs (kiss--sources-file-to-sources-objs source-file))
+      (mapc (lambda (o) (oset o :package name)) srcs))
+    (when srcs (oset obj :sources srcs))
 
-      (let ((read-data (kiss--read-file depends-file)))
+    (let ((read-data (kiss--read-file depends-file)))
 
-        (setq deps
-              (seq-remove
-               (lambda (str) (string-match-p (rx (1+ any) (1+ " ") "make") str))
-               read-data))
+      (setq deps
+            (seq-remove
+             (lambda (str) (string-match-p (rx (1+ any) (1+ " ") "make") str))
+             read-data))
 
-        (setq mdeps
-              (mapcar
-               (lambda (str)
-                 (replace-regexp-in-string (rx (1+ " ") (0+ any) eol) "" str))
-               (seq-difference read-data deps))))
-      (when deps  (oset obj :depends deps))
-      (when mdeps (oset obj :make-depends mdeps))
+      (setq mdeps
+            (mapcar
+             (lambda (str)
+               (replace-regexp-in-string (rx (1+ " ") (0+ any) eol) "" str))
+             (seq-difference read-data deps))))
+    (when deps  (oset obj :depends deps))
+    (when mdeps (oset obj :make-depends mdeps))
 
-      obj
-      )
-    )
-  )
+    obj))
+
+;;(slot-value (kiss--dir-to-kiss-package (car (kiss-search "kiss"))) :sources)
 
 ;; ===========================================================================
 
