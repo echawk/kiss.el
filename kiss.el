@@ -259,26 +259,103 @@ Valid strings: bwrap, proot."
     :documentation "The URI for the kiss-source")
    (extracted-path
     :initarg :extracted-path
+    :initform ""
     :type string
     :documentation "The path where the source will be extracted to in the packages build directory."
     :optional)
    (commit-or-branch
-    :initarg :uri
+    :initarg :commit-or-branch
     :initform "HEAD"
     :type string
     :documentation "The relevant commit or branch for a git source."
     :optional)))
 
-;; (with-slots ((pkg              :package)
-;;              (type             :type)
-;;              (uri              :uri)
-;;              (commit-or-branch :commit-or-branch))
-;;     (kiss-source
-;;      :package "mu"
-;;      :type 'remote
-;;      :uri
-;;      "https://github.com/djcb/mu/releases/download/v1.10.7/mu-1.10.7.tar.xz")
+(cl-defmethod kiss--get-cache-path ((obj kiss-source))
+  (with-slots
+      ((ty :type)
+       (u  :uri)
+       (p  :package)
+       (ep :extracted-path))
+      obj
+
+    (let ((dest-dir
+           (kiss--normalize-file-path (concat kiss-srcdir p "/" ep "/"))))
+      (pcase ty
+        ((or 'git 'remote)
+         (concat dest-dir (car (reverse (string-split u "/")))))
+        ('local
+         (if (string-match (rx bol "/") u)
+             u
+           (concat (car (kiss-search p)) "/" u)))))))
+
+;; (kiss-download "lld")
+
+(defun kiss--string-to-source-obj (str)
+  "(I) Generate a kiss-source object from STR. Will have an empty package slot."
+
+  (let ((type      nil)
+        (uri       nil)
+        (extr-path nil)
+        (c-or-b    nil))
+    (setq type
+          (pcase str
+            ((rx bol "git+") 'git)
+            ((rx "://") 'remote)
+            (_ 'local)))
+    (setq c-or-b
+          (pcase type
+            ('git (car (string-split str (rx (or "#" "@")))))
+            (_ "")))
+    (setq extr-path
+          (let ((ep (nth 1 (string-split str " " t))))
+            (if ep ep "")))
+    (setq uri
+          (replace-regexp-in-string
+           (rx bol "git+")
+           ""
+           (car (string-split str " " t))))
+    (make-instance 'kiss-source
+                   :type type
+                   :uri uri
+                   :extracted-path extr-path
+                   :commit-or-branch c-or-b)))
+
+(defun kiss--sources-file-to-sources-objs (file-path)
+  (let ((objs
+         (mapcar
+          #'kiss--string-to-source-obj
+          (kiss--read-file
+           (concat (car (kiss-search "hugs")) "/sources")))))
+
+    (mapc (lambda (obj) (oset obj :package "hugs")) objs)
+
+    (mapcar #'kiss--get-cache-path objs)
+    )
+  )
+
+
+;; (cl-defmethod get-source-cache-path (obj kiss-source)
+;;   (with-slots (pkg ))
 ;;   )
+
+;; (make-instance 'kiss-source
+;;                :package "mu"
+;;                :type 'remote
+;;                :uri
+;;                "https://github.com/djcb/mu/releases/download/v1.10.7/mu-1.10.7.tar.xz")
+
+
+;; (let ((obj
+;; (make-instance 'kiss-source
+;;                :package "mu"
+;;                :type 'remote
+;;                :uri
+;;                "https://github.com/djcb/mu/releases/download/v1.10.7/mu-1.10.7.tar.xz")
+;; ))
+
+;;   (slot-unbound (class-of obj) obj 'extracted-path #'identity))
+;;   (slot-value obj 'extracted-path)))
+;; (slot-exists-p obj 'commit-or-branch))
 
 ;; (defclass kiss-package ()
 ;;   ((name
