@@ -257,6 +257,11 @@ Valid strings: bwrap, proot."
     :initarg :uri
     :type string
     :documentation "The URI for the kiss-source")
+   (extracted-path
+    :initarg :extracted-path
+    :type string
+    :documentation "The path where the source will be extracted to in the packages build directory."
+    :optional)
    (commit-or-branch
     :initarg :uri
     :initform "HEAD"
