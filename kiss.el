@@ -369,14 +369,14 @@ Valid strings: bwrap, proot."
     obj))
 
 (defun kiss--sources-file-to-sources-objs (file-path)
-  (let ((pkg "odin")
-        (objs
-         (mapcar
-          #'kiss--string-to-source-obj
-          (kiss--read-file
-           (concat (car (kiss-search "odin")) "/sources")))))
+  (let* ((pkg "hugs")
+         (objs
+          (mapcar
+           #'kiss--string-to-source-obj
+           (kiss--read-file
+            (concat (car (kiss-search pkg)) "/sources")))))
 
-    (mapc (lambda (obj) (oset obj :package "odin")) objs)
+    (mapc (lambda (obj) (oset obj :package pkg)) objs)
 
     (mapcar #'kiss--download-source objs)
 
