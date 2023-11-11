@@ -256,6 +256,7 @@ Valid strings: bwrap, proot."
     :initarg :uri
     :type string
     :documentation "The URI for the kiss-source")
+   ;; FIXME: implement the logic for 'SKIP'
    (checksum
     :initarg :checksum
     :initform ""
@@ -350,6 +351,10 @@ Valid strings: bwrap, proot."
 
 (cl-defmethod kiss--source-validate-p ((obj kiss-source))
   (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj)))
+
+;; FIXME: make a macro for parsing out the clean url, the dest folder & commit
+;; since that information would also be useful for other vc systems like
+;; fossil and hg.
 
 (defun kiss--string-to-source-obj (str)
   "(I) Generate a kiss-source object from STR. Will have an empty package slot."
@@ -447,7 +452,7 @@ Valid strings: bwrap, proot."
         (source-file   (concat dir-path "/sources"))
         (depends-file  (concat dir-path "/depends"))
         (checksum-file (concat dir-path "/checksums"))
-        ;;TODO post-install & pre-remove
+        ;; FIXME: post-install & pre-remove
 
         (obj nil)
 
@@ -490,6 +495,11 @@ Valid strings: bwrap, proot."
       (when deps  (oset obj :depends deps))
       (when mdeps (oset obj :make-depends mdeps)))
 
+    ;; TODO: make all local sources absolute paths.
+    ;; We obviosly still support the notion of relative paths in the
+    ;; build files, but we may as well save ourselves the lookup
+    ;; when it comes to actually building the package.
+
     (when (kiss--file-exists-p checksum-file)
       (let ((checksum-data
              (kiss--read-file checksum-file))
@@ -497,7 +507,7 @@ Valid strings: bwrap, proot."
              (seq-remove (lambda (o) (eq (slot-value o :type) 'git))
                          (slot-value obj :sources))))
 
-        ;; FIXME: will need to update this anytime we add support for another
+        ;; TODO: will need to update this anytime we add support for another
         ;; remote source.
         (dotimes (i (length checksum-data))
           (oset (nth i non-git-src-objs) :checksum (nth i checksum-data)))))
@@ -838,6 +848,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
    (lambda (pkg) (concat kiss-installed-db-dir pkg "/manifest"))
    (mapcar 'car (kiss-list))))
 
+;; FIXME: would like to remove the reliance on 'grep' for these functions.
 ;;;###autoload
 (defun kiss-owns (file-path)
   ;; TODO: See if this can be made a little less ugly.
