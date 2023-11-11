@@ -1844,31 +1844,13 @@ are the same."
 ;; Initial working impl of kiss-checksum below; need to refactor some of
 ;; the functionality since kiss-download has similar needs.
 
-
-(defmacro kiss--tps-env (pkg tps expr)
-  ;; "(I) Macro to aide in parsing TPS, and using the values in EXPR."
-  ;; Extract out each of the variables.
-  `(let* ((pkg-source-cache-dir (concat kiss-srcdir ,pkg "/"))
-          (type                 (car  ,tps))
-          (uri                  (car  (cdr ,tps)))
-          (sub-dir              (cadr (cdr ,tps)))
-          (dest-dir             (concat pkg-source-cache-dir sub-dir)))
-     ,expr))
-
 (defun kiss--get-pkg-local-checksums (pkg)
   "(I) Return the list of checksums for PKG from the files on disk, or nil."
-  (mapcar
-   #'kiss--b3
+  (seq-remove
+   #'string-empty-p
    (mapcar
-    #'cdr
-    (seq-remove
-     ;; Filter out 'git' sources.
-     ;; TODO: implement a lookup for future mercurial sources.
-     (lambda (tps-cache)
-       (string= "git" (car (car tps-cache))))
-     (-zip-pair
-      (kiss--get-type-pkg-sources pkg)
-      (kiss--get-pkg-sources-cache-path pkg))))))
+    #'kiss--source-get-local-checksum
+    (slot-value (kiss--dir-to-kiss-package (car (kiss-search pkg))) :sources))))
 
 (defun kiss--pkg-verify-local-checksums (pkg)
   "(I) Return t if local checksums equal the repo checksums for PKG, nil otherwise."
@@ -1969,40 +1951,12 @@ are the same."
     ("wget2"  " -O ")))
 
 
+;; (kiss--get-pkg-sources-cache-path "kiss")
 (defun kiss--get-pkg-sources-cache-path (pkg)
   "(I) Return the cache path in `kiss-srcdir' for each of PKG's sources."
-  (let* ((pkg-source-cache-dir (concat kiss-srcdir pkg "/"))
-         (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
-    (mapcar
-     (lambda (tps)
-       (kiss--tps-env pkg tps
-                      (progn
-                        (pcase type
-                          ;; This one is a bit messy since we have to be able to parse
-                          ;; out the useful information in a git source.
-                          ("git"
-                           (let ((u (replace-regexp-in-string
-                                     (rx bol "git+") ""
-                                     uri)))
-                             (kiss--normalize-file-path
-                              (concat
-                               dest-dir "/"
-                               (car
-                                (reverse
-                                 (string-split
-                                  (car (string-split u (rx (or "#" "@")))) "/")))))))
-
-                          ("remote"
-                           (kiss--normalize-file-path
-                            (concat dest-dir "/" (car (reverse (string-split uri "/"))))))
-                          ("local"
-                           ;; (if (string= (rx bol "/" (regexp ".*")) "/asdf")
-                           (if (string-match (rx bol "/") uri)
-                               ;; Absolute path.
-                               uri
-                             ;; Relative path.
-                             (concat (car (kiss-search pkg)) "/" uri)))))))
-     type-pkg-sources)))
+  (mapcar
+   #'kiss--source-get-cache-path
+   (slot-value (kiss--dir-to-kiss-package (car (kiss-search pkg))) :sources)))
 
 (defun kiss--pkg-sources-available-p (pkg)
   "(I) Return t if all of the sources for PKG are available locally, nil otherwise."
