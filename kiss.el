@@ -5,7 +5,7 @@
 ;; Maintainer: Ethan Hawk <ethan.hawk@valpo.edu>
 ;; URL: https://github.com/ehawkvu/kiss.el
 ;; Keywords: package-manager, tools
-;; Package-Requires: ((dash) (emacs "29.1") (f) (tsort))
+;; Package-Requires: ((emacs "29.1") (f) (tsort))
 ;; Version: 0.0.1
 
 ;; This file is under the MIT license.
@@ -106,7 +106,6 @@
 ;;(require 'subp)
 (eval-when-compile
   (require 'cl-lib)
-  (require 'dash)
   (require 'eieio)
   (require 'f)
   (require 'pcase)
