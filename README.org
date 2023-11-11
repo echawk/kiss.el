@@ -110,6 +110,7 @@ that all of them would be cool to have though.
 - [X] Create a wrapper script that can be used from the command line
 - [ ] Write an EIEIO class for packages
 - [ ] Allow for packages to be defined via S-Expressions
+- [ ] Write an extensive unit & integration testsuite
 - [ ] Make a TUI/Menu for installing/upgrading packages
 - [ ] Be able to build GUIX derivations
 - [ ] Port to Common Lisp
