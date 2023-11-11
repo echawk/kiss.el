@@ -259,6 +259,7 @@ Valid strings: bwrap, proot."
     :documentation "The URI for the kiss-source")
    (checksum
     :initarg :checksum
+    :initform ""
     :type string
     :documentation "The checksum of the source if applicable"
     :optional)
@@ -275,7 +276,7 @@ Valid strings: bwrap, proot."
     :documentation "The relevant commit or branch for a git source."
     :optional)))
 
-(cl-defmethod kiss--get-cache-path ((obj kiss-source))
+(cl-defmethod kiss--source-get-cache-path ((obj kiss-source))
   (with-slots
       ((ty :type)
        (u  :uri)
@@ -293,9 +294,9 @@ Valid strings: bwrap, proot."
              u
            (concat (car (kiss-search p)) "/" u)))))))
 
-(cl-defmethod kiss--download-source ((obj kiss-source))
+(cl-defmethod kiss--source-download ((obj kiss-source))
 
-  (let ((cache-path (kiss--get-cache-path obj)))
+  (let ((cache-path (kiss--source-get-cache-path obj)))
     (make-directory (kiss--dirname cache-path) t)
     (with-slots
         ((ty :type)
@@ -339,6 +340,17 @@ Valid strings: bwrap, proot."
          (kiss--file-exists-p
           (if (string-match-p (rx bol "/") u) u
             (concat (car (kiss-search p)) "/" u))))))))
+
+(cl-defmethod kiss--source-get-local-checksum ((obj kiss-source))
+  (with-slots
+      ((ty :type))
+      obj
+    (pcase ty
+      ('git "")
+      (_ (kiss--b3 (kiss--source-get-cache-path obj))))))
+
+(cl-defmethod kiss--source-validate-p ((obj kiss-source))
+  (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj)))
 
 (defun kiss--string-to-source-obj (str)
   "(I) Generate a kiss-source object from STR. Will have an empty package slot."
@@ -462,21 +474,33 @@ Valid strings: bwrap, proot."
       (mapc (lambda (o) (oset o :package name)) srcs))
     (when srcs (oset obj :sources srcs))
 
-    (let ((read-data (kiss--read-file depends-file)))
+    (when (kiss--file-exists-p depends-file)
+      (let ((read-data (kiss--read-file depends-file)))
 
-      (setq deps
-            (seq-remove
-             (lambda (str) (string-match-p (rx (1+ any) (1+ " ") "make") str))
-             read-data))
+        (setq deps
+              (seq-remove
+               (lambda (str) (string-match-p (rx (1+ any) (1+ " ") "make") str))
+               read-data))
 
-      (setq mdeps
-            (mapcar
-             (lambda (str)
-               (replace-regexp-in-string (rx (1+ " ") (0+ any) eol) "" str))
-             (seq-difference read-data deps))))
-    (when deps  (oset obj :depends deps))
-    (when mdeps (oset obj :make-depends mdeps))
+        (setq mdeps
+              (mapcar
+               (lambda (str)
+                 (replace-regexp-in-string (rx (1+ " ") (0+ any) eol) "" str))
+               (seq-difference read-data deps))))
+      (when deps  (oset obj :depends deps))
+      (when mdeps (oset obj :make-depends mdeps)))
 
+    (when (kiss--file-exists-p checksum-file)
+      (let ((checksum-data
+             (kiss--read-file (concat (car (kiss-search "kiss")) "/checksums")))
+            (non-git-src-objs
+             (seq-remove (lambda (o) (eq (slot-value o :type) 'git))
+                         (slot-value obj :sources))))
+
+        ;; FIXME: will need to update this anytime we add support for another
+        ;; remote source.
+        (dotimes (i (length checksum-data))
+          (oset (nth i non-git-src-objs) :checksum (nth i checksum-data)))))
     obj))
 
 ;;(slot-value (kiss--dir-to-kiss-package (car (kiss-search "kiss"))) :sources)
@@ -1893,7 +1917,7 @@ are the same."
         ((atom pkgs-l)
 
          (mapcar
-          #'kiss--download-source
+          #'kiss--source-download
           (slot-value
            (thread-last
              pkgs-l
