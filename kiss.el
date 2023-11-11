@@ -1480,6 +1480,10 @@ are the same."
   ;; that the target dir is on the same file system as the source files.
   ;; Linking also has the added bonus of being *much* faster than copying.
 
+  ;; FIXME: use new EIEIO code to figure out exactly which dependencies
+  ;; need to be present - never include a dependencies make dependencies...
+  ;; since it can just lead to problems
+
   (let ((missing-pkgs '())
         (package-needs-to-provide-lst '())
         (all-pkgs '())
@@ -1772,6 +1776,11 @@ are the same."
       (message "-----")
       (message build-cmd)
       (message "-----")
+
+      ;; FIXME: will need to break out the code below
+      ;; so it can handle being called from an async process's
+      ;; finish func.
+      ;; https://github.com/jwiegley/emacs-async
 
       (setq build-exit-code (shell-command build-cmd))
       (message "%s" build-exit-code)
