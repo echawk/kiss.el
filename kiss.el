@@ -673,13 +673,13 @@ Valid strings: bwrap, proot."
 ;;| post-install  | Type   | Package  | Installed database |                | x
 ;;| post-package  | Type   | Package  | Tarball            |                | x
 ;;| post-source   | Type   | Package  | Verbatim source    | Resolved source|
-;;| post-update   | Type   | [7]      |                    |                |
+;;| post-update   | Type   | [7]      |                    |                | x
 ;;| pre-build     | Type   | Package  | Build directory    |                | x
 ;;| pre-extract   | Type   | Package  | DESTDIR            |                | x
 ;;| pre-install   | Type   | Package  | Extracted package  |                | x
 ;;| pre-remove    | Type   | Package  | Installed database |                | x
 ;;| pre-source    | Type   | Package  | Verbatim source    | Resolved source|
-;;| pre-update    | Type   | [7] [8]  |                    |                |
+;;| pre-update    | Type   | [7] [8]  |                    |                | x
 ;;| queue-status  | Type   | Package  | Number in queue    | Total in queue | x
 ;;|               |        |          |                    |                |
 ;;+---------------+--------+----------+--------------------+----------------+
@@ -1700,7 +1700,7 @@ are the same."
            (log-file        (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
 
 
-      ;;(kiss--run-hook "pre-extract" pkg install-dir)
+      (kiss--run-hook "pre-extract" pkg install-dir)
 
       ;; Extract pkg's sources to the build directory.
       (message (concat "Extracting " pkg "..."))
@@ -1722,7 +1722,7 @@ are the same."
       ;; Now actually execute the script.
       (message (concat "Building " pkg " at version: " pkg-ver))
 
-      ;; (kiss--run-hook "pre-build" pkg build-dir)
+      (kiss--run-hook "pre-build" pkg build-dir)
       ;; (kiss--run-hook "queue" pkg left-in-queue tot-in-queue)
 
       ;; Additionally, we can use jails on freebsd to
@@ -1786,7 +1786,7 @@ are the same."
       (message "%s" build-exit-code)
 
       (when (> build-exit-code 0)
-        ;;(kiss--run-hook "build-fail" pkg build-dir)
+        (kiss--run-hook "build-fail" pkg build-dir)
         ;; FIXME: cleanup
         (error "build failed"))
 
@@ -1798,7 +1798,7 @@ are the same."
         (kiss-fork pkg pkg-install-db)
         (message (concat "Successful Build!"))
 
-        ;; (kiss--run-hook "post-build" pkg install-dir)
+        (kiss--run-hook "post-build" pkg install-dir)
 
         ;; FIXME: look over kiss code & implement /dev/null
         ;; for symlinks
@@ -1851,9 +1851,9 @@ are the same."
        (concat kiss-bindir
                (kiss--get-pkg-bin-name pkg pkg-ver)))
 
-      ;; (kiss--run-hook "post-package" pkg
-      ;;                 (concat kiss-bindir
-      ;;                         (kiss--get-pkg-bin-name pkg pkg-ver)))
+      (kiss--run-hook "post-package" pkg
+                      (concat kiss-bindir
+                              (kiss--get-pkg-bin-name pkg pkg-ver)))
 
       ;; rm the build directory
       (message (concat "Removing the build directory (" proc-dir ")"))
@@ -2321,7 +2321,7 @@ are the same."
                  nil)
             (error "kiss/install: Missing dependencies!"))))
 
-      ;; (kiss--run-hook "pre-install" pkg extr-dir)
+      (kiss--run-hook "pre-install" pkg extr-dir)
 
       (when (kiss--get-pkg-conflict-files pkg extr-dir)
         (if (eq 0 kiss-choice)
@@ -2516,8 +2516,8 @@ are the same."
                ;; FIXME: impl pkg hooks...
                ;; (kiss--run-hook-pkg "pre-remove" pkgs-l)
 
-               ;; (kiss--run-hook "pre-remove"
-               ;;                 pkgs-l (concat kiss-installed-db-dir pkgs-l))
+               (kiss--run-hook "pre-remove"
+                               pkgs-l (concat kiss-installed-db-dir pkgs-l))
 
                (kiss--remove-files
                 (kiss-manifest pkgs-l)))))
@@ -2576,21 +2576,26 @@ are the same."
                     (mapcar 'kiss--get-git-dir-toplevel
                             (kiss--kiss-path-git-repos)))))
     (dolist (repo git-repos)
-      (message (concat "kiss/update: Updating " repo))
-      ;; (kiss--run-hook "pre-update" need-su? owner)
-      (let ((repo-owner   (kiss--get-owner-name repo))
-            (am-owner-p   (kiss--am-owner-p repo))
-            (git-pull-cmd (concat "git -C " repo " pull" ))
-            (git-subm-cmd (concat "git -C " repo " submodule update --remote --init -f")))
-        ;; TODO: would like to make this a macro so that way this
-        ;; code can be deduped
-        (if am-owner-p
-            (progn
-              (shell-command git-pull-cmd)
-              (shell-command git-subm-cmd))
-          (progn
-            (kiss--shell-command-as-user git-pull-cmd repo-owner)
-            (kiss--shell-command-as-user git-subm-cmd repo-owner)))))))
+      (kiss--with-dir
+       repo
+       (progn
+         (message (concat "kiss/update: Updating " repo))
+         (let ((repo-owner   (kiss--get-owner-name repo))
+               (am-owner-p   (kiss--am-owner-p repo))
+               (git-pull-cmd (concat "git -C " repo " pull" ))
+               (git-subm-cmd (concat "git -C " repo " submodule update --remote --init -f")))
+
+           (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
+           ;; TODO: would like to make this a macro so that way this
+           ;; code can be deduped
+           (if am-owner-p
+               (progn
+                 (shell-command git-pull-cmd)
+                 (shell-command git-subm-cmd))
+             (progn
+               (kiss--shell-command-as-user git-pull-cmd repo-owner)
+               (kiss--shell-command-as-user git-subm-cmd repo-owner)))
+           (kiss--run-hook "post-update")))))))
 
 ;; TODO: Rethink how to integrate this.
 ;; (defun kiss--print-git-repo-MOTD ()
