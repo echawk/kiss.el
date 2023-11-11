@@ -404,24 +404,24 @@ Valid strings: bwrap, proot."
    (depends
     :initarg :depends
     :initform '()
-    :type (string)
-    :custom (string)
+    :type list
+    :custom list
     :documentation "List of packages that are dependencies of this package."
     :optional
     )
    (make-depends
     :initarg :make-depends
     :initform '()
-    :type (string)
-    :custom (string)
+    :type list
+    :custom list
     :documentation "List of packages that are make depends of this kiss-package."
     :optional
     )
    (sources
     :initarg :sources
     :initform '()
-    :type (kiss-source)
-    :custom (kiss-source)
+    :type list
+    :custom list
     :documentation "List of kiss-source objects for the kiss-package"
     :optional
     )
