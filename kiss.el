@@ -101,7 +101,7 @@
 ;;; Code:
 
 ;; FIXME: see if I can drop 'f...
-;; Remove calls to -zip-pair, f-write-text, f-read-text
+;; Remove calls to f-write-text, f-read-text
 
 ;;(require 'subp)
 (eval-when-compile
@@ -536,6 +536,12 @@ Valid strings: bwrap, proot."
     " " ""
     str)))
 
+(defun kiss--write-text (text encoding file-path)
+  (f-write-text text encoding file-path))
+
+(defun kiss--read-text (file-path)
+  (f-read-text file-path))
+
 ;; FIXME: potentially change this function
 ;; to simply remove the final newline at the end of the text
 ;; and to then split on the newlines - it should result in the same
@@ -546,7 +552,7 @@ Valid strings: bwrap, proot."
   (when (kiss--file-exists-p file-path)
     (seq-remove
      (lambda (s) (string= "" s))
-     (string-split (f-read-text file-path) "\n"))))
+     (string-split (kiss--read-text file-path) "\n"))))
 
 (defun kiss--get-user-from-uid (uid)
   "(I) Return the name for UID.  `$ getent passwd' is parsed for the information."
@@ -725,7 +731,7 @@ Valid strings: bwrap, proot."
                                  (mapcar (lambda (s) (if (string= s old) new s))
                                          (kiss-manifest pkg)))))))
 
-    (f-write-text manifest-t 'utf-8 temp-f)
+    (kiss--write-text manifest-t 'utf-8 temp-f)
 
     ;; TODO: see if this can be avoided.
     ;; Ensure the ownership is preserved.
@@ -922,7 +928,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
              (string-split
               (replace-regexp-in-string
                "#.*$" ""
-               (f-read-text file-path))
+               (kiss--read-text file-path))
               "\n")))))
 
 (defun kiss--get-pkg-dependencies (pkg &optional installed-p)
@@ -1029,7 +1035,7 @@ when using this function compared with the iterative version."
    (seq-filter
     (lambda (depfile)
       (string-match (rx bol (literal pkg) (one-or-more " ") (literal "make"))
-                    (f-read-text depfile)))
+                    (kiss--read-text depfile)))
     (seq-filter
      #'file-exists-p
      (mapcar (lambda (p) (concat kiss-installed-db-dir p "/depends"))
@@ -1061,7 +1067,7 @@ when using this function compared with the iterative version."
    (seq-filter
     (lambda (depfile)
       (string-match (rx bol (literal pkg) (zero-or-more " ") eol)
-                    (f-read-text depfile)))
+                    (kiss--read-text depfile)))
     (seq-filter
      #'file-exists-p
      (mapcar (lambda (p) (concat kiss-installed-db-dir p "/depends"))
@@ -1172,7 +1178,7 @@ when using this function compared with the iterative version."
          "\n$" ""
          ;; TODO: see if there is a way to avoid
          ;; depending on f.el
-         (f-read-text (concat pdir "/version")))))))
+         (kiss--read-text (concat pdir "/version")))))))
 
 (defun kiss--get-pkg-bin-name (pkg version)
   "(I) Return the proper name for the binary for PKG at VERSION."
@@ -1313,7 +1319,7 @@ are the same."
   ;; * The proper arguments to said pkg build script
 
   ;; ~/.cache/kiss/logs/$(date +%Y-%m-%d)/<pkg>-$(date +%Y-%m-%d-%H:%M)-<procnum>
-  (f-write-text
+  (kiss--write-text
    (concat
     "#!/bin/sh -xe\n"
 
@@ -1779,7 +1785,7 @@ are the same."
 
           ;; If we have any etcfiles, create etcsums
           (if etc-files
-              (f-write-text
+              (kiss--write-text
                (mapconcat
                 #'identity
                 (mapcar #'kiss--b3 etc-files)
@@ -1787,7 +1793,7 @@ are the same."
                'utf-8 (concat pkg-install-db pkg "/etcsums")))
 
           ;; Next, create the manifest
-          (f-write-text
+          (kiss--write-text
            ;; FIXME: I don't think this should be needed,
            ;; since, *technically* kiss--get-manifest-for-dir
            ;; should have already taken care of this...
@@ -1894,7 +1900,7 @@ are the same."
                       (kiss--get-pkg-local-checksums pkgs-l) "\n")))
       (if (and (kiss--am-owner-p chk-path)
                (not (string-empty-p chk-sums)))
-          (f-write-text
+          (kiss--write-text
            chk-sums
            'utf-8 chk-path))))))
 
@@ -1941,7 +1947,7 @@ are the same."
             pkg-dest-line)
            " "))
         (string-split
-         (f-read-text (concat pkg-repo "/sources"))
+         (kiss--read-text (concat pkg-repo "/sources"))
          "\n"))))))
 
 (defun kiss--get-pkg-sources-type (pkg-source)
@@ -2095,7 +2101,7 @@ are the same."
     ;; Emacs lisp based solution for this.
     (let ((res '())
           (temp-file (kiss--make-temp-file)))
-      (f-write-text
+      (kiss--write-text
        (thread-last
          manifest-file
          (kiss--read-file)
@@ -2172,7 +2178,7 @@ are the same."
               " " (kiss--single-quote-string (concat extr-dir alt-path))))))
 
         ;; Regenerate the manifest for the directory.
-        (f-write-text
+        (kiss--write-text
          (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
          'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))))))
 
@@ -2382,7 +2388,7 @@ are the same."
          "\n$" ""
          ;; TODO: see if there is a way to avoid
          ;; depending on f.el
-         (f-read-text (concat pdir "/version"))))))
+         (kiss--read-text (concat pdir "/version"))))))
 
 ;; TODO: add docstring.
 ;;;###autoload
@@ -2578,7 +2584,7 @@ are the same."
   "(I) Return t if the version of PKG is the same locally and from the remotes."
   (string=
    (kiss--sanitize-ver-str
-    (f-read-text (concat (car (kiss-search pkg)) "/version")))
+    (kiss--read-text (concat (car (kiss-search pkg)) "/version")))
    (kiss--sanitize-ver-str
     (kiss--get-installed-pkg-version pkg))))
 
