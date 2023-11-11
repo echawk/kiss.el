@@ -314,17 +314,17 @@ Valid strings: bwrap, proot."
 
            ;; FIXME: replace the cd function here w/ a macro eventually.
            (let ((opwd (getenv "PWD")))
-             (cd cache-path)
-             (unless
-                 (eq 0
-                     (shell-command
-                      (concat "git remote set-url origin " u " 2> /dev/null")))
-               (shell-command
-                (concat "git remote add origin " u)))
-             (shell-command (concat "git fetch --depth=1 origin " cb))
-             (shell-command (concat "git reset --hard FETCH_HEAD"))
-             ;; Change back to our old working directory
-             (cd opwd))
+             (kiss--with-dir
+              cache-path
+              (progn
+                (unless
+                    (eq 0
+                        (shell-command
+                         (concat "git remote set-url origin " u " 2> /dev/null")))
+                  (shell-command
+                   (concat "git remote add origin " u)))
+                (shell-command (concat "git fetch --depth=1 origin " cb))
+                (shell-command (concat "git reset --hard FETCH_HEAD")))))
            ;; FIXME: return wether or not we were actually successful
            t))
 
@@ -541,6 +541,26 @@ Valid strings: bwrap, proot."
 
 (defun kiss--read-text (file-path)
   (f-read-text file-path))
+
+(defun kiss--shell-command (command)
+  ;; Wrapper over 'shell-command' that prevents a ton of messages being
+  ;; printed.
+  (let ((inhibit-message t)
+        (message-log-max nil))
+    (shell-command command)))
+
+;; FIXME: impl this which can take a list of arbitrary
+;; length commands and execute them all in one fell swoop
+;; by making a shell script that will execute them.
+;; Naturally, we just return the exit code of the
+;; shell script.
+(defun kiss--shell-commands (command-lst)
+
+  nil)
+
+(defmacro kiss--with-dir (dir-path expr)
+  `(let ((default-directory ,dir-path))
+     ,expr))
 
 ;; FIXME: potentially change this function
 ;; to simply remove the final newline at the end of the text
@@ -1229,13 +1249,13 @@ when using this function compared with the iterative version."
 
 (defun kiss--make-tarball-of-dir (dir file-path)
   "(I) Make a compressed tarball of DIR saved into FILE-PATH."
-  ;; FIXME: need to remove the reliance on tar's -C flag, since it
-  ;; is noted in upstream kiss as being a source of portability issues.
-  (eq 0
-      (shell-command
-       (concat "tar -cf - -C " (kiss--single-quote-string dir) " . | "
-               (kiss--get-compression-command)
-               " > " (kiss--single-quote-string file-path)))))
+  (kiss--with-dir
+   dir
+   (eq 0
+       (shell-command
+        (concat "tar -cf -  . | "
+                (kiss--get-compression-command)
+                " > " (kiss--single-quote-string file-path))))))
 
 (defun kiss--get-potential-binary-files (file-path-lst)
   "(I) Return a list of files in FILE-PATH-LST that `strip` or `ldd` could use."
@@ -1764,7 +1784,7 @@ are the same."
       ;; Now we have to fork over the package files that we
       ;; used to the repo dir.
       (let ((pkg-install-db
-             (concat install-dir "/var/db/kiss/installed/")))
+             (concat install-dir kiss-installed-db-dir)))
         (make-directory pkg-install-db t)
         (kiss-fork pkg pkg-install-db)
         (message (concat "Successful Build!"))
@@ -1994,7 +2014,7 @@ are the same."
     ;; Decompress the tarball.
     (kiss--decompress tarball decomp-tarball)
     ;; Extract the tarball.
-    (shell-command (concat "tar xf " decomp-tarball " -C " dir))
+    (kiss--with-dir dir (shell-command (concat "tar xf " decomp-tarball)))
     ;; Get all of the top level directories from the tarball.
     (mapc
      (lambda (tld)
@@ -2256,8 +2276,10 @@ are the same."
     (make-directory extr-dir t)
 
     (kiss--decompress tarball decomp-tarball)
-    (shell-command
-     (concat "tar xf " decomp-tarball " -C " extr-dir))
+    (kiss--with-dir
+     extr-dir
+     (shell-command
+      (concat "tar xf " decomp-tarball)))
     (kiss--remove-file decomp-tarball)
 
     (let ((pkg (kiss--get-pkg-from-manifest
