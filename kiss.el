@@ -1964,13 +1964,6 @@ are the same."
                     #'file-exists-p
                     (kiss--get-pkg-sources-cache-path pkg)))))
 
-(defun kiss--get-type-pkg-sources (pkg)
-  "(I) Return a list containing the source type, followed by the source for PKG."
-  (let ((pkg-sources (kiss--get-pkg-sources pkg)))
-    (-zip-pair
-     (mapcar 'kiss--get-pkg-sources-type pkg-sources)
-     pkg-sources)))
-
 ;; pkg_source_tar()
 (defun kiss--extract-tarball (tarball dir)
   "(I) Extract TARBALL to DIR.  Emulates GNU Tar's --strip-components=1."
@@ -2109,13 +2102,15 @@ are the same."
 
 
 (defun kiss--rwx-lst-to-octal (lst)
-  (seq-reduce
-   #'+
-   (mapcar
-    (lambda (pair) (if (eq (cdr pair) 45) 0 (car pair)))
-    (-zip-pair '(4 2 1) lst))
-   0))
-
+  (let ((vals '(4 2 1))
+        (tot 0))
+    (message "%s" (length lst))
+    (dotimes (i (length lst))
+      (message "%s" i)
+      (setq tot (+ tot
+                   (* (if (eq (nth i lst) 45) 0 1)
+                      (nth i vals)))))
+    tot))
 
 (defun kiss--file-rwx (file-path)
   (mapconcat
