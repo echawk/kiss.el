@@ -492,7 +492,7 @@ Valid strings: bwrap, proot."
 
     (when (kiss--file-exists-p checksum-file)
       (let ((checksum-data
-             (kiss--read-file (concat (car (kiss-search "kiss")) "/checksums")))
+             (kiss--read-file checksum-file))
             (non-git-src-objs
              (seq-remove (lambda (o) (eq (slot-value o :type) 'git))
                          (slot-value obj :sources))))
@@ -1844,14 +1844,6 @@ are the same."
 ;; Initial working impl of kiss-checksum below; need to refactor some of
 ;; the functionality since kiss-download has similar needs.
 
-(defun kiss--get-pkg-repo-checksums (pkg)
-  "(I) Return the list of repo checksums for PKG."
-  (let ((checksums-file (concat (car (kiss-search pkg)) "/checksums")))
-    (if (file-exists-p checksums-file)
-        (seq-remove
-         #'string-empty-p
-         (string-split
-          (f-read-text checksums-file) "\n")))))
 
 (defmacro kiss--tps-env (pkg tps expr)
   ;; "(I) Macro to aide in parsing TPS, and using the values in EXPR."
@@ -1880,12 +1872,15 @@ are the same."
 
 (defun kiss--pkg-verify-local-checksums (pkg)
   "(I) Return t if local checksums equal the repo checksums for PKG, nil otherwise."
-  (eq nil
+  (> 1
+     (length
       (seq-remove
-       (lambda (pair) (string= (car pair) (cdr pair)))
-       (-zip-pair
-        (kiss--get-pkg-repo-checksums  pkg)
-        (kiss--get-pkg-local-checksums pkg)))))
+       #'identity
+       (mapcar #'kiss--source-validate-p
+               (slot-value
+                (kiss--dir-to-kiss-package
+                 (car (kiss-search pkg)))
+                :sources))))))
 
 ;;;###autoload
 (defun kiss-checksum (pkgs-l)
