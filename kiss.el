@@ -1673,6 +1673,7 @@ are the same."
       ;;(kiss--run-hook "pre-extract" pkg install-dir)
 
       ;; Extract pkg's sources to the build directory.
+      (message (concat "Extracting " pkg "..."))
       (kiss--extract-pkg-sources pkg build-dir)
       (make-directory install-dir t)
       (make-directory log-dir t)
