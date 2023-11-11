@@ -918,10 +918,15 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 Optionally, if INSTALLED-P is t, then the system installed package will be
 read instead."
-  (kiss--get-dependencies-from-file
-   (if (and installed-p (kiss--pkg-is-installed-p pkg))
-       (concat kiss-installed-db-dir pkg "/depends")
-     (concat (car (kiss-search pkg)) "/depends"))))
+  (with-slots
+      ((hd :depends)
+       (md :make-depends))
+      (kiss--dir-to-kiss-package
+       (if (and installed-p (kiss--pkg-is-installed-p pkg))
+           (concat kiss-installed-db-dir pkg)
+         (car (kiss-search pkg))))
+    (append md hd)))
+
 
 (defun kiss--get-pkg-dependency-graph (pkg-lst &optional installed-p)
   "(I) Generate a graph of the dependencies for PKG-LST.
