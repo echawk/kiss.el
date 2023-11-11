@@ -1998,31 +1998,6 @@ are the same."
      (mapcar 'kiss--get-pkg-sources-type pkg-sources)
      pkg-sources)))
 
-(defun kiss--download-pkg-sources (pkg)
-  "(I) Download the sources for PKG into `kiss-srcdir'."
-  (let* ((pkg-source-cache-dir (concat kiss-srcdir pkg "/"))
-         (type-pkg-sources (kiss--get-type-pkg-sources pkg)))
-    (mapcar
-     (lambda (tps)
-       (kiss--tps-env
-        pkg tps
-        (progn
-          ;; Make the cache directory if it doesn't already exist.
-          (unless (file-exists-p dest-dir)
-            (make-directory dest-dir))
-
-          (pcase type
-            ("remote" (kiss--download-remote-source uri dest-dir))
-            ("git"    (kiss--download-git-source uri dest-dir))
-            ("local"
-             (if (string-match (rx bol "/") uri)
-                 ;; Absolute path.
-                 (kiss--download-local-source uri dest-dir)
-               ;; Relative path.
-               (kiss--download-local-source
-                (concat (car (kiss-search pkg)) "/" uri) dest-dir)))))))
-     type-pkg-sources)))
-
 ;; pkg_source_tar()
 (defun kiss--extract-tarball (tarball dir)
   "(I) Extract TARBALL to DIR.  Emulates GNU Tar's --strip-components=1."
