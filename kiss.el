@@ -2034,27 +2034,23 @@ are the same."
 ;; pkg_extract() in kiss
 (defun kiss--extract-pkg-sources (pkg dir)
   "(I) Extract the cached sources of PKG to DIR."
-  (mapcar
-   (lambda (type-path)
-     (let* ((type   (car  (car type-path)))
-            (subdir (cdr (car type-path)))
-            (cache  (cdr  type-path))
-            (outdir (concat dir "/" subdir)))
-       ;; Make the subdir if it does not exist already.
-       (unless (file-directory-p outdir)
-         (make-directory outdir t))
-       (cond
-        ;; If the source type is a git repo:
-        ((string= type "git")
-         (shell-command (concat "cp -PRf " cache "/. " outdir)))
 
-        (t (if (kiss--str-tarball-p cache)
-               (kiss--extract-tarball cache outdir)
-             (shell-command (concat "cp -PRf " cache " " outdir)))))))
-   ;; Get the type of each cached pkg source w/ the source itself.
-   (-zip-pair
-    (mapcar (lambda (tps) (cons (car tps) (nth 2 tps))) (kiss--get-type-pkg-sources pkg))
-    (kiss--get-pkg-sources-cache-path pkg))))
+  (dolist (source
+           (slot-value
+            (kiss--dir-to-kiss-package (car (kiss-search pkg))) :sources))
+
+    (let ((cache  (kiss--source-get-cache-path source))
+          (outdir (concat dir "/" (slot-value source :extracted-path))))
+      (unless (kiss--file-is-directory-p outdir)
+        (make-directory outdir t))
+
+      (pcase (slot-value source :type)
+        ('git (shell-command (concat "cp -PRf " cache "/."  outdir)))
+        (_
+         (if (kiss--str-tarball-p cache)
+             (kiss--extract-tarball cache outdir)
+           (shell-command (concat "cp -PRf " cache " " outdir))))))))
+
 
 (defun kiss--str-tarball-p (str)
   "(I) Predicate to determine if STR matches the regex for a tarball."
