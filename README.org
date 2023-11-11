@@ -19,8 +19,7 @@ Here's a minimum viable init.el:
   (package-refresh-contents))
 
 (require 'use-package)
-;; I am hoping to eventually remove the dependency on dash & f.
-(use-package dash  :ensure t)
+;; I am hoping to eventually remove the dependency on f.
 (use-package f     :ensure t)
 (use-package tsort :ensure t)
 
