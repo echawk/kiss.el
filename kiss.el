@@ -373,7 +373,8 @@ Valid strings: bwrap, proot."
           (replace-regexp-in-string
            (rx bol "git+")
            ""
-           (car (string-split str " " t))))
+           (car (string-split
+                 (car (string-split str " " t)) (rx (or "#" "@"))))))
 
 
     (setq obj (make-instance 'kiss-source :type type :uri uri))
@@ -2042,7 +2043,7 @@ are the same."
         (make-directory outdir t))
 
       (pcase (slot-value source :type)
-        ('git (shell-command (concat "cp -PRf " cache "/."  outdir)))
+        ('git (shell-command (concat "cp -PRf " cache "/. "  outdir)))
         (_
          (if (kiss--str-tarball-p cache)
              (kiss--extract-tarball cache outdir)
