@@ -20,7 +20,6 @@
 
         (require 'use-package)
         ;; I am hoping to eventually remove the dependency on dash & f.
-        (use-package dash  :ensure t)
         (use-package f     :ensure t)
         (use-package tsort :ensure t))
      ;; TODO: add a use-package for kiss (once on melpa?)
