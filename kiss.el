@@ -313,18 +313,17 @@ Valid strings: bwrap, proot."
              (shell-command (concat "git init " cache-path)))
 
            ;; FIXME: replace the cd function here w/ a macro eventually.
-           (let ((opwd (getenv "PWD")))
-             (kiss--with-dir
-              cache-path
-              (progn
-                (unless
-                    (eq 0
-                        (shell-command
-                         (concat "git remote set-url origin " u " 2> /dev/null")))
-                  (shell-command
-                   (concat "git remote add origin " u)))
-                (shell-command (concat "git fetch --depth=1 origin " cb))
-                (shell-command (concat "git reset --hard FETCH_HEAD")))))
+           (kiss--with-dir
+            cache-path
+            (progn
+              (unless
+                  (eq 0
+                      (shell-command
+                       (concat "git remote set-url origin " u " 2> /dev/null")))
+                (shell-command
+                 (concat "git remote add origin " u)))
+              (shell-command (concat "git fetch --depth=1 origin " cb))
+              (shell-command (concat "git reset --hard FETCH_HEAD"))))
            ;; FIXME: return wether or not we were actually successful
            t))
 
