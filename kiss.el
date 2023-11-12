@@ -1958,36 +1958,6 @@ are the same."
 ;; (kiss-download '("kiss" "gdb"))
 ;; (kiss-download '("hugs"))
 
-(defun kiss--get-pkg-sources (pkg)
-  "(I) Return a list of sources for PKG, or nil if PKG has no sources file."
-  (let* ((pkg-repo    (car (kiss-search pkg)))
-         (pkg-sources (concat pkg-repo "/sources")))
-    (when (file-exists-p pkg-sources)
-      ;; Remove any non source lines.
-      (seq-remove
-       (lambda (lst) (string-empty-p (car lst)))
-       (mapcar
-        (lambda (pkg-dest-line)
-          ;; Sanitize each line
-          (string-split
-           (replace-regexp-in-string
-            (rx (one-or-more " ")) " "
-            pkg-dest-line)
-           " "))
-        (string-split
-         (kiss--read-text (concat pkg-repo "/sources"))
-         "\n"))))))
-
-(defun kiss--get-pkg-sources-type (pkg-source)
-  "(I) Return the type of PKG-SOURCE."
-  (let ((pkg-url (car pkg-source)))
-    ;; TODO: need to ensure that this is the same expected behavior as
-    ;; upstream.
-    (pcase pkg-url
-      ((rx bol "git+") "git")
-      ((rx "://")      "remote")
-      (_               "local"))))
-
 (defun kiss--make-temp-file ()
   "(I) Make a temporary file using the `mktemp' utility."
   (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
@@ -2000,7 +1970,6 @@ are the same."
     ("curl"   " -fLo ")
     ("wget"   " -O ")
     ("wget2"  " -O ")))
-
 
 ;; (kiss--get-pkg-sources-cache-path "kiss")
 (defun kiss--get-pkg-sources-cache-path (pkg)
