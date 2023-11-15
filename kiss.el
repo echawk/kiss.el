@@ -390,6 +390,11 @@ Valid strings: bwrap, proot."
 (defun kiss--sources-file-to-sources-objs (file-path)
   (mapcar #'kiss--string-to-source-obj (kiss--read-file file-path)))
 
+(defun kiss--def-pkg-sources (name &rest arguments)
+  (let ((src-objs (mapcar #'kiss--string-to-source-obj arguments)))
+    (mapc (lambda (obj) (oset obj :package name)) src-objs)
+    src-objs))
+
 (defclass kiss-package ()
   ((name
     :initarg :name
