@@ -2352,7 +2352,7 @@ are the same."
         ;; previous rm.
         (kiss--install-files extr-dir (reverse new-manifest) pkg t)
 
-        ;; (kiss--run-hook "post-install" pkg (concat kiss-installed-db-dir pkg))
+        (kiss--run-hook "post-install" pkg (concat kiss-installed-db-dir pkg))
 
         (message (concat "kiss/install: Installation of " pkg " Finished.")))
       ;; FIXME: finish this func
