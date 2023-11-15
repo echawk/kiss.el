@@ -239,6 +239,13 @@ Valid strategies are: \\='permit-user-alternatives, \\='prohibit-user-alternativ
 Valid strings: bwrap, proot."
   :type 'string)
 
+;; Macros
+
+(defmacro kiss--with-dir (dir-path expr)
+  `(let ((default-directory ,dir-path))
+     ,expr))
+
+
 ;; EIEIO Classes
 
 (defclass kiss-source ()
@@ -589,10 +596,6 @@ Valid strings: bwrap, proot."
 (defun kiss--shell-commands (command-lst)
 
   nil)
-
-(defmacro kiss--with-dir (dir-path expr)
-  `(let ((default-directory ,dir-path))
-     ,expr))
 
 ;; FIXME: potentially change this function
 ;; to simply remove the final newline at the end of the text
