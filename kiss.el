@@ -738,13 +738,11 @@ Valid strings: bwrap, proot."
 (defun kiss--run-hook-pkg (hook pkg)
   "(I) Run PKG's HOOK."
   (let ((hook-fp (concat kiss-installed-db-dir pkg "/" hook)))
-    ;;(when (kiss--file-executable-p hook-fp)
-    ;; FIXME: need to expose the proper environment to this shell
-    ;; command as well.
-    (kiss--shell-command-as-user hook-fp (kiss--get-owner kiss-root))
-    ;;)
-    )
-  )
+    (when (kiss--file-executable-p hook-fp)
+      ;; FIXME: need to expose the proper environment to this shell
+      (with-environment-variables
+          (("KISS_ROOT" kiss-root))
+        (kiss--shell-command-as-user hook-fp (kiss--get-owner kiss-root))))))
 
 ;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
@@ -2388,6 +2386,8 @@ are the same."
         ;; previous rm.
         (kiss--install-files extr-dir (reverse new-manifest) pkg t)
 
+        (kiss--run-hook-pkg "post-install" pkg)
+
         (kiss--run-hook "post-install" pkg (concat kiss-installed-db-dir pkg))
 
         (message (concat "kiss/install: Installation of " pkg " Finished.")))
@@ -2525,7 +2525,7 @@ are the same."
              (progn
 
                ;; FIXME: impl pkg hooks...
-               ;; (kiss--run-hook-pkg "pre-remove" pkgs-l)
+               (kiss--run-hook-pkg "pre-remove" pkgs-l)
 
                (kiss--run-hook "pre-remove"
                                pkgs-l (concat kiss-installed-db-dir pkgs-l))
