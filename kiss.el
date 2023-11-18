@@ -358,6 +358,33 @@ Valid strings: bwrap, proot."
 (cl-defmethod kiss--source-validate-p ((obj kiss-source))
   (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj)))
 
+(cl-defmethod kiss--source-to-string ((obj kiss-source))
+  (with-slots
+      ((package :package)
+       (type :type)
+       (uri :uri)
+       (checksum :checksum)
+       (extracted-path :extracted-path)
+       (commit-or-branch :commit-or-branch))
+      obj
+    (concat
+     (pcase type
+       ('git "git+")
+       (_ ""))
+     uri
+     (when (and (not (string-empty-p commit-or-branch))
+                (not (eq commit-or-branch "HEAD"))
+                (eq type 'git))
+       (concat "@" commit-or-branch))
+     (unless (string-empty-p extracted-path)
+       (concat " " extracted-path)))))
+
+;; (mapcar #'kiss--source-to-string
+;;         (slot-value
+;;          (kiss--dir-to-kiss-package (car (kiss-search "llvm")))
+;;          :sources)
+;;         )
+
 ;; FIXME: make a macro for parsing out the clean url, the dest folder & commit
 ;; since that information would also be useful for other vc systems like
 ;; fossil and hg.
