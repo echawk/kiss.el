@@ -1761,16 +1761,19 @@ are the same."
         (pkg-ver (replace-regexp-in-string
                   " " "-"
                   (string-trim-right (kiss--get-pkg-version pkg)))))
-    ;; Install/build missing dependencies
-    (when missing-deps
-      (mapc #'kiss--try-install-build missing-deps))
 
-    ;; Recheck to make sure that we aren't missing any deps.
-    (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
+    ;; Only check for missing dependencies when kiss-force is nil.
+    (unless kiss-force
+      ;; Install/build missing dependencies
+      (when missing-deps
+        (mapc #'kiss--try-install-build missing-deps))
 
-    (when missing-deps
-      (error (concat "missing dependencies: "
-                     (kiss--lst-to-str missing-deps))))
+      ;; Recheck to make sure that we aren't missing any deps.
+      (setq missing-deps (kiss--get-pkg-missing-dependencies pkg))
+
+      (when missing-deps
+        (error (concat "missing dependencies: "
+                       (kiss--lst-to-str missing-deps)))))
 
     (let* ((build-cmd       "")
            (build-exit-code 1)
