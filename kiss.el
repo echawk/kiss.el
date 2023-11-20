@@ -2327,7 +2327,6 @@ are the same."
          file-path-lst))
        "/" t)))))
 
-;; FIXME: respect the kiss-force variable in this function.
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
   (unless (kiss--file-exists-p tarball)
@@ -2365,15 +2364,17 @@ are the same."
                (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))
         (error "kiss/install: Manifest is not valid!"))
 
-      ;; Check to make sure we aren't missing any dependencies.
-      (let ((extr-depends
-             (concat extr-dir "/var/db/kiss/installed/" pkg "/depends")))
-        (when (kiss--file-exists-p extr-depends)
-          (when (seq-contains-p
-                 (mapcar #'kiss--pkg-is-installed-p
-                         (kiss--get-dependencies-from-file extr-depends))
-                 nil)
-            (error "kiss/install: Missing dependencies!"))))
+      ;; Only check for missing dependencies when 'kiss-force' is nil.
+      (unless kiss-force
+        ;; Check to make sure we aren't missing any dependencies.
+        (let ((extr-depends
+               (concat extr-dir "/var/db/kiss/installed/" pkg "/depends")))
+          (when (kiss--file-exists-p extr-depends)
+            (when (seq-contains-p
+                   (mapcar #'kiss--pkg-is-installed-p
+                           (kiss--get-dependencies-from-file extr-depends))
+                   nil)
+              (error "kiss/install: Missing dependencies!")))))
 
       (kiss--run-hook "pre-install" pkg extr-dir)
 
