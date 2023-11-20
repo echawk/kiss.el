@@ -482,6 +482,15 @@ Valid strings: bwrap, proot."
    )
   )
 
+(cl-defmethod kiss--package-bin-name ((pkg kiss-package))
+  "(I) Return the proper name for the binary for PKG at VERSION."
+  (with-slots
+      ((version :version)
+       (release :release)
+       (name :name))
+      pkg
+    (concat name "@" version "-" release ".tar." kiss-compress)))
+
 (defun kiss--dir-to-kiss-package (dir-path)
   (let ((name          (kiss--basename dir-path))
         (build-file    (concat dir-path "/build"))
@@ -1273,6 +1282,7 @@ when using this function compared with the iterative version."
          ;; depending on f.el
          (kiss--read-text (concat pdir "/version")))))))
 
+;; FIXME: rm this function and use 'kiss--package-bin-name'
 (defun kiss--get-pkg-bin-name (pkg version)
   "(I) Return the proper name for the binary for PKG at VERSION."
   (concat pkg "@"
