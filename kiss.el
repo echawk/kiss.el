@@ -223,11 +223,10 @@ would be broken or not present on the system."
   "A list of absolute paths to executable files."
   :type '(string))
 
-(defcustom kiss-make-chroot-strategy 'permit-user-alternatives
-  "Denotes the strategy that kiss--make-chroot-dir-for-pkg will use.
-
-Valid strategies are: \\='permit-user-alternatives, \\='prohibit-user-alternatives  "
-  :type 'symbol)
+(defcustom kiss-make-chroot-strategy 'prohibit-user-alternatives
+  "Denotes the strategy that kiss--make-chroot-dir-for-pkg will use."
+  :type 'symbol
+  :options '(permit-user-alternatives prohibit-user-alternatives))
 
 (defcustom kiss-perfom-build-in-sandbox nil
   "Set to t if you want build to be performed in a sandbox."
