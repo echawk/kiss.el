@@ -106,7 +106,8 @@ Some of these are far more pie-in-the-sky than others. I think
 that all of them would be cool to have though.
 
 - [X] Create a wrapper script that can be used from the command line
-- [ ] Write an EIEIO class for packages
+- [X] Write an EIEIO class for packages
+- [ ] Integrate said EIEIO class throughout the codebase
 - [ ] Allow for packages to be defined via S-Expressions
 - [ ] Write an extensive unit & integration testsuite
 - [ ] Make a TUI/Menu for installing/upgrading packages
