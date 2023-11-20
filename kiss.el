@@ -5,7 +5,7 @@
 ;; Maintainer: Ethan Hawk <ethan.hawk@valpo.edu>
 ;; URL: https://github.com/ehawkvu/kiss.el
 ;; Keywords: package-manager, tools
-;; Package-Requires: ((emacs "29.1") (f) (tsort))
+;; Package-Requires: ((emacs "29.1") (tsort))
 ;; Version: 0.0.1
 
 ;; This file is under the MIT license.
@@ -603,10 +603,13 @@ Valid strings: bwrap, proot."
     str)))
 
 (defun kiss--write-text (text encoding file-path)
-  (f-write-text text encoding file-path))
+  (with-temp-file file-path
+    (insert (format "%s" text))))
 
 (defun kiss--read-text (file-path)
-  (f-read-text file-path))
+  (with-temp-buffer
+    (insert-file-contents-literally file-path)
+    (buffer-substring-no-properties (point-min) (point-max))))
 
 (defun kiss--shell-command (command)
   ;; Wrapper over 'shell-command' that prevents a ton of messages being
