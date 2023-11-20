@@ -372,7 +372,7 @@ Valid strings: bwrap, proot."
        (_ ""))
      uri
      (when (and (not (string-empty-p commit-or-branch))
-                (not (eq commit-or-branch "HEAD"))
+                (not (string= commit-or-branch "HEAD"))
                 (eq type 'git))
        (concat "@" commit-or-branch))
      (unless (string-empty-p extracted-path)
