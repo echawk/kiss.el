@@ -1751,7 +1751,6 @@ are the same."
             package-needs-to-provide-lst)))))))
 
 
-;; FIXME: support kiss-force in this function
 ;; FIXME: pretty sure we bug out whenever we try to build a package
 ;; with zero sources. we need to support that functionality
 ;; FIXME: should try to see what functionality I can move out of this function
@@ -2625,7 +2624,6 @@ are the same."
   "(I) Return only the repos in `kiss-path' that are git repos."
   (seq-filter 'kiss--dir-is-git-repo-p kiss-path))
 
-;; TODO: need to implement pre-update & post-update hooks here too...
 ;; TODO: display whether signature verification is enabled...
 (defun kiss--update-git-repos ()
   "(I) Update all git repos in `kiss-path'."
@@ -2662,8 +2660,6 @@ are the same."
 ;;       (if (file-exists-p (concat repo "/MOTD"))
 ;;           (shell-command-to-string (concat "cat " repo "/MOTD"))))))
 
-;; FIXME: will need to rethink how the pre-update & post-update hooks
-;; will work since we have a different arch to how kiss is presently.
 ;;;###autoload
 (defun kiss-update ()
   (interactive)
