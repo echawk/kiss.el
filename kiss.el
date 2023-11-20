@@ -765,7 +765,7 @@ Valid strings: bwrap, proot."
 (defun kiss--run-hook-pkg (hook pkg)
   "(I) Run PKG's HOOK."
   (let ((hook-fp (concat kiss-installed-db-dir pkg "/" hook)))
-    (when (kiss--file-executable-p hook-fp)
+    (when (kiss--file-is-executable-p hook-fp)
       ;; FIXME: need to expose the proper environment to this shell
       (with-environment-variables
           (("KISS_ROOT" kiss-root))
@@ -829,6 +829,10 @@ Valid strings: bwrap, proot."
 ;; (kiss--manifest-to-string (kiss-manifest "xdo"))
 
 ;; FIXME: impl kiss--file-executable-p
+(defun kiss--file-is-executable-p (file-path)
+  "(I) Return T if FILE-PATH exists and is executable."
+  (eq 0 (shell-command (concat "test -x "
+                               (kiss--single-quote-string file-path)))))
 
 ;; TODO: Look into rm'ing these funcs since they should not have to exist.
 (defun kiss--file-is-regular-file-p (file-path)
