@@ -100,9 +100,6 @@
 
 ;;; Code:
 
-;; FIXME: see if I can drop 'f...
-;; Remove calls to f-write-text, f-read-text
-
 ;;(require 'subp)
 (eval-when-compile
   (require 'cl-lib)
@@ -318,7 +315,6 @@ Valid strings: bwrap, proot."
              (make-directory cache-path t)
              (shell-command (concat "git init " cache-path)))
 
-           ;; FIXME: replace the cd function here w/ a macro eventually.
            (kiss--with-dir
             cache-path
             (progn
