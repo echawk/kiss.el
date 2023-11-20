@@ -1290,7 +1290,7 @@ when using this function compared with the iterative version."
           ".tar." kiss-compress ))
 
 (defun kiss--get-compression-command ()
-  "(I) Return the proper command for based on `kiss-compress'."
+  "(I) Return the proper command based on `kiss-compress'."
   (pcase kiss-compress
     ("bz2"  "bzip2 -c")
     ("gz"   "gzip -c")
@@ -2363,7 +2363,6 @@ are the same."
         (error "kiss/install: Manifest is not valid!"))
 
       ;; Check to make sure we aren't missing any dependencies.
-      ;; FIXME: this is where the code is erroring out now
       (let ((extr-depends
              (concat extr-dir "/var/db/kiss/installed/" pkg "/depends")))
         (when (kiss--file-exists-p extr-depends)
