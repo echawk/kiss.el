@@ -479,12 +479,8 @@ Valid strings: bwrap, proot."
 
 (cl-defmethod kiss--package-bin-name ((pkg kiss-package))
   "(I) Return the proper name for the binary for PKG at VERSION."
-  (with-slots
-      ((version :version)
-       (release :release)
-       (name :name))
-      pkg
-    (concat name "@" version "-" release ".tar." kiss-compress)))
+  (with-slots ((v :version) (r :release) (n :name)) pkg
+    (concat n "@" v "-" r ".tar." kiss-compress)))
 
 (defun kiss--dir-to-kiss-package (dir-path)
   (let ((name          (kiss--basename dir-path))
