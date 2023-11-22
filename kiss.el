@@ -1325,16 +1325,12 @@ when using this function compared with the iterative version."
   (equal (kiss--get-manifest-for-dir dir)
          (kiss--read-file manifest-file)))
 
+;; FIXME: rm this function eventually
 (defun kiss--get-pkg-version (pkg)
   "(I) Get the version for PKG using the car of `kiss-search'."
-  (let ((ks (kiss-search pkg)))
-    (when ks
-      (let ((pdir (car ks)))
-        (replace-regexp-in-string
-         "\n$" ""
-         ;; TODO: see if there is a way to avoid
-         ;; depending on f.el
-         (kiss--read-text (concat pdir "/version")))))))
+  (with-slots ((v :version) (r :release))
+      (kiss--dir-to-kiss-package (car (kiss-search pkg)))
+    (concat v " " r)))
 
 ;; FIXME: rm this function and use 'kiss--package-bin-name'
 (defun kiss--get-pkg-bin-name (pkg version)
