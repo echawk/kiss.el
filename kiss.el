@@ -554,6 +554,65 @@ Valid strings: bwrap, proot."
           (oset (nth i non-git-src-objs) :checksum (nth i checksum-data)))))
     obj))
 
+(defun kiss--package-to-dir (package-obj dir)
+  (with-slots
+      ((name         :name)
+       (version      :version)
+       (release      :release)
+       (build-file   :build-file)
+       (depends      :depends)
+       (make-depends :make-depends)
+       (sources      :sources))
+      package-obj
+    (let ((version-str (concat version " " release "\n"))
+          (depends-str
+           (concat
+            (mapconcat
+             #'identity
+             (sort
+              (append depends (mapcar (lambda (s) (concat s " make")) make-depends))
+              #'string-lessp)
+             "\n")
+            "\n"))
+          (sources-str
+           (concat
+            (mapconcat
+             #'identity (mapcar #'kiss--source-to-string sources) "\n")
+            "\n"))
+          (checksum-str
+           (concat
+            (mapconcat
+             #'identity
+             (seq-remove
+              #'string-empty-p
+              (mapcar (lambda (o) (slot-value o :checksum)) sources))
+             "\n")
+            "\n")))
+      (kiss--with-dir
+       dir
+       (progn
+         (make-directory name)
+         (kiss--write-text version-str  'utf-8 (concat name "/version"))
+         (kiss--write-text depends-str  'utf-8 (concat name "/depends"))
+         (kiss--write-text sources-str  'utf-8 (concat name "/sources"))
+         (unless (string-empty-p checksum-str)
+           (kiss--write-text checksum-str 'utf-8 (concat name "/checksums")))
+
+         (let ((build-file-dir (kiss--dirname build-file))
+               (local-sources
+                (mapcar
+                 (lambda (obj) (slot-value obj :uri))
+                 (seq-filter
+                  (lambda (obj)
+                    (and (eq (slot-value obj :type) 'local)
+                         (not (string-match-p "^/" (slot-value obj :uri)))))
+                  sources))))
+           (copy-file build-file (concat name "/build"))
+           (when local-sources
+             (dolist (file local-sources)
+               (make-directory (concat name "/" (kiss--dirname file)) t)
+               (copy-file (concat build-file-dir "/" file) (concat name "/" file))))))))))
+
 (defun kiss--def-build-file (build-type) ;;&optional &rest args)
   "Return the proper shell commands to perform a build with BUILD-TYPE."
   (mapconcat
