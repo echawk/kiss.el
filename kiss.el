@@ -104,7 +104,6 @@
 (eval-when-compile
   (require 'cl-lib)
   (require 'eieio)
-  (require 'f)
   (require 'pcase)
   (require 'rx)
   (require 'seq)
