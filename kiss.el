@@ -773,12 +773,12 @@ Valid strings: bwrap, proot."
            ("sha256"    " -r ")
            ("shasum"    " -a 256 ")
            ("digest"    " -a sha256 "))))
-    (car
-     (string-split
-      (replace-regexp-in-string
-       "\n$" ""
-       (shell-command-to-string
-        (concat kiss-chk args file-path)))))))
+    (thread-last
+      (concat kiss-chk args file-path)
+      (shell-command-to-string)
+      (replace-regexp-in-string "\n$" "")
+      (string-split)
+      (car))))
 
 ;; Public code below.
 
