@@ -814,14 +814,15 @@ Valid strings: bwrap, proot."
 ;;    repository and '1' if they do not. In the latter case, privilege
 ;;    escalation is required to preserve ownership.
 
-;; FIXME: will need to return an exit code or some other
-;; indicator on whether the hooks were successful or not.
-;; maybe make it user-configurable?
 (defun kiss--run-hook (hook &optional arg2 arg3 arg4)
   "(I) Run all hooks in `kiss-hook'."
   (dolist (kh kiss-hook)
-    (shell-command
-     (concat kh " " hook " " arg2 " " arg3 " " arg4))))
+    (when (kiss--file-is-executable-p kh)
+      (shell-command
+       (concat kh " " hook " "
+               (format "%s" arg2) " "
+               (format "%s" arg3) " "
+               (format "%s" arg4))))))
 
 (defun kiss--run-hook-pkg (hook pkg)
   "(I) Run PKG's HOOK."
