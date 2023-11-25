@@ -406,14 +406,16 @@ Valid strings: bwrap, proot."
           (replace-regexp-in-string
            (rx bol "git+")
            ""
-           (car (string-split
-                 (car (string-split str " " t)) (rx (or "#" "@"))))))
-
+           (thread-last
+             str
+             ((lambda (s) (string-split s " " t)))
+             (car)
+             ((lambda (s) (string-split s (rx (or "#" "@")))))
+             (car))))
 
     (setq obj (make-instance 'kiss-source :type type :uri uri))
-    (when c-or-b (oset obj :commit-or-branch c-or-b))
+    (when c-or-b    (oset obj :commit-or-branch c-or-b))
     (when extr-path (oset obj :extracted-path extr-path))
-
     obj))
 
 (defun kiss--sources-file-to-sources-objs (file-path)
