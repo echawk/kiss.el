@@ -2078,16 +2078,13 @@ are the same."
   (cond ((listp pkgs-l)
          (mapcar #'kiss-download pkgs-l))
         ((atom pkgs-l)
-
-         (mapcar
-          #'kiss--source-download
-          (slot-value
-           (thread-last
-             pkgs-l
-             (kiss-search)
-             (car)
-             (kiss--dir-to-kiss-package))
-           :sources)))
+         (thread-last
+           pkgs-l
+           (kiss-search)
+           (car)
+           (kiss--dir-to-kiss-package)
+           (funcall (lambda (o) (slot-value o :sources)))
+           (mapcar #'kiss--source-download)))
         (t nil)))
 
 ;; (kiss-download '("kiss" "gdb"))
