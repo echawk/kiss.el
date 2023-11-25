@@ -445,6 +445,12 @@ Valid strings: bwrap, proot."
     :type string
     :custom string
     :documentation "The release of a kiss-package")
+   ;; NOTE: would like this ot be optionally a build script -
+   ;; that way one can define a package entirely through elisp -
+   ;; when it comes time to build th package, there is a check
+   ;; on whether or not the string that is within :build-file is a
+   ;; file, if it is, execute said file, otherwise, (note this is an extension)
+   ;; we save the string to a file, mark it executable, and execute that file
    (build-file
     :initarg :build-file
     :initform ""
@@ -806,7 +812,7 @@ Valid strings: bwrap, proot."
 ;;| pre-remove    | Type   | Package  | Installed database |                | x
 ;;| pre-source    | Type   | Package  | Verbatim source    | Resolved source|
 ;;| pre-update    | Type   | [7] [8]  |                    |                | x
-;;| queue-status  | Type   | Package  | Number in queue    | Total in queue | x
+;;| queue-status  | Type   | Package  | Number in queue    | Total in queue |
 ;;|               |        |          |                    |                |
 ;;+---------------+--------+----------+--------------------+----------------+
 
@@ -866,7 +872,6 @@ Valid strings: bwrap, proot."
   "(I) Replace the line matching OLD in the manifest of PKG with NEW."
   ;; Replace the matching line in the manifest w/ the desired
   ;; replacement.
-  ;; TODO: test this to make sure it is correct.
   (let* ((manifest-f (concat kiss-installed-db-dir pkg "/manifest"))
          (temp-f     (kiss--make-temp-file))
          (owner      (kiss--get-owner-name manifest-f))
@@ -1131,6 +1136,7 @@ provided that the package is actually installed."
               (setq queue (append dep-deps (cdr queue)))))))
     res))
 
+;; FIXME: implement installed-p argument here.
 (defun kiss--get-pkg-dependency-graph-rec (pkg-lst)
   "(I) A Recursive & TCO-ed implementation of `kiss--get-pkg-dependency-graph'.
 
@@ -1177,8 +1183,6 @@ when using this function compared with the iterative version."
                (seq-uniq))))
    dep-lst))
 
-;; TODO: make the output list prettier (ie, should be a list of pkgs,
-;; not depends files)
 (defun kiss--get-pkg-make-dependents (pkg)
   "(I) Return a list of installed packages that have a make dependency on PKG."
   (mapcar
@@ -1729,7 +1733,7 @@ are the same."
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
            (mapcar (lambda (s) (split-string s ">")))
            (mapcar (lambda (l) (list (kiss--basename (car l))
-                                     (concat "/" (string-join (cdr l) "/")))))
+                                (concat "/" (string-join (cdr l) "/")))))
            ;; Convert the pairs to dotted pairs.
            (mapcar (lambda (p) (cons (car p) (cadr p))))
 
@@ -2600,7 +2604,6 @@ are the same."
      #'kiss--remove-file
      symlink-queue)))
 
-;; FIXME: need to add in kiss-force support.
 ;; NOTE: this function is slowed by the need
 ;; to use my custom file detection commands.
 ;;;###autoload
