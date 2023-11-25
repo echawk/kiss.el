@@ -759,13 +759,13 @@ Valid strings: bwrap, proot."
 
 (defun kiss--b3 (file-path)
   "(I) Run b3sum on FILE-PATH."
-  (car
-   (string-split
-    (replace-regexp-in-string
-     "\n$" ""
-     ;; NOTE: b3sum is the only supported BLAKE3 utility at this time.
-     (shell-command-to-string (concat "b3sum -l 33 " file-path)))
-    " ")))
+  (thread-last
+    file-path
+    (concat "b3sum -l 33 ")
+    (shell-command-to-string)
+    (replace-regexp-in-string "\n$" "")
+    ((lambda (str) (string-split str " ")))
+    (car)))
 
 (defun kiss--sh256 (file-path)
   "(I) Run `kiss-chk' with proper arguments on FILE-PATH."
