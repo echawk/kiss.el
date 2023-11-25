@@ -232,7 +232,8 @@ would be broken or not present on the system."
   "set to an executable for sandboxing.
 
 Valid strings: bwrap, proot."
-  :type 'string)
+  :type 'string
+  :options '("bwrap" "proot"))
 
 ;; Macros
 
