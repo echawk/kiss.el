@@ -2041,15 +2041,16 @@ are the same."
 
 (defun kiss--pkg-verify-local-checksums (pkg)
   "(I) Return t if local checksums equal the repo checksums for PKG, nil otherwise."
-  (> 1
-     (length
-      (seq-remove
-       #'identity
-       (mapcar #'kiss--source-validate-p
-               (slot-value
-                (kiss--dir-to-kiss-package
-                 (car (kiss-search pkg)))
-                :sources))))))
+  (thread-last
+    pkg
+    (kiss-search)
+    (car)
+    (kiss--dir-to-kiss-package)
+    (funcall (lambda (o) (slot-value o :sources)))
+    (mapcar #'kiss--source-validate-p)
+    (seq-remove #'identity)
+    (length)
+    (> 1)))
 
 ;;;###autoload
 (defun kiss-checksum (pkgs-l)
