@@ -408,9 +408,9 @@ Valid strings: bwrap, proot."
            ""
            (thread-last
              str
-             ((lambda (s) (string-split s " " t)))
+             (funcall (lambda (s) (string-split s " " t)))
              (car)
-             ((lambda (s) (string-split s (rx (or "#" "@")))))
+             (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
              (car))))
 
     (setq obj (make-instance 'kiss-source :type type :uri uri))
@@ -764,7 +764,7 @@ Valid strings: bwrap, proot."
     (concat "b3sum -l 33 ")
     (shell-command-to-string)
     (replace-regexp-in-string "\n$" "")
-    ((lambda (str) (string-split str " ")))
+    (funcall (lambda (str) (string-split str " ")))
     (car)))
 
 (defun kiss--sh256 (file-path)
