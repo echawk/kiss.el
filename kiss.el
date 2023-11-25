@@ -2063,11 +2063,9 @@ are the same."
            (chk-sums (mapconcat
                       #'identity
                       (kiss--get-pkg-local-checksums pkgs-l) "\n")))
-      (if (and (kiss--am-owner-p chk-path)
-               (not (string-empty-p chk-sums)))
-          (kiss--write-text
-           chk-sums
-           'utf-8 chk-path))))))
+      (when (and (kiss--am-owner-p chk-path)
+                 (not (string-empty-p chk-sums)))
+        (kiss--write-text chk-sums 'utf-8 chk-path))))))
 
 ;; (kiss--pkg-verify-local-checksums "chromium")
 
