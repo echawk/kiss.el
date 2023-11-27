@@ -2267,17 +2267,15 @@ are the same."
     tot))
 
 (defun kiss--file-rwx (file-path)
-  (mapconcat
-   #'number-to-string
-   (mapcar
-    #'kiss--rwx-lst-to-octal
-    (seq-partition
-     (cdr
-      (string-to-list
-       (file-attribute-modes
-        (file-attributes file-path))))
-     3))
-   ""))
+  (thread-last
+    file-path
+    (file-attributes)
+    (file-attribute-modes)
+    (string-to-list)
+    (cdr)
+    (funcall (lambda (lst) (seq-partition lst 3)))
+    (mapcar #'kiss--rwx-lst-to-octal)
+    (funcall (lambda (lst) (mapconcat #'number-to-string lst "")))))
 
 (defun kiss--dirname (file-path)
   (mapconcat
