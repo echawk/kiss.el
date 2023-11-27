@@ -104,6 +104,7 @@
 (eval-when-compile
   (require 'cl-lib)
   (require 'eieio)
+  (require 'ert)
   (require 'pcase)
   (require 'rx)
   (require 'seq)
@@ -241,6 +242,10 @@ Valid strings: bwrap, proot."
   `(let ((default-directory ,dir-path))
      ,expr))
 
+(ert-deftest kiss--with-dir ()
+  (should
+   (string= "/opt"
+            (kiss--with-dir "/opt" default-directory))))
 
 ;; EIEIO Classes
 
@@ -417,6 +422,46 @@ Valid strings: bwrap, proot."
     (when c-or-b    (oset obj :commit-or-branch c-or-b))
     (when extr-path (oset obj :extracted-path extr-path))
     obj))
+
+(ert-deftest kiss--string-to-source-obj ()
+  ;; Git source w/ branch
+  (should
+   (with-slots
+       ((package          :package)
+        (type             :type)
+        (uri              :uri)
+        (checksum         :checksum)
+        (extracted-path   :extracted-path)
+        (commit-or-branch :commit-or-branch))
+       (kiss--string-to-source-obj "git+https://github.com/ehawkvu/clasp@musl")
+     (and
+      (string-empty-p package)
+      (eq type 'git)
+      (string= uri "https://github.com/ehawkvu/clasp")
+      (string-empty-p checksum)
+      (string-empty-p extracted-path)
+      (string= "musl" commit-or-branch))))
+  ;; Remote source w/ extracted path & package
+  (should
+   (let ((obj
+          (kiss--string-to-source-obj
+           "https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.5/llvm-17.0.5.src.tar.xz llvm")))
+     (oset obj :package "llvm")
+     (with-slots
+         ((package          :package)
+          (type             :type)
+          (uri              :uri)
+          (checksum         :checksum)
+          (extracted-path   :extracted-path)
+          (commit-or-branch :commit-or-branch))
+         obj
+       (and
+        (string= package "llvm")
+        (eq type 'remote)
+        (string= uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.5/llvm-17.0.5.src.tar.xz")
+        (string-empty-p checksum)
+        (string= extracted-path "llvm")
+        (string-empty-p commit-or-branch))))))
 
 (defun kiss--sources-file-to-sources-objs (file-path)
   (mapcar #'kiss--string-to-source-obj (kiss--read-file file-path)))
@@ -943,6 +988,9 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 (defun kiss--single-quote-string (str)
   "(I) Add quotes around STR.  Useful when interacting with the cli."
   (concat "'" str "'"))
+
+(ert-deftest kiss--single-quote-string ()
+  (should (string= "'as df'" (kiss--single-quote-string "as df"))))
 
 (defun kiss--pkg-swap (pkg path)
   "(I) Swap the owner of PATH to PKG, modifying the relevant package manifests."
