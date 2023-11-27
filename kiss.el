@@ -185,7 +185,7 @@
   :options kiss-valid-elf-utils)
 
 (defcustom kiss-valid-compress
-  '("bz2" "gz" "lz" "lzma" "xz" "zst")
+  '("" "bz2" "gz" "lz" "lzma" "xz" "zst")
   "List of valid options for 'kiss-compress'."
   :type '(string))
 
@@ -195,14 +195,15 @@
   :type 'string
   :options kiss-valid-compress)
 
-(defcustom kiss-compress-command-alist
-  '(("bz2"  . "bzip2 -c")
+(defcustom kiss-compress-alist
+  '((""     . "cat")
+    ("bz2"  . "bzip2 -c")
     ("gz"   . "gzip -c")
     ("lz"   . "lzip -c")
     ("lzma" . "lzma -cT0")
     ("xz"   . "xz -cT0")
     ("zstd" . "zstd -cT0"))
-  "Association List for looking up the proper command for 'kiss-compress'."
+  "Association List for looking up the proper command for a given 'kiss-compress'."
   :type 'alist)
 
 (defcustom kiss-force
@@ -549,7 +550,9 @@ Valid strings: bwrap, proot."
 (cl-defmethod kiss--package-bin-name ((pkg kiss-package))
   "(I) Return the proper name for the binary for PKG at VERSION."
   (with-slots ((v :version) (r :release) (n :name)) pkg
-    (concat n "@" v "-" r ".tar." kiss-compress)))
+    (concat n "@" v "-" r ".tar"
+            (unless (string-empty-p kiss-compress)
+              (concat "." kiss-compress)))))
 
 (defun kiss--dir-to-kiss-package (dir-path)
   (let ((name          (kiss--basename dir-path))
@@ -1404,11 +1407,12 @@ when using this function compared with the iterative version."
   "(I) Return the proper name for the binary for PKG at VERSION."
   (concat pkg "@"
           (replace-regexp-in-string " " "-" (string-trim-right version))
-          ".tar." kiss-compress ))
+          ".tar" (unless (string-empty-p kiss-compress)
+                   (concat "." kiss-compress))))
 
 (defun kiss--get-compression-command ()
   "(I) Return the proper command based on `kiss-compress'."
-  (cdr (assoc kiss-compress kiss-compress-command-alist)))
+  (cdr (assoc kiss-compress kiss-compress-alist)))
 
 (defun kiss--get-pkg-cached-bin (pkg)
   "(I) Return the path of the binary for PKG, nil if binary is not in the cache."
