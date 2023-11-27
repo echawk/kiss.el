@@ -184,11 +184,16 @@
   :type 'string
   :options kiss-valid-elf-utils)
 
+(defcustom kiss-valid-compress
+  '("bz2" "gz" "lz" "lzma" "xz" "zst")
+  "List of valid options for 'kiss-compress'."
+  :type '(string))
+
 (defcustom kiss-compress
   "gz"
   "The compression algorithm that should be used when making packages."
   :type 'string
-  :options '("bz2" "gz" "lz" "lzma" "xz" "zst"))
+  :options kiss-valid-compress)
 
 (defcustom kiss-compress-command-alist
   '(("bz2"  . "bzip2 -c")
