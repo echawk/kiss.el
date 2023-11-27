@@ -110,6 +110,7 @@ that all of them would be cool to have though.
 - [ ] Integrate said EIEIO class throughout the codebase
 - [ ] Allow for packages to be defined via S-Expressions
 - [ ] Write an extensive unit & integration testsuite
+- [ ] Stabilize the API/come to a consensus as to what is useful.
 - [ ] Make a TUI/Menu for installing/upgrading packages
 - [ ] Be able to build GUIX derivations
 - [ ] Port to Common Lisp
