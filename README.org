@@ -146,7 +146,7 @@ total control over kiss.el or any other Emacs package for that matter.
 
 *** Adding custom compression commands
 
-The =kiss-compress-command-alist= can be customized to allow you to
+The =kiss-compress-alist= can be customized to allow you to
 use custom compression commands.
 
 Here is an example adding lz4 support & setting it as the default to kiss.el:
