@@ -100,6 +100,65 @@ Variables of interest:
 - =kiss-perform-build-in-sandbox=
 - =kiss-sandbox-utility=
 
+** Customization
+
+*** Overriding functions
+
+Since kiss.el is written in Emacs lisp, there are near infinite ways
+to customize the behavior of the code. In addition to supporting
+a great deal of variables, kiss.el also implements additional,
+"redundant" versions of functions that users can "opt-in" to
+using Emacs' advice system. Here is an example showing how
+to use the "fast" version of kiss--get-potential-binary-files:
+
+#+begin_src elisp
+
+(advice-add #'kiss--get-potential-binary-files
+            :override #'kiss--get-potential-binary-files-fast)
+
+#+end_src
+
+The boundaries in this area are endless, as with the advice system you
+can poke into the brain of *any* function.
+
+Below illustrates how you can effectively "hold" packages from being
+updated:
+
+#+begin_src elisp
+
+;; This is not a perfect version of "hold", as you can still update the
+;; package by explicitly building & installing it, but this will prevent
+;; the package from showing up to be built by 'kiss-upgrade'.
+(setq kiss-hold-pkgs '("emacs" "firefox" "icu"))
+(advice-add
+ #'kiss--get-out-of-date-pkgs
+ :around
+ (lambda (orig &rest args)
+   "Hold all packages in 'kiss-hold-pkgs'."
+   (seq-difference (apply orig args) kiss-hold-pkgs)))
+
+#+end_src
+
+I highly recommend reading up on Emacs' advice system if you want to have
+total control over kiss.el or any other Emacs package for that matter.
+
+=M-x info RET elisp= - See the section on "Advising Functions"
+
+*** Adding custom compression commands
+
+The =kiss-compress-command-alist= can be customized to allow you to
+use custom compression commands.
+
+Here is an example adding lz4 support & setting it as the default to kiss.el:
+
+#+begin_src elisp
+
+(setq kiss-valid-compress (cons "lz4" kiss-valid-compress))
+(setq kiss-compress "lz4")
+(setq kiss-compress-alist (cons '("lz4" . "lz4 -c") kiss-compress-alist))
+
+#+end_src
+
 ** Long-term Roadmap:
 
 Some of these are far more pie-in-the-sky than others. I think
