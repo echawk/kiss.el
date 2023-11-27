@@ -1363,9 +1363,7 @@ when using this function compared with the iterative version."
 
 (defun kiss--get-random-number (&optional upper-bound)
   "(I) Number from 1 to UPPER-BOUND, exclusive. Default UPPER-BOUND is 30000."
-  (if upper-bound
-      (message "%s" (mod (abs (random)) upper-bound))
-    (message "%s" (mod (abs (random)) 30000))))
+  (message "%s" (mod (abs (random)) (if upper-bound upper-bound 30000))))
 
 (defun kiss--get-tmp-destdir ()
   "(I) Return a directory that can be used as a temporary destdir."
