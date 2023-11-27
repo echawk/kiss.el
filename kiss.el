@@ -295,7 +295,7 @@ Valid strings: bwrap, proot."
     :optional)
    (commit-or-branch
     :initarg :commit-or-branch
-    :initform "HEAD"
+    :initform ""
     :type string
     :documentation "The relevant commit or branch for a git source."
     :optional)))
@@ -328,6 +328,12 @@ Valid strings: bwrap, proot."
          (cb :commit-or-branch)
          (p  :package))
         obj
+      (when (string-empty-p cb)
+        (setq cb
+              (pcase ty
+                ('git    "HEAD")
+                ('hg     "tip")
+                ('fossil "trunk"))))
       (pcase ty
         ('git
 
@@ -349,6 +355,10 @@ Valid strings: bwrap, proot."
               (shell-command (concat "git reset --hard FETCH_HEAD"))))
            ;; FIXME: return wether or not we were actually successful
            t))
+
+        ('hg (concat "hg clone -u " cb " " u))
+
+        ('fossil (concat "fossil open -f " u " " cb))
 
         ('remote
          (if (file-exists-p cache-path) t
@@ -401,10 +411,6 @@ Valid strings: bwrap, proot."
 ;;          :sources)
 ;;         )
 
-;; FIXME: make a macro for parsing out the clean url, the dest folder & commit
-;; since that information would also be useful for other vc systems like
-;; fossil and hg.
-
 (defun kiss--string-to-source-obj (str)
   "(I) Generate a kiss-source object from STR. Will have an empty package slot."
 
@@ -412,24 +418,31 @@ Valid strings: bwrap, proot."
         (uri       nil)
         (extr-path nil)
         (c-or-b    nil)
-        (obj       nil))
+        (obj       nil)
+        (str-split-on-spaces (string-split str " " t)))
     (setq type
           (pcase str
             ((rx bol "git+") 'git)
+            ((rx bol "hg+") 'hg)
+            ((rx bol "fossil+") 'fossil)
             ((rx "://") 'remote)
             (_ 'local)))
     (setq c-or-b
           (pcase type
-            ('git (nth 1 (string-split str (rx (or "#" "@")))))
+            ((or 'git 'hg 'fossil)
+             (thread-last
+               str-split-on-spaces
+               (car)
+               (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
+               (nth 1)))
             (_ "")))
     (setq extr-path (nth 1 (string-split str " " t)))
     (setq uri
           (replace-regexp-in-string
-           (rx bol "git+")
+           (rx bol (or "git+" "hg+" "fossil+"))
            ""
            (thread-last
-             str
-             (funcall (lambda (s) (string-split s " " t)))
+             str-split-on-spaces
              (car)
              (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
              (car))))
