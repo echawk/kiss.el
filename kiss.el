@@ -202,7 +202,7 @@
     ("lz"   . "lzip -c")
     ("lzma" . "lzma -cT0")
     ("xz"   . "xz -cT0")
-    ("zstd" . "zstd -cT0"))
+    ("zst"  . "zstd -cT0"))
   "Association List for looking up the proper command for a given 'kiss-compress'."
   :type 'alist)
 
