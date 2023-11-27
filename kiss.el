@@ -190,6 +190,16 @@
   :type 'string
   :options '("bz2" "gz" "lz" "lzma" "xz" "zst"))
 
+(defcustom kiss-compress-command-alist
+  '(("bz2"  . "bzip2 -c")
+    ("gz"   . "gzip -c")
+    ("lz"   . "lzip -c")
+    ("lzma" . "lzma -cT0")
+    ("xz"   . "xz -cT0")
+    ("zstd" . "zstd -cT0"))
+  "Association List for looking up the proper command for 'kiss-compress'."
+  :type 'alist)
+
 (defcustom kiss-force
   nil
   "Set to t to force the package manager to skip certain sanity checks.
@@ -1393,13 +1403,7 @@ when using this function compared with the iterative version."
 
 (defun kiss--get-compression-command ()
   "(I) Return the proper command based on `kiss-compress'."
-  (pcase kiss-compress
-    ("bz2"  "bzip2 -c")
-    ("gz"   "gzip -c")
-    ("lz"   "lzip -c")
-    ("lzma" "lzma -cT0")
-    ("xz"   "xz -cT0")
-    ("zstd" "zstd -cT0")))
+  (cdr (assoc kiss-compress kiss-compress-command-alist)))
 
 (defun kiss--get-pkg-cached-bin (pkg)
   "(I) Return the path of the binary for PKG, nil if binary is not in the cache."
