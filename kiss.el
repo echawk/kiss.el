@@ -2434,17 +2434,23 @@ are the same."
 (defun kiss--get-pkg-from-manifest (file-path-lst)
   "(I) Determine the package name from a manifest."
   (when (member kiss-installed-db-dir file-path-lst)
-    (car
-     (reverse
-      (string-split
-       (car
-        (seq-filter
-         (lambda (fp) (string-match-p
-                       (rx
-                        (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol)
-                       fp))
-         file-path-lst))
-       "/" t)))))
+    (thread-last
+      file-path-lst
+      (seq-filter
+       (lambda (fp) (string-match-p
+                (rx
+                 (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
+      (car)
+      (funcall (lambda (str) (string-split str "/" t)))
+      (reverse)
+      (car))))
+
+(ert-deftest kiss--get-pkg-from-manifest ()
+  (should
+   (string= "kiss" (kiss--get-pkg-from-manifest
+                    `(,kiss-installed-db-dir
+                      ,(concat kiss-installed-db-dir "kiss/"))))))
+
 
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
