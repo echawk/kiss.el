@@ -2364,6 +2364,19 @@ are the same."
                       (nth i vals)))))
     tot))
 
+;;https://quickref.me/chmod.html
+(ert-deftest kiss--rwx-lst-to-octal ()
+  (should
+   (and
+    (= 7 (kiss--rwx-lst-to-octal '(114 119 120)))
+    (= 6 (kiss--rwx-lst-to-octal '(114 119 45)))
+    (= 5 (kiss--rwx-lst-to-octal '(114 45 120)))
+    (= 4 (kiss--rwx-lst-to-octal '(114 45 45)))
+    (= 3 (kiss--rwx-lst-to-octal '(45 119 120)))
+    (= 2 (kiss--rwx-lst-to-octal '(45 119 45)))
+    (= 1 (kiss--rwx-lst-to-octal '(45 45 120)))
+    (= 0 (kiss--rwx-lst-to-octal '(45 45 45))))))
+
 (defun kiss--file-rwx (file-path)
   (thread-last
     file-path
