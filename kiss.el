@@ -2786,8 +2786,8 @@ are the same."
          (message (concat "kiss/update: Updating " repo))
          (let ((repo-owner   (kiss--get-owner-name repo))
                (am-owner-p   (kiss--am-owner-p repo))
-               (git-pull-cmd (concat "git -C " repo " pull" ))
-               (git-subm-cmd (concat "git -C " repo " submodule update --remote --init -f")))
+               (git-pull-cmd (concat "git pull" ))
+               (git-subm-cmd (concat "git submodule update --remote --init -f")))
 
            (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
            ;; TODO: would like to make this a macro so that way this
@@ -2799,6 +2799,85 @@ are the same."
              (progn
                (kiss--shell-command-as-user git-pull-cmd repo-owner)
                (kiss--shell-command-as-user git-subm-cmd repo-owner)))
+           (kiss--run-hook "post-update")))))))
+
+(defun kiss--get-hg-dir-toplevel (dir)
+  (kiss--with-dir dir (shell-command-to-string "hg root")))
+
+(defun kiss--dir-is-hg-repo-p (dir)
+  (kiss--with-dir dir (eq 0 (shell-command "hg root"))))
+
+(defun kiss--kiss-path-hg-repos ()
+  (seq-filter #'kiss--dir-is-hg-repo-p kiss-path))
+
+(defun kiss--update-hg-repos ()
+  (let ((hg-repos (seq-uniq
+                   (mapcar #'kiss--get-hg-dir-toplevel
+                           (kiss--kiss-path-hg-repos)))))
+    (dolist (repo hg-repos)
+      (kiss--with-dir
+       repo
+       (progn
+         (message (concat "kiss/update: Updating " repo))
+         (let ((repo-owner    (kiss--get-owner-name repo))
+               (am-owner-p    (kiss--am-owner-p repo))
+               (hg-pull-cmd   (concat "hg pull" ))
+               (hg-update-cmd (concat "hg update")))
+
+           (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
+           ;; TODO: would like to make this a macro so that way this
+           ;; code can be deduped
+           (if am-owner-p
+               (progn
+                 (shell-command hg-pull-cmd)
+                 (shell-command hg-update-cmd))
+             (progn
+               (kiss--shell-command-as-user hg-pull-cmd repo-owner)
+               (kiss--shell-command-as-user hg-update-cmd repo-owner)))
+           (kiss--run-hook "post-update")))))))
+
+(defun kiss--get-fossil-dir-toplevel (dir)
+  (kiss--with-dir
+   dir
+   (let ((tld
+          (thread-last
+            (shell-command-to-string "fossil info")
+            (funcall (lambda (output) (split-string output "\n" t)))
+            (mapcar (lambda (line) (string-split line ":")))
+            (seq-filter (lambda (lst) (string= "local-root" (car lst)))))))
+     (when tld
+       (replace-regexp-in-string (rx (1+ space)) "" (cadr (car tld)))))))
+
+(defun kiss--dir-is-fossil-repo-p (dir)
+  (if (kiss--get-fossil-dir-toplevel dir) t nil))
+
+(defun kiss--kiss-path-fossil-repos ()
+  (seq-filter #'kiss--dir-is-fossil-repo-p kiss-path))
+
+(defun kiss--update-fossil-repos ()
+  (let ((fossil-repos (seq-uniq
+                       (mapcar #'kiss--get-fossil-dir-toplevel
+                               (kiss--kiss-path-fossil-repos)))))
+    (dolist (repo fossil-repos)
+      (kiss--with-dir
+       repo
+       (progn
+         (message (concat "kiss/update: Updating " repo))
+         (let ((repo-owner    (kiss--get-owner-name repo))
+               (am-owner-p    (kiss--am-owner-p repo))
+               (fossil-pull-cmd   (concat "fossil pull" ))
+               (fossil-update-cmd (concat "fossil update")))
+
+           (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
+           ;; TODO: would like to make this a macro so that way this
+           ;; code can be deduped
+           (if am-owner-p
+               (progn
+                 (shell-command fossil-pull-cmd)
+                 (shell-command fossil-update-cmd))
+             (progn
+               (kiss--shell-command-as-user fossil-pull-cmd repo-owner)
+               (kiss--shell-command-as-user fossil-update-cmd repo-owner)))
            (kiss--run-hook "post-update")))))))
 
 ;; TODO: Rethink how to integrate this.
@@ -2813,7 +2892,11 @@ are the same."
 (defun kiss-update ()
   (interactive)
   (message "kiss-update")
-  (kiss--update-git-repos))
+  (kiss--update-git-repos)
+  (when (executable-find "hg")
+    (kiss--update-hg-repos))
+  (when (executable-find "fossil")
+    (kiss--update-fossil-repos)))
 
 ;; -> upgrade      Update the system
 ;; ===========================================================================
