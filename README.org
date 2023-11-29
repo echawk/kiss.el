@@ -100,6 +100,15 @@ Variables of interest:
 - =kiss-perform-build-in-sandbox=
 - =kiss-sandbox-utility=
 
+*** Mercurial/Fossil Sources & Repositories
+
+kiss.el supports using mercurial and fossil as valid repositories
+and sources.
+
+The format for fossil and mercurial sources is identical to that
+of git sources, except with =git+= being replaced with =fossil+=
+and =hg+= respectively.
+
 ** Customization
 
 *** Overriding functions
