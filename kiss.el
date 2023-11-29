@@ -405,6 +405,16 @@ Valid strings: bwrap, proot."
      (unless (string-empty-p extracted-path)
        (concat " " extracted-path)))))
 
+(ert-deftest kiss--source-to-string ()
+  (should
+   (let* ((str-to-str (lambda (src) (kiss--source-to-string (kiss--string-to-source-obj src))))
+          (src-to-str-test (lambda (str) (string= str (funcall str-to-str str)))))
+     (and
+      (funcall src-to-str-test "git+https://github.com/ehawkvu/clasp@musl path/")
+      (funcall src-to-str-test "hg+https://github.com/ehawkvu/tsort.el tsort/")
+      (funcall src-to-str-test "patches/fix.patch patches/")
+      (funcall src-to-str-test "/usr/share/src/file")))))
+
 ;; (mapcar #'kiss--source-to-string
 ;;         (slot-value
 ;;          (kiss--dir-to-kiss-package (car (kiss-search "llvm")))
@@ -732,6 +742,14 @@ Valid strings: bwrap, proot."
 (defun kiss--normalize-file-path (file-path)
   "(I) Normalize the number of '/' in FILE-PATH."
   (replace-regexp-in-string (rx (1+ "/") "/") "/" file-path))
+
+(ert-deftest kiss--normalize-file-path ()
+  (should
+   (and
+    (string= "/opt" (kiss--normalize-file-path "/opt"))
+    (string= "/opt" (kiss--normalize-file-path "//opt"))
+    (string= "/opt/kiss/test/here/"
+             (kiss--normalize-file-path "//opt/kiss//test/here//")))))
 
 (defun kiss--lst-to-str (lst)
   "(I) Convert LST to a string."
@@ -2281,6 +2299,14 @@ are the same."
         (: "tar." any any)
         (: "tar." any any any)
         (: "tar." any any any any)) eol) str))
+
+(ert-deftest kiss--str-tarball-p ()
+  (should
+   (eq 0 (and
+          (kiss--str-tarball-p "txz")
+          (kiss--str-tarball-p "tar.xz")
+          (kiss--str-tarball-p "tar.zst")
+          (kiss--str-tarball-p "tar.lzma")))))
 
 ;; -> install      Install packages
 ;; ===========================================================================
