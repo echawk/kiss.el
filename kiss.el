@@ -378,7 +378,7 @@ Valid strings: bwrap, proot."
       ((ty :type))
       obj
     (pcase ty
-      ('git "")
+      ((or 'git 'hg 'fossil) "")
       (_ (kiss--b3 (kiss--source-get-cache-path obj))))))
 
 (cl-defmethod kiss--source-validate-p ((obj kiss-source))
@@ -395,7 +395,9 @@ Valid strings: bwrap, proot."
       obj
     (concat
      (pcase type
-       ('git "git+")
+       ('git    "git+")
+       ('hg     "hg+")
+       ('fossil "fossil+")
        (_ ""))
      uri
      (when (and (not (string-empty-p commit-or-branch))
