@@ -921,11 +921,7 @@ Valid strings: bwrap, proot."
   "(I) Run all hooks in `kiss-hook'."
   (dolist (kh kiss-hook)
     (when (kiss--file-is-executable-p kh)
-      (shell-command
-       (concat kh " " hook " "
-               (format "%s" arg2) " "
-               (format "%s" arg3) " "
-               (format "%s" arg4))))))
+      (shell-command (format "%s %s %s %s %s" kh hook arg2 arg3 arg4)))))
 
 (defun kiss--run-hook-pkg (hook pkg)
   "(I) Run PKG's HOOK."
