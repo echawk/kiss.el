@@ -826,6 +826,17 @@ Valid strings: bwrap, proot."
          (replace-regexp-in-string regex "\\1"))))
     (_ (error (concat system-type " is not supported by kiss.el")))))
 
+(defun kiss--get-uid-from-user (user)
+  (string-to-number
+   (shell-command-to-string (concat "id -u " user))))
+
+(ert-deftest kiss--uid ()
+  (let ((user "root"))
+    (should
+     (string= user
+              (kiss--get-user-from-uid
+               (kiss--get-uid-from-user user))))))
+
 (defun kiss--get-owner (file-path)
   "(I) Return the owner uid of FILE-PATH."
   (file-attribute-user-id (file-attributes file-path)))
