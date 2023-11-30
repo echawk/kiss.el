@@ -22,10 +22,6 @@
 ;; My hope is that the publishing and finishing of kiss.el will inspire
 ;; others to write their own implementations of kiss.
 
-;; TODO: need to replace all slashes with something else, likely
-;; a hyphen?
-;; or could rename kiss/internal to kiss-i or just kiss--
-
 ;; TODO: see if I can reduce the required Emacs version.
 
 ;; TODO: go through and mark functions as being pure or side-effect free if
@@ -54,10 +50,6 @@
 ;; This would be pretty nice, and ideally I'd like to support the same
 ;; type of ux as list-packages - mapping all of the common actions to
 ;; keybinds and whatnot.
-
-;; Hooks are currently on the back burner until a POC can be fleshed out.
-;; However, I don't think that it will actually be all that difficult, since
-;; Emacs already has built-in functionality for them...
 
 ;; Additionally, I may add some extensions/configuration specific to this
 ;; version of kiss.  Nothing that would break compatibilty with upstream kiss,
@@ -356,6 +348,7 @@ Valid strings: bwrap, proot."
            ;; FIXME: return wether or not we were actually successful
            t))
 
+        ;; FIXME: finish these implementations
         ('hg (concat "hg clone -u " cb " " u))
 
         ('fossil (concat "fossil open -f " u " " cb))
@@ -384,6 +377,7 @@ Valid strings: bwrap, proot."
 (cl-defmethod kiss--source-validate-p ((obj kiss-source))
   (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj)))
 
+;; FIXME: write a test for this + support hg&fossil
 (cl-defmethod kiss--source-to-string ((obj kiss-source))
   (with-slots
       ((package :package)
@@ -512,6 +506,7 @@ Valid strings: bwrap, proot."
     (mapc (lambda (obj) (oset obj :package name)) src-objs)
     src-objs))
 
+;; FIXME: add support for post-install & pre-remove
 (defclass kiss-package ()
   ((name
     :initarg :name
@@ -1213,6 +1208,7 @@ read instead."
   )
 
 
+;; FIXME: have this tak a list of package objects??
 (defun kiss--get-pkg-dependency-graph (pkg-lst &optional installed-p)
   "(I) Generate a graph of the dependencies for PKG-LST.
 
@@ -1272,6 +1268,7 @@ when using this function compared with the iterative version."
 
 (defun kiss--get-pkg-dependency-order (pkg-lst &optional installed-p)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
+  ;; FIXME: need to do some error checking here w/ tsort
   (tsort
    (if installed-p
        (kiss--get-pkg-dependency-graph pkg-lst t)
@@ -1342,6 +1339,7 @@ when using this function compared with the iterative version."
 ;; (kiss--get-pkg-hard-dependents "mpfr")
 
 (defun kiss--get-pkg-missing-dependencies (pkg)
+;; FIXME: have this function take a package object
   "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
   (seq-remove
    #'kiss--pkg-is-installed-p
@@ -1604,6 +1602,8 @@ are the same."
   ;; Mark the script as executable.
   (shell-command (concat "chmod +x " (kiss--single-quote-string k-el-build))))
 
+;; NOTE: this function will need to be updated as kiss itself updates the
+;; equivalent functionality.
 (defun kiss--lib-is-system-p (lib-string)
   "(I) Return T if the lib indicated by LIB-STRING is expected on a posix system."
   (string-match-p
@@ -1907,6 +1907,7 @@ are the same."
 ;; FIXME: pretty sure we bug out whenever we try to build a package
 ;; with zero sources. we need to support that functionality
 ;; FIXME: should try to see what functionality I can move out of this function
+;; FIXME: have this function take a kiss-package obj
 (defun kiss--build-pkg (pkg)
   "(I) Build PKG, return t if PKG was built successfully, nil otherwise."
   (let ((missing-deps (kiss--get-pkg-missing-dependencies pkg))
@@ -2120,6 +2121,7 @@ are the same."
   (cond ((listp pkgs-l)
          (progn
            ;; Download the package sources now.
+           ;; FIXME: check to make sure everything downloaded successfully
            (kiss-download pkgs-l)
            (mapcar #'kiss--build-pkg
                    (kiss--get-pkg-order pkgs-l))))
@@ -2197,6 +2199,7 @@ are the same."
   "(I) Make a temporary file using the `mktemp' utility."
   (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
 
+;; FIXME: make this an alist like the compression stuff.
 (defun kiss--get-download-utility-arguments ()
   "(I) Get the proper arguments for the `kiss-get' utility."
   (pcase kiss-get
@@ -2363,8 +2366,10 @@ are the same."
       (kiss--remove-file temp-file)
       res)))
 
-
+;; FIXME: this *technically* doesn't report numbers in octal?
 (defun kiss--rwx-lst-to-octal (lst)
+  ;; TODO: add assert here to ensure that there are no extra chars in the lst
+  ;;(string-to-list "rwx-")
   (let ((vals '(4 2 1))
         (tot 0))
     (message "%s" (length lst))
