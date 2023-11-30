@@ -106,6 +106,7 @@
 ;; FIXME: Find out what the containing group should be...
 (defgroup kiss nil
   "The KISS package manager, in ELisp."
+  :prefix "kiss-"
   :group :application)
 
 ;; TODO: cleanup these names, they're not consistent...
@@ -680,9 +681,9 @@ Valid strings: bwrap, proot."
        dir
        (progn
          (make-directory name)
-         (kiss--write-text version-str  'utf-8 (concat name "/version"))
-         (kiss--write-text depends-str  'utf-8 (concat name "/depends"))
-         (kiss--write-text sources-str  'utf-8 (concat name "/sources"))
+         (kiss--write-text version-str 'utf-8 (concat name "/version"))
+         (kiss--write-text depends-str 'utf-8 (concat name "/depends"))
+         (kiss--write-text sources-str 'utf-8 (concat name "/sources"))
          (unless (string-empty-p checksum-str)
            (kiss--write-text checksum-str 'utf-8 (concat name "/checksums")))
 
@@ -2637,11 +2638,11 @@ are the same."
 
 (defun kiss--pkg-is-installed-p (pkg)
   "(I) Return t if PKG is installed, nil otherwise."
-  (file-exists-p (concat kiss-installed-db-dir pkg)))
+  (kiss--file-exists-p (concat kiss-installed-db-dir pkg)))
 
 (defun kiss--install-if-not-installed (pkgs-l)
   "Only install packages in PKGS-L if they are not already installed."
-  (kiss-install (seq-remove 'kiss--pkg-is-installed-p pkgs-l)))
+  (kiss-install (seq-remove #'kiss--pkg-is-installed-p pkgs-l)))
 
 ;; -> list         List installed packages
 ;; ===========================================================================
@@ -2729,9 +2730,7 @@ are the same."
          ('file      (kiss--remove-file      file-path))))
      file-path-lst)
     ;; Now to cleanup broken symlinks.
-    (mapcar
-     #'kiss--remove-file
-     symlink-queue)))
+    (mapcar #'kiss--remove-file symlink-queue)))
 
 ;; NOTE: this function is slowed by the need
 ;; to use my custom file detection commands.
