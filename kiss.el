@@ -787,11 +787,10 @@ Valid strings: bwrap, proot."
 
 (defun kiss--sanitize-ver-str (str)
   "(I) Sanitize a version string STR to be correctly compared against others."
-  (replace-regexp-in-string
-   "\n$" ""
-   (replace-regexp-in-string
-    " " ""
-    str)))
+  (thread-last
+    str
+    (replace-regexp-in-string " " "")
+    (replace-regexp-in-string "\n$" "")))
 
 (defun kiss--write-text (text encoding file-path)
   (with-temp-file file-path
