@@ -256,6 +256,38 @@ Valid strings: bwrap, proot."
    (string= "/opt"
             (kiss--with-dir "/opt" default-directory))))
 
+(defmacro kiss--update-repo-type (type)
+  `(let ((repos
+          (seq-uniq
+           (mapcar (intern (concat "kiss--get-" (symbol-name ,type) "-dir-toplevel"))
+                   (funcall
+                    (intern (concat "kiss--kiss-path-" (symbol-name ,type) "-repos")))))))
+     (dolist (repo repos)
+       (kiss--with-dir
+        repo
+        (let ((repo-owner (kiss--get-owner-name repo))
+              (am-owner-p (kiss--am-owner-p repo))
+              (pull-cmd   (pcase ,type
+                            ('git    "git pull")
+                            ('hg     "hg pull")
+                            ('fossil "fossil pull")))
+              (update-cmd (pcase ,type
+                            ('git    "git submodule update --remote --init -f")
+                            ('hg     "hg update")
+                            ('fossil "fossil update"))))
+
+          (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
+          ;; TODO: would like to make this a macro so that way this
+          ;; code can be deduped
+          (if am-owner-p
+              (progn
+                (shell-command pull-cmd)
+                (shell-command update-cmd))
+            (progn
+              (kiss--shell-command-as-user pull-cmd repo-owner)
+              (kiss--shell-command-as-user update-cmd repo-owner)))
+          (kiss--run-hook "post-update"))))))
+
 ;; EIEIO Classes
 
 (defclass kiss-source ()
@@ -2804,30 +2836,7 @@ are the same."
 ;; TODO: display whether signature verification is enabled...
 (defun kiss--update-git-repos ()
   "(I) Update all git repos in `kiss-path'."
-  (let ((git-repos (seq-uniq
-                    (mapcar 'kiss--get-git-dir-toplevel
-                            (kiss--kiss-path-git-repos)))))
-    (dolist (repo git-repos)
-      (kiss--with-dir
-       repo
-       (progn
-         (message (concat "kiss/update: Updating " repo))
-         (let ((repo-owner   (kiss--get-owner-name repo))
-               (am-owner-p   (kiss--am-owner-p repo))
-               (git-pull-cmd (concat "git pull" ))
-               (git-subm-cmd (concat "git submodule update --remote --init -f")))
-
-           (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
-           ;; TODO: would like to make this a macro so that way this
-           ;; code can be deduped
-           (if am-owner-p
-               (progn
-                 (shell-command git-pull-cmd)
-                 (shell-command git-subm-cmd))
-             (progn
-               (kiss--shell-command-as-user git-pull-cmd repo-owner)
-               (kiss--shell-command-as-user git-subm-cmd repo-owner)))
-           (kiss--run-hook "post-update")))))))
+  (kiss--update-repo-type 'git))
 
 (defun kiss--get-hg-dir-toplevel (dir)
   (kiss--with-dir dir (shell-command-to-string "hg root")))
@@ -2839,30 +2848,7 @@ are the same."
   (seq-filter #'kiss--dir-is-hg-repo-p kiss-path))
 
 (defun kiss--update-hg-repos ()
-  (let ((hg-repos (seq-uniq
-                   (mapcar #'kiss--get-hg-dir-toplevel
-                           (kiss--kiss-path-hg-repos)))))
-    (dolist (repo hg-repos)
-      (kiss--with-dir
-       repo
-       (progn
-         (message (concat "kiss/update: Updating " repo))
-         (let ((repo-owner    (kiss--get-owner-name repo))
-               (am-owner-p    (kiss--am-owner-p repo))
-               (hg-pull-cmd   (concat "hg pull" ))
-               (hg-update-cmd (concat "hg update")))
-
-           (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
-           ;; TODO: would like to make this a macro so that way this
-           ;; code can be deduped
-           (if am-owner-p
-               (progn
-                 (shell-command hg-pull-cmd)
-                 (shell-command hg-update-cmd))
-             (progn
-               (kiss--shell-command-as-user hg-pull-cmd repo-owner)
-               (kiss--shell-command-as-user hg-update-cmd repo-owner)))
-           (kiss--run-hook "post-update")))))))
+  (kiss--update-repo-type 'hg))
 
 (defun kiss--get-fossil-dir-toplevel (dir)
   (kiss--with-dir
@@ -2883,30 +2869,7 @@ are the same."
   (seq-filter #'kiss--dir-is-fossil-repo-p kiss-path))
 
 (defun kiss--update-fossil-repos ()
-  (let ((fossil-repos (seq-uniq
-                       (mapcar #'kiss--get-fossil-dir-toplevel
-                               (kiss--kiss-path-fossil-repos)))))
-    (dolist (repo fossil-repos)
-      (kiss--with-dir
-       repo
-       (progn
-         (message (concat "kiss/update: Updating " repo))
-         (let ((repo-owner    (kiss--get-owner-name repo))
-               (am-owner-p    (kiss--am-owner-p repo))
-               (fossil-pull-cmd   (concat "fossil pull" ))
-               (fossil-update-cmd (concat "fossil update")))
-
-           (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
-           ;; TODO: would like to make this a macro so that way this
-           ;; code can be deduped
-           (if am-owner-p
-               (progn
-                 (shell-command fossil-pull-cmd)
-                 (shell-command fossil-update-cmd))
-             (progn
-               (kiss--shell-command-as-user fossil-pull-cmd repo-owner)
-               (kiss--shell-command-as-user fossil-update-cmd repo-owner)))
-           (kiss--run-hook "post-update")))))))
+  (kiss--update-repo-type 'fossil))
 
 ;; TODO: Rethink how to integrate this.
 ;; (defun kiss--print-git-repo-MOTD ()
