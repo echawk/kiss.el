@@ -208,6 +208,17 @@
   "Association List for looking up the proper command for a given 'kiss-compress'."
   :type 'alist)
 
+(defcustom kiss-decompress-alist
+  `((,(rx ".tar" eol)             . "cat ")
+    (,(rx (or ".tbz" ".bz2") eol) . "bzip2 -dc ")
+    (,(rx ".lz" eol)              . "lzip -dc ")
+    (,(rx (or ".tgz" ".gz") eol)  . "gzip -dc ")
+    (,(rx ".lzma" eol)            . "lzma -dcT0 ")
+    (,(rx (or ".txz" ".xz") eol)  . "xz -dcT0 ")
+    (,(rx ".zst" eol)             . "zstd -dcT0 "))
+  "Association List for determining how to decompress a tarball."
+  :type 'alist)
+
 (defcustom kiss-force
   nil
   "Set to t to force the package manager to skip certain sanity checks.
@@ -893,17 +904,39 @@ Valid strings: bwrap, proot."
   "(I) Run COMMAND as USER using `kiss-su'."
   (shell-command (concat kiss-su " -u " user " -- " command)))
 
+(defun kiss--get-decompression-command (file-path)
+  (let ((matched-rgx
+         (thread-last
+           kiss-decompress-alist
+           (mapcar #'car)
+           (seq-filter (lambda (rgx) (string-match-p rgx file-path)))
+           (car))))
+    (cdr (assoc matched-rgx kiss-decompress-alist))))
+
+(ert-deftest kiss--get-decompression-command ()
+  (let ((examples
+         '((".tar"  . "cat ")
+           (".tbz"  . "bzip2 -dc ")
+           (".bz2"  . "bzip2 -dc ")
+           (".lz"   . "lzip -dc ")
+           (".tgz"  . "gzip -dc ")
+           (".gz"   . "gzip -dc ")
+           (".lzma" . "lzma -dcT0 ")
+           (".txz"  . "xz -dcT0 ")
+           (".xz"   . "xz -dcT0 ")
+           (".zst"  . "zstd -dcT0 "))))
+    (should
+     (thread-last
+       examples
+       (mapcar
+        (lambda (pair)
+          (string= (cdr pair)
+                   (kiss--get-decompression-command (car pair)))))
+       (funcall (lambda (l) (seq-reduce (lambda (x y) (and x y)) l t)))))))
+
 (defun kiss--decompress (file-path out-path)
   "(I) Decompress FILE-PATH to OUT-PATH based on the file name."
-  (let ((cmd
-         (pcase file-path
-           ((rx ".tar" eol)             "cat ")
-           ((rx (or ".tbz" ".bz2") eol) "bzip2 -dc ")
-           ((rx ".lz" eol)              "lzip -dc ")
-           ((rx (or ".tgz" ".gz") eol)  "gzip -dc ")
-           ((rx ".lzma" eol)            "lzma -dcT0 ")
-           ((rx (or ".txz" ".xz") eol)  "xz -dcT0 ")
-           ((rx ".zst" eol)             "zstd -dcT0 "))))
+  (let ((cmd (kiss--get-decompression-command file-path)))
     (when cmd
       (shell-command (concat cmd file-path " > " out-path)))))
 
