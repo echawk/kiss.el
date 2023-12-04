@@ -353,51 +353,52 @@ Valid strings: bwrap, proot."
          (cb :commit-or-branch)
          (p  :package))
         obj
-      (when (string-empty-p cb)
-        (setq cb
-              (pcase ty
-                ('git    "HEAD")
-                ('hg     "tip")
-                ('fossil "trunk"))))
-      (pcase ty
-        ('git
+      (let ((commit
+             (if (string-empty-p cb)
+                 (pcase ty
+                   ('git    "HEAD")
+                   ('hg     "tip")
+                   ('fossil "trunk"))
+               cb)))
+        (pcase ty
+          ('git
 
-         (progn
-           (unless (kiss--file-exists-p (concat cache-path "/.git"))
-             (make-directory cache-path t)
-             (shell-command (concat "git init " cache-path)))
+           (progn
+             (unless (kiss--file-exists-p (concat cache-path "/.git"))
+               (make-directory cache-path t)
+               (shell-command (concat "git init " cache-path)))
 
-           (kiss--with-dir
-            cache-path
-            (progn
-              (unless
-                  (eq 0
-                      (shell-command
-                       (concat "git remote set-url origin " u " 2> /dev/null")))
-                (shell-command
-                 (concat "git remote add origin " u)))
-              (shell-command (concat "git fetch --depth=1 origin " cb))
-              (shell-command (concat "git reset --hard FETCH_HEAD"))))
-           ;; FIXME: return wether or not we were actually successful
-           t))
+             (kiss--with-dir
+              cache-path
+              (progn
+                (unless
+                    (eq 0
+                        (shell-command
+                         (concat "git remote set-url origin " u " 2> /dev/null")))
+                  (shell-command
+                   (concat "git remote add origin " u)))
+                (shell-command (concat "git fetch --depth=1 origin " commit))
+                (shell-command (concat "git reset --hard FETCH_HEAD"))))
+             ;; FIXME: return wether or not we were actually successful
+             t))
 
-        ;; FIXME: finish these implementations
-        ('hg (concat "hg clone -u " cb " " u))
+          ;; FIXME: finish these implementations
+          ('hg (concat "hg clone -u " commit " " u))
 
-        ('fossil (concat "fossil open -f " u " " cb))
+          ('fossil (concat "fossil open -f " u " " commit))
 
-        ('remote
-         (if (file-exists-p cache-path) t
-           (eq 0
-               (shell-command
-                (concat
-                 kiss-get
-                 " " u (kiss--get-download-utility-arguments) cache-path)))))
+          ('remote
+           (if (file-exists-p cache-path) t
+             (eq 0
+                 (shell-command
+                  (concat
+                   kiss-get
+                   " " u (kiss--get-download-utility-arguments) cache-path)))))
 
-        ('local
-         (kiss--file-exists-p
-          (if (string-match-p (rx bol "/") u) u
-            (concat (car (kiss-search p)) "/" u))))))))
+          ('local
+           (kiss--file-exists-p
+            (if (string-match-p (rx bol "/") u) u
+              (concat (car (kiss-search p)) "/" u)))))))))
 
 (cl-defmethod kiss--source-get-local-checksum ((obj kiss-source))
   (with-slots
@@ -487,8 +488,8 @@ Valid strings: bwrap, proot."
              (car))))
 
     (setq obj (make-instance 'kiss-source :type type :uri uri))
-    (when c-or-b    (oset obj :commit-or-branch c-or-b))
-    (when extr-path (oset obj :extracted-path extr-path))
+    (oset obj :commit-or-branch (if (eq c-or-b nil) "" c-or-b))
+    (oset obj :extracted-path (if (eq extr-path nil) "" extr-path))
     obj))
 
 (ert-deftest kiss--string-to-source-obj ()
