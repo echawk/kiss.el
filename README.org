@@ -164,7 +164,10 @@ Here is an example adding lz4 support & setting it as the default to kiss.el:
 
 (setq kiss-valid-compress (cons "lz4" kiss-valid-compress))
 (setq kiss-compress "lz4")
-(setq kiss-compress-alist (cons '("lz4" . "lz4 -c") kiss-compress-alist))
+(setq kiss-compress-alist
+      (cons '("lz4" . "lz4 -c") kiss-compress-alist))
+(setq kiss-decompress-alist
+      (cons `(,(rx "lz4" eol) . "lz4 -dc") kiss-decompress-alist))
 
 #+end_src
 
