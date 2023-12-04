@@ -1067,6 +1067,7 @@ However, `file-exists-p' and `file-symlink-p' are fundamentally broken when it
 comes to broken symlinks.  Hence the need for this function.
 This function returns t if FILE-PATH exists and nil if it doesn't."
   (or
+   (kiss--file-is-directory-p file-path)
    (kiss--file-is-regular-file-p file-path)
    (kiss--file-is-symbolic-link-p file-path)))
 
