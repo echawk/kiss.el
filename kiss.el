@@ -2257,9 +2257,8 @@ are the same."
 
 (defun kiss--pkg-sources-available-p (pkg)
   "(I) Return t if all of the sources for PKG are available locally, nil otherwise."
-  (not (member nil (mapcar
-                    #'file-exists-p
-                    (kiss--get-pkg-sources-cache-path pkg)))))
+  (seq-reduce (lambda (x y) (and x y))
+              (mapcar #'file-exists-p (kiss--get-pkg-sources-cache-path pkg)) t))
 
 ;; pkg_source_tar()
 (defun kiss--extract-tarball (tarball dir)
