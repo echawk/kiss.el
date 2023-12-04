@@ -162,12 +162,10 @@ Here is an example adding lz4 support & setting it as the default to kiss.el:
 
 #+begin_src elisp
 
-(setq kiss-valid-compress (cons "lz4" kiss-valid-compress))
+(add-to-list kiss-valid-compress "lz4")
 (setq kiss-compress "lz4")
-(setq kiss-compress-alist
-      (cons '("lz4" . "lz4 -c") kiss-compress-alist))
-(setq kiss-decompress-alist
-      (cons `(,(rx "lz4" eol) . "lz4 -dc") kiss-decompress-alist))
+(add-to-list kiss-compress-alist '("lz4" . "lz4 -c"))
+(add-to-list kiss-decompress-alist `(,(rx "lz4" eol) . "lz4 -dc"))
 
 #+end_src
 
