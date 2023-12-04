@@ -142,6 +142,15 @@
   :type 'string
   :options kiss-valid-download-utils)
 
+(defcustom kiss-get-alist
+  '(("aria2c" . " -d / -o ")
+    ("axel"   . " -o ")
+    ("curl"   . " -fLo ")
+    ("wget"   . " -O ")
+    ("wget2"  . " -O "))
+  "Association List for looking up the proper arguments for a given 'kiss-get'."
+  :type 'alist)
+
 (defcustom kiss-valid-shasum-utils
   '("openssl" "sha256sum" "sha256" "shasum" "digest")
   "List of valid sha256sum utils for kiss.el"
@@ -2235,15 +2244,9 @@ are the same."
   "(I) Make a temporary file using the `mktemp' utility."
   (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
 
-;; FIXME: make this an alist like the compression stuff.
 (defun kiss--get-download-utility-arguments ()
   "(I) Get the proper arguments for the `kiss-get' utility."
-  (pcase kiss-get
-    ("aria2c" " -d / -o ")
-    ("axel"   " -o ")
-    ("curl"   " -fLo ")
-    ("wget"   " -O ")
-    ("wget2"  " -O ")))
+  (cdr (assoc kiss-get kiss-get-alist)))
 
 ;; (kiss--get-pkg-sources-cache-path "kiss")
 (defun kiss--get-pkg-sources-cache-path (pkg)
