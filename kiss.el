@@ -2122,6 +2122,8 @@ are the same."
        install-dir
        (concat kiss-bindir
                (kiss--get-pkg-bin-name pkg pkg-ver)))
+      (message (concat "Tarball saved as: " kiss-bindir
+                       (kiss--get-pkg-bin-name pkg pkg-ver)))
 
       (kiss--run-hook "post-package" pkg
                       (concat kiss-bindir
