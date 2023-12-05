@@ -2261,8 +2261,8 @@ are the same."
                      (kiss--get-pkg-order pkgs-l)))))
         ((atom pkgs-l)
          (progn
-           (kiss-download pkgs-l)
-           (kiss--build-pkg pkgs-l)))))
+           (when (kiss-download pkgs-l)
+             (kiss--build-pkg pkgs-l))))))
 
 ;; -> checksum     Generate checksums
 ;; ===========================================================================
