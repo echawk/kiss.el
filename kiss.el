@@ -2199,10 +2199,9 @@ are the same."
   (cond ((listp pkgs-l)
          (progn
            ;; Download the package sources now.
-           ;; FIXME: check to make sure everything downloaded successfully
-           (kiss-download pkgs-l)
-           (mapcar #'kiss--build-pkg
-                   (kiss--get-pkg-order pkgs-l))))
+           (when (kiss-download pkgs-l)
+             (mapcar #'kiss--build-pkg
+                     (kiss--get-pkg-order pkgs-l)))))
         ((atom pkgs-l)
          (progn
            (kiss-download pkgs-l)
