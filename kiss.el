@@ -784,6 +784,44 @@ Valid strings: bwrap, proot."
                (make-directory (concat name "/" (kiss--dirname file)) t)
                (copy-file (concat build-file-dir "/" file) (concat name "/" file))))))))))
 
+(defclass kiss-build-env ()
+  ((proc-dir
+    :initarg :proc-dir
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The directory where all the build files are located.")
+   (build-dir
+    :initarg :build-dir
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The directory where the sources are extracted to, and where the build takes place.")
+   (install-dir
+    :initarg :install-dir
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The directory where the built package will be installed to.")
+   (kiss-el-build
+    :initarg :kiss-el-build
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The path to the script resulting from 'kiss--build-make-script'.")
+   (log-dir
+    :initarg :log-dir
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The directory where the log file will be stored.")
+   (log-file
+    :initarg :log-file
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The path to the log file.")))
+
 (defun kiss--def-build-file (build-type) ;;&optional &rest args)
   "Return the proper shell commands to perform a build with BUILD-TYPE."
   (mapconcat
