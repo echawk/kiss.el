@@ -2259,15 +2259,19 @@ are the same."
 (defun kiss-download (pkgs-l)
   (interactive "sQuery: ")
   (cond ((listp pkgs-l)
-         (mapcar #'kiss-download pkgs-l))
+         (seq-reduce
+          (lambda (x y) (and x y))
+          (flatten-list (mapcar #'kiss-download pkgs-l)) t))
         ((atom pkgs-l)
+         ;; TODO: implement a seq-reduce to return a single value here?
          (thread-last
            pkgs-l
            (kiss-search)
            (car)
            (kiss--dir-to-kiss-package)
            (funcall (lambda (o) (slot-value o :sources)))
-           (mapcar #'kiss--source-download)))
+           (mapcar #'kiss--source-download)
+           (funcall (lambda (l) (seq-reduce (lambda (x y) (and x y)) l t)))))
         (t nil)))
 
 ;; (kiss-download '("kiss" "gdb"))
