@@ -1192,6 +1192,12 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (kiss--read-file
    (concat kiss-installed-db-dir pkg "/manifest")))
 
+(ert-deftest kiss-manifest ()
+  (should
+   (string=
+    (kiss--read-text (concat kiss-installed-db-dir "kiss/manifest"))
+    (kiss--manifest-to-string (kiss-manifest "kiss")))))
+
 ;; (benchmark-elapse (kiss-manifest "kiss"))
 
 (defun kiss--get-installed-manifest-files ()
