@@ -2032,6 +2032,51 @@ are the same."
                     (concat dir file)))))))
             package-needs-to-provide-lst)))))))
 
+;; FIXME: refactor this and make it a function instead of a macro -
+;; would like to not rely on the environment of the caller.
+;; I'm thinking that it should be possible to make a new
+;; eieio object for the build environment, which will allow this
+;; function to be pretty streamlined.
+(defmacro kiss--build-determine-build-cmd ()
+  `(if kiss-perfom-build-in-sandbox
+       ;; TODO: make these variables user configurable
+       (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
+             (fake-home-dir "/tmp/kiss-fake-home/"))
+
+         ;; TODO: make this user-configurable? making chroots is
+         ;; expensive...
+         ;; (when (kiss--file-is-directory-p fake-chroot-dir)
+         ;;   (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
+
+         (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
+         (make-directory fake-home-dir t)
+         (pcase kiss-sandbox-utility
+           ("proot"
+            (concat
+             "proot "
+             " -r " fake-chroot-dir " "
+             " -b " fake-home-dir ":" "/home" " "
+             " -b " (kiss--dirname k-el-build) ":" (kiss--dirname k-el-build) " "
+             " -b " (kiss--dirname build-script) ":" (kiss--dirname build-script) " "
+             " -b " build-dir ":" build-dir " "
+             " -b " install-dir ":" install-dir " "
+             " -b " log-dir ":" log-dir" "
+             " -w " build-dir " "
+             k-el-build))
+           ("bwrap"
+            (concat
+             "bwrap "
+             " --unshare-net "
+             ;; TODO: enforce / being read-only
+             " --bind " fake-chroot-dir " / "
+             " --bind " fake-home-dir " /home "
+             " --bind " (kiss--dirname k-el-build) " " (kiss--dirname k-el-build) " "
+             " --bind " (kiss--dirname build-script) " " (kiss--dirname build-script) " "
+             " --bind " build-dir " " build-dir " "
+             " --bind " install-dir " " install-dir " "
+             " --bind " log-dir " " log-dir " "
+             k-el-build))))
+     k-el-build))
 
 ;; FIXME: pretty sure we bug out whenever we try to build a package
 ;; with zero sources. we need to support that functionality
