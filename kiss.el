@@ -2143,46 +2143,54 @@ are the same."
 ;; I'm thinking that it should be possible to make a new
 ;; eieio object for the build environment, which will allow this
 ;; function to be pretty streamlined.
-(defmacro kiss--build-determine-build-cmd ()
-  `(if kiss-perfom-build-in-sandbox
-       ;; TODO: make these variables user configurable
-       (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
-             (fake-home-dir "/tmp/kiss-fake-home/"))
+(defun kiss--build-determine-build-cmd (build-env-obj pkg-obj)
+  (with-slots
+      ((proc-dir    :proc-dir)
+       (build-dir   :build-dir)
+       (install-dir :install-dir)
+       (k-el-build  :kiss-el-build)
+       (log-dir     :log-dir)
+       (log-file    :log-file))
+      build-env-obj
+    (if kiss-perfom-build-in-sandbox
+        ;; TODO: make these variables user configurable
+        (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
+              (fake-home-dir "/tmp/kiss-fake-home/"))
 
-         ;; TODO: make this user-configurable? making chroots is
-         ;; expensive...
-         ;; (when (kiss--file-is-directory-p fake-chroot-dir)
-         ;;   (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
+          ;; TODO: make this user-configurable? making chroots is
+          ;; expensive...
+          ;; (when (kiss--file-is-directory-p fake-chroot-dir)
+          ;;   (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
 
-         (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
-         (make-directory fake-home-dir t)
-         (pcase kiss-sandbox-utility
-           ("proot"
-            (concat
-             "proot "
-             " -r " fake-chroot-dir " "
-             " -b " fake-home-dir ":" "/home" " "
-             " -b " (kiss--dirname k-el-build) ":" (kiss--dirname k-el-build) " "
-             " -b " (kiss--dirname build-script) ":" (kiss--dirname build-script) " "
-             " -b " build-dir ":" build-dir " "
-             " -b " install-dir ":" install-dir " "
-             " -b " log-dir ":" log-dir" "
-             " -w " build-dir " "
-             k-el-build))
-           ("bwrap"
-            (concat
-             "bwrap "
-             " --unshare-net "
-             ;; TODO: enforce / being read-only
-             " --bind " fake-chroot-dir " / "
-             " --bind " fake-home-dir " /home "
-             " --bind " (kiss--dirname k-el-build) " " (kiss--dirname k-el-build) " "
-             " --bind " (kiss--dirname build-script) " " (kiss--dirname build-script) " "
-             " --bind " build-dir " " build-dir " "
-             " --bind " install-dir " " install-dir " "
-             " --bind " log-dir " " log-dir " "
-             k-el-build))))
-     k-el-build))
+          (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
+          (make-directory fake-home-dir t)
+          (pcase kiss-sandbox-utility
+            ("proot"
+             (concat
+              "proot "
+              " -r " fake-chroot-dir " "
+              " -b " fake-home-dir ":" "/home" " "
+              " -b " (kiss--dirname k-el-build) ":" (kiss--dirname k-el-build) " "
+              " -b " (kiss--dirname (slot-value pkg-obj :build-file)) ":" (kiss--dirname (slot-value pkg-obj :build-file)) " "
+              " -b " build-dir ":" build-dir " "
+              " -b " install-dir ":" install-dir " "
+              " -b " log-dir ":" log-dir" "
+              " -w " build-dir " "
+              k-el-build))
+            ("bwrap"
+             (concat
+              "bwrap "
+              " --unshare-net "
+              ;; TODO: enforce / being read-only
+              " --bind " fake-chroot-dir " / "
+              " --bind " fake-home-dir " /home "
+              " --bind " (kiss--dirname k-el-build) " " (kiss--dirname k-el-build) " "
+              " --bind " (kiss--dirname build-script) " " (kiss--dirname build-script) " "
+              " --bind " build-dir " " build-dir " "
+              " --bind " install-dir " " install-dir " "
+              " --bind " log-dir " " log-dir " "
+              k-el-build))))
+      k-el-build)))
 
 ;; FIXME: pretty sure we bug out whenever we try to build a package
 ;; with zero sources. we need to support that functionality
@@ -2190,11 +2198,14 @@ are the same."
 ;; FIXME: have this function take a kiss-package obj
 (defun kiss--build-pkg (pkg)
   "(I) Build PKG, return t if PKG was built successfully, nil otherwise."
-  (let ((missing-deps (kiss--get-pkg-missing-dependencies pkg))
-        (pkg-ver (replace-regexp-in-string
-                  " " "-"
-                  (string-trim-right (kiss--get-pkg-version pkg)))))
+  (let* ((pkg-obj       (kiss--search-pkg-obj pkg))
+         (build-env-obj (kiss--build-env-for-package pkg-obj))
+         (missing-deps (kiss--get-pkg-missing-dependencies pkg))
+         (pkg-ver (replace-regexp-in-string
+                   " " "-"
+                   (string-trim-right (kiss--get-pkg-version pkg)))))
 
+    ;; TODO: cleanup build-env if we can't build stuff.
     ;; Only check for missing dependencies when kiss-force is nil.
     (unless kiss-force
       ;; Install/build missing dependencies
@@ -2208,30 +2219,28 @@ are the same."
         (error (concat "missing dependencies: "
                        (kiss--lst-to-str missing-deps)))))
 
-    (let* ((build-cmd       "")
-           (build-exit-code 1)
-           (build-script    (concat (car (kiss-search pkg)) "/build"))
-           (proc-dir        (kiss--get-tmp-destdir))
-           (build-dir       (concat proc-dir "/build/" pkg "/"))
-           (install-dir     (concat proc-dir "/pkg/" pkg))
-           (k-el-build      (concat proc-dir "/build-" pkg "-kiss-el"))
-           (log-dir         (concat kiss-logdir (format-time-string "%Y-%m-%d" (current-time)) "/"))
-           (log-file        (concat log-dir pkg "-" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
-
+    (with-slots
+        ((proc-dir    :proc-dir)
+         (build-dir   :build-dir)
+         (install-dir :install-dir)
+         (k-el-build  :kiss-el-build)
+         (log-dir     :log-dir)
+         (log-file    :log-file))
+        build-env-obj
 
       (kiss--run-hook "pre-extract" pkg install-dir)
 
       ;; Extract pkg's sources to the build directory.
       (message (concat "Extracting " pkg "..."))
       (kiss--extract-pkg-sources pkg build-dir)
-      (make-directory install-dir t)
-      (make-directory log-dir t)
-      (kiss--build-make-script k-el-build
-                               build-script
-                               build-dir
-                               install-dir
-                               pkg-ver
-                               log-file)
+      ;; (make-directory install-dir t)
+      ;; (make-directory log-dir t)
+      ;; (kiss--build-make-script k-el-build
+      ;;                          build-script
+      ;;                          build-dir
+      ;;                          install-dir
+      ;;                          pkg-ver
+      ;;                          log-file)
 
       ;; NOTE: will need to be somewhat more clever when
       ;; executing the build script, since I would like to be able
@@ -2248,22 +2257,13 @@ are the same."
       ;; achieve similar isolation.
       ;; https://docs.freebsd.org/en/books/handbook/jails/
 
-      ;; TODO: add check for linux...
-      (setq build-cmd (kiss--build-determine-build-cmd))
-
-      (message "-----")
-      (message build-cmd)
-      (message "-----")
-
       ;; FIXME: will need to break out the code below
       ;; so it can handle being called from an async process's
       ;; finish func.
       ;; https://github.com/jwiegley/emacs-async
 
-      (setq build-exit-code (shell-command build-cmd))
-      (message "%s" build-exit-code)
-
-      (when (> build-exit-code 0)
+      (when (> (shell-command
+                (kiss--build-determine-build-cmd build-env-obj pkg-obj)) 0)
         (kiss--run-hook "build-fail" pkg build-dir)
         ;; FIXME: cleanup
         (error "build failed"))
