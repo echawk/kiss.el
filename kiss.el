@@ -429,7 +429,10 @@ Valid strings: bwrap, proot."
       (_ (kiss--b3 (kiss--source-get-cache-path obj))))))
 
 (cl-defmethod kiss--source-validate-p ((obj kiss-source))
-  (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj)))
+  (if (string= (slot-value obj :checksum) "SKIP")
+      t
+    (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj))))
+
 
 ;; FIXME: write a test for this + support hg&fossil
 (cl-defmethod kiss--source-to-string ((obj kiss-source))
