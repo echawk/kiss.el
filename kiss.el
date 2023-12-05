@@ -1039,6 +1039,14 @@ Valid strings: bwrap, proot."
        (nthcdr 2 (directory-files kiss-choices-db-dir)))
     (kiss--pkg-swap pkg path)))
 
+(ert-deftest kiss-alternatives ()
+  (should
+   (not
+    (seq-difference
+     (mapcar (lambda (l) (nth 2 l)) (kiss-alternatives))
+     (string-split
+      (shell-command-to-string (concat "ls " kiss-choices-db-dir)) "\n" t)))))
+
 ;; (benchmark-elapse (kiss-alternatives))
 ;; (kiss-alternatives "util-linux" "/usr/bin/mkswap")
 ;; (kiss-alternatives "busybox" "/usr/bin/mkswap")
