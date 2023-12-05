@@ -924,8 +924,7 @@ Valid strings: bwrap, proot."
 
 (defun kiss--get-owner-name (file-path)
   "(I) Return the owner name of FILE-PATH."
-  (kiss--get-user-from-uid
-   (kiss--get-owner file-path)))
+  (kiss--get-user-from-uid (kiss--get-owner file-path)))
 
 (defun kiss--am-owner-p (file-path)
   "(I) Return t if the current LOGNAME owns the FILE-PATH, nil otherwise."
