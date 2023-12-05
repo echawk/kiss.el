@@ -635,6 +635,25 @@ Valid strings: bwrap, proot."
       pkg-obj
     (seq-remove #'kiss--pkg-is-installed-p (append depends make-depends))))
 
+(cl-defmethod kiss--package-extract-sources ((pkg-obj kiss-package) dir)
+  (dolist (source (slot-value pkg-obj :sources))
+    (with-slots
+        ((type      :type)
+         (extr-path :extracted-path))
+        source
+      (let ((cache  (kiss--source-get-cache-path source))
+            (outdir (concat dir "/" extr-path)))
+        (unless (kiss--file-is-directory-p outdir)
+          (make-directory outdir t))
+
+        (pcase type
+          ((or 'git 'hg 'fossil)
+           (shell-command (concat "cp -PRf " cache "/. "  outdir)))
+          (_
+           (if (kiss--str-tarball-p cache)
+               (kiss--extract-tarball cache outdir)
+             (shell-command (concat "cp -PRf " cache " " outdir)))))))))
+
 (defun kiss--dir-to-kiss-package (dir-path)
   (let ((name          (kiss--basename dir-path))
         (build-file    (concat dir-path "/build"))
