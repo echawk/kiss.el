@@ -2143,48 +2143,7 @@ are the same."
       ;; https://docs.freebsd.org/en/books/handbook/jails/
 
       ;; TODO: add check for linux...
-      (if kiss-perfom-build-in-sandbox
-          ;; TODO: make these variables user configurable
-          (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
-                (fake-home-dir "/tmp/kiss-fake-home/"))
-
-            ;; TODO: make this user-configurable? making chroots is
-            ;; expensive...
-            ;; (when (kiss--file-is-directory-p fake-chroot-dir)
-            ;;   (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
-
-            (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
-            (make-directory fake-home-dir t)
-            (setq
-             build-cmd
-             (pcase kiss-sandbox-utility
-               ("proot"
-                (concat
-                 "proot "
-                 " -r " fake-chroot-dir " "
-                 " -b " fake-home-dir ":" "/home" " "
-                 " -b " (kiss--dirname k-el-build) ":" (kiss--dirname k-el-build) " "
-                 " -b " (kiss--dirname build-script) ":" (kiss--dirname build-script) " "
-                 " -b " build-dir ":" build-dir " "
-                 " -b " install-dir ":" install-dir " "
-                 " -b " log-dir ":" log-dir" "
-                 " -w " build-dir " "
-                 k-el-build))
-               ("bwrap"
-                (concat
-                 "bwrap "
-                 " --unshare-net "
-                 ;; TODO: enforce / being read-only
-                 " --bind " fake-chroot-dir " / "
-                 " --bind " fake-home-dir " /home "
-                 " --bind " (kiss--dirname k-el-build) " " (kiss--dirname k-el-build) " "
-                 " --bind " (kiss--dirname build-script) " " (kiss--dirname build-script) " "
-                 " --bind " build-dir " " build-dir " "
-                 " --bind " install-dir " " install-dir " "
-                 " --bind " log-dir " " log-dir " "
-                 k-el-build))
-               (_ (error (concat kiss-sandbox-utility " is not supported!"))))))
-        (setq build-cmd k-el-build))
+      (setq build-cmd (kiss--build-determine-build-cmd))
 
       (message "-----")
       (message build-cmd)
