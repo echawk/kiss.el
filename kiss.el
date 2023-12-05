@@ -2412,23 +2412,8 @@ are the same."
 ;; pkg_extract() in kiss
 (defun kiss--extract-pkg-sources (pkg dir)
   "(I) Extract the cached sources of PKG to DIR."
-
-  (dolist (source
-           (slot-value
-            (kiss--dir-to-kiss-package (car (kiss-search pkg))) :sources))
-
-    (let ((cache  (kiss--source-get-cache-path source))
-          (outdir (concat dir "/" (slot-value source :extracted-path))))
-      (unless (kiss--file-is-directory-p outdir)
-        (make-directory outdir t))
-
-      (pcase (slot-value source :type)
-        ('git (shell-command (concat "cp -PRf " cache "/. "  outdir)))
-        (_
-         (if (kiss--str-tarball-p cache)
-             (kiss--extract-tarball cache outdir)
-           (shell-command (concat "cp -PRf " cache " " outdir))))))))
-
+  (kiss--package-extract-sources
+   (kiss--dir-to-kiss-package (car (kiss-search pkg))) dir))
 
 (defun kiss--str-tarball-p (str)
   "(I) Predicate to determine if STR matches the regex for a tarball."
