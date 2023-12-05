@@ -2742,6 +2742,23 @@ are the same."
     (when (kiss--pkg-is-installed-p pkg-q)
       (list pkg-q (kiss--get-installed-pkg-version pkg-q))))))
 
+(ert-deftest kiss-list ()
+  (should
+   (and
+    (equal
+     (mapcar #'car (kiss-list))
+     (string-split
+      (shell-command-to-string (concat "ls " kiss-installed-db-dir )) "\n" t))
+    (equal
+     (mapcar #'cdr (kiss-list '("kiss" "git")))
+     (thread-last
+       '("kiss" "git")
+       (mapcar (lambda (pkg) (concat kiss-installed-db-dir pkg "/version")))
+       (mapcar #'kiss--read-file)))
+    (string=
+     (cadr (kiss-list "kiss"))
+     (car (kiss--read-file (concat kiss-installed-db-dir "kiss/version")))))))
+
 ;; -> remove       Remove packages
 ;; ===========================================================================
 
