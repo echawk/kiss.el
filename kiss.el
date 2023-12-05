@@ -1219,6 +1219,12 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
        (string-split
         (replace-regexp-in-string kiss-installed-db-dir "" cmd-out) "/")))))
 
+(ert-deftest kiss-owns ()
+  (should
+   (string=
+    "kiss"
+    (kiss-owns (executable-find "kiss")))))
+
 ;; (cl-mapcar
 ;;  (lambda (file)
 ;;    (list (kiss-owns file) file))
