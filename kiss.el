@@ -822,6 +822,44 @@ Valid strings: bwrap, proot."
     :custom string
     :documentation "The path to the log file.")))
 
+(defun kiss--build-env-for-package (pkg-obj)
+  ;; TODO: when/if i implement the ability for build-files to be
+  ;; text of the commands to run, this is where the logic will be at.
+  (with-slots
+      ((build-file :build-file)
+       (name       :name)
+       (version    :version))
+      pkg-obj
+    (let*
+        ((proc-dir        (kiss--get-tmp-destdir))
+         (build-dir       (concat proc-dir "/build/" name "/"))
+         (install-dir     (concat proc-dir "/pkg/" name ))
+         (k-el-build      (concat proc-dir "/build-" name "-kiss-el"))
+         (log-dir
+          (concat kiss-logdir
+                  (format-time-string "%Y-%m-%d" (current-time)) "/"))
+         (log-file
+          (concat log-dir name "-"
+                  (format-time-string "%Y-%m-%d-%H:%M" (current-time)))))
+
+      (make-directory install-dir t)
+      (make-directory log-dir t)
+      (kiss--build-make-script k-el-build
+                               build-file
+                               build-dir
+                               install-dir
+                               version
+                               log-file)
+
+      (make-instance
+       'kiss-build-env
+       :proc-dir      proc-dir
+       :build-dir     build-dir
+       :install-dir   install-dir
+       :kiss-el-build k-el-build
+       :log-dir       log-dir
+       :log-file      log-file))))
+
 (defun kiss--def-build-file (build-type) ;;&optional &rest args)
   "Return the proper shell commands to perform a build with BUILD-TYPE."
   (mapconcat
