@@ -881,9 +881,16 @@ Valid strings: bwrap, proot."
 (ert-deftest kiss--uid ()
   (let ((user "root"))
     (should
-     (string= user
-              (kiss--get-user-from-uid
-               (kiss--get-uid-from-user user))))))
+     (and
+      (string=
+       (user-login-name)
+       (kiss--get-user-from-uid (user-uid)))
+      (eq
+       (user-uid)
+       (kiss--get-uid-from-user (user-login-name)))
+      (string= user
+               (kiss--get-user-from-uid
+                (kiss--get-uid-from-user user)))))))
 
 (defun kiss--get-owner (file-path)
   "(I) Return the owner uid of FILE-PATH."
