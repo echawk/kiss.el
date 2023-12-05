@@ -3012,6 +3012,11 @@ are the same."
                       `(,@kiss-path
                         ,kiss-installed-db-dir))))
 
+(defun kiss--search-pkg-obj (q)
+  (let ((res (kiss-search q)))
+    (when res
+      (kiss--dir-to-kiss-package (car res)))))
+
 ;; -> update       Update the repositories
 ;; ===========================================================================
 
