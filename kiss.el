@@ -2031,6 +2031,34 @@ are the same."
                     (concat dir file)))))))
             package-needs-to-provide-lst)))))))
 
+(cl-defmethod kiss--package-build ((pkg-obj kiss-package))
+  (with-slots
+      ((name         :name)
+       (version      :version)
+       (release      :release)
+       (build-file   :build-file)
+       (depends      :depends)
+       (make-depends :make-depends)
+       (sources      :sources))
+      pkg-obj
+
+    ;; Check for missing deps
+    (unless kiss-force
+      (let ((missing-deps (kiss--package-get-missing-dependencies pkg-obj)))
+        (when missing-deps
+          (mapc #'kiss--try-install-build missing-deps))
+        (setq missing-deps (kiss--package-get-missing-dependencies pkg-obj))
+        (when missing-deps
+          (error (concat "Missing Dependencies: "
+                         (kiss--lst-to-str missing-deps))))))
+
+    ;; TODO: need to make a kiss-build-env object here.
+
+    ;; Extract package sources to dir
+    ;; (kiss--package-extract-sources pkg-obj build-dir)
+
+    ))
+
 ;; FIXME: refactor this and make it a function instead of a macro -
 ;; would like to not rely on the environment of the caller.
 ;; I'm thinking that it should be possible to make a new
