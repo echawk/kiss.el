@@ -2516,6 +2516,14 @@ are the same."
     (mapcar #'kiss--rwx-lst-to-octal)
     (funcall (lambda (lst) (mapconcat #'number-to-string lst "")))))
 
+(ert-deftest kiss--file-rwx ()
+  (should
+   (and
+    (string= "755" (kiss--file-rwx "/usr/bin/"))
+    (string= "750" (kiss--file-rwx "/root/"))
+    (string= "755" (kiss--file-rwx "/usr/bin/git"))
+    (string= "755" (kiss--file-rwx "/usr/bin/kiss")))))
+
 (defun kiss--dirname (file-path)
   (mapconcat
    #'identity
