@@ -628,6 +628,13 @@ Valid strings: bwrap, proot."
             (unless (string-empty-p kiss-compress)
               (concat "." kiss-compress)))))
 
+(cl-defmethod kiss--package-get-missing-dependencies ((pkg-obj kiss-package))
+  (with-slots
+      ((depends      :depends)
+       (make-depends :make-depends))
+      pkg-obj
+    (seq-remove #'kiss--pkg-is-installed-p (append depends make-depends))))
+
 (defun kiss--dir-to-kiss-package (dir-path)
   (let ((name          (kiss--basename dir-path))
         (build-file    (concat dir-path "/build"))
