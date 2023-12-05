@@ -3002,9 +3002,7 @@ are the same."
 
 (defun kiss--get-pkg-order (pkgs-lst)
   "(I) Get the proper build order for the packages in PKGS-LST."
-  (seq-filter
-   (lambda (pkg) (member pkg pkgs-lst))
-   (kiss--get-pkg-dependency-order pkgs-lst)))
+  (seq-intersection (kiss--get-pkg-dependency-order pkgs-lst) pkgs-lst))
 
 ;; This returns the proper order to build all of the out of date packages.
 ;; (kiss--get-pkg-order (kiss--get-out-of-date-pkgs))
