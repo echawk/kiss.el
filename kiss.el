@@ -2588,10 +2588,14 @@ are the same."
       (kiss--remove-file temp-file)
       res)))
 
-;; FIXME: this *technically* doesn't report numbers in octal?
 (defun kiss--rwx-lst-to-octal (lst)
-  ;; TODO: add assert here to ensure that there are no extra chars in the lst
-  ;;(string-to-list "rwx-")
+  (cl-assert
+   (seq-reduce
+    (lambda (a b) (and a b))
+    (mapcar
+     (lambda (elt) (member elt (string-to-list "rwx-")))
+     (flatten-list lst)) t))
+
   (let ((vals '(4 2 1))
         (tot 0))
     (message "%s" (length lst))
