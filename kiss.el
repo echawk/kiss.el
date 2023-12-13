@@ -2131,12 +2131,27 @@ are the same."
           (error (concat "Missing Dependencies: "
                          (kiss--lst-to-str missing-deps))))))
 
-    ;; TODO: need to make a kiss-build-env object here.
+    (let ((build-env-obj (kiss--build-env-for-package pkg-obj)))
 
-    ;; Extract package sources to dir
-    ;; (kiss--package-extract-sources pkg-obj build-dir)
+      (kiss--run-hook "pre-extract" pkg install-dir)
 
-    ))
+      ;; Extract package sources to dir
+      (kiss--package-extract-sources pkg-obj build-dir)
+
+      (kiss--run-hook "pre-build" name build-dir)
+
+      (message (concat "Building " pkg " at version: " pkg-ver))
+
+      (when (> (shell-command
+                (kiss--build-determine-build-cmd build-env-obj pkg-obj))
+               0)
+        (kiss--run-hook "build-fail" name
+                        (slot-value build-env-obj :build-dir))
+        (error (concat "Build of " name " at " version " failed!")))
+
+      (kiss--run-hook "post-build" pkg install-dir)
+
+      )))
 
 ;; FIXME: refactor this and make it a function instead of a macro -
 ;; would like to not rely on the environment of the caller.
