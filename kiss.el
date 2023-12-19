@@ -961,7 +961,7 @@ Valid strings: bwrap, proot."
     ('darwin
      ;; macOS ships a working version of id.
      (shell-command-to-string (concat "id -un " uid)))
-    ((or 'gnu/linux 'berkley-unix)
+    ((or 'gnu/linux 'berkeley-unix)
      (let ((regex (rx bol
                       (group-n 1 (1+ (not ":"))) ":"
                       (0+ (not ":")) ":"
