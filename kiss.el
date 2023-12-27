@@ -209,13 +209,13 @@
   :type 'alist)
 
 (defcustom kiss-decompress-alist
-  `((,(rx ".tar" eol)             . "cat ")
-    (,(rx (or ".tbz" ".bz2") eol) . "bzip2 -dc ")
-    (,(rx ".lz" eol)              . "lzip -dc ")
-    (,(rx (or ".tgz" ".gz") eol)  . "gzip -dc ")
-    (,(rx ".lzma" eol)            . "lzma -dcT0 ")
-    (,(rx (or ".txz" ".xz") eol)  . "xz -dcT0 ")
-    (,(rx ".zst" eol)             . "zstd -dcT0 "))
+  `((,(rx ".tar" eol)                   . "cat ")
+    (,(rx "." (? "t") "bz" (? "2") eol) . "bzip2 -dc ")
+    (,(rx ".lz" eol)                    . "lzip -dc ")
+    (,(rx "." (? "t") "gz" eol)         . "gzip -dc ")
+    (,(rx ".lzma" eol)                  . "lzma -dcT0 ")
+    (,(rx "." (? "t") "xz" eol)         . "xz -dcT0 ")
+    (,(rx ".zst" eol)                   . "zstd -dcT0 "))
   "Association List for determining how to decompress a tarball."
   :type 'alist)
 
