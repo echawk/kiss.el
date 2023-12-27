@@ -1476,10 +1476,11 @@ when using this function compared with the iterative version."
 (defun kiss--get-pkg-dependency-order (pkg-lst &optional installed-p)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
   ;; FIXME: need to do some error checking here w/ tsort
-  (tsort
-   (if installed-p
-       (kiss--get-pkg-dependency-graph pkg-lst t)
-     (kiss--get-pkg-dependency-graph pkg-lst))))
+  (let ((res (tsort
+              (if installed-p
+                  (kiss--get-pkg-dependency-graph pkg-lst t)
+                (kiss--get-pkg-dependency-graph pkg-lst)))))
+    (if res res (error "Circular dependency detected!")))
 
 (defun kiss--remove-redundant-dependencies (dep-lst)
   "(I) Remove redundant dependencies from DEP-LST."
