@@ -1480,7 +1480,7 @@ when using this function compared with the iterative version."
               (if installed-p
                   (kiss--get-pkg-dependency-graph pkg-lst t)
                 (kiss--get-pkg-dependency-graph pkg-lst)))))
-    (if res res (error "Circular dependency detected!")))
+    (if res res (error "Circular dependency detected!"))))
 
 (defun kiss--remove-redundant-dependencies (dep-lst)
   "(I) Remove redundant dependencies from DEP-LST."
