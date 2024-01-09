@@ -452,8 +452,7 @@ Valid strings: bwrap, proot."
        (_ ""))
      uri
      (when (and (not (string-empty-p commit-or-branch))
-                (not (string= commit-or-branch "HEAD"))
-                (eq type 'git))
+                (pcase type ((or 'git 'hg 'fossil) t)))
        (concat "@" commit-or-branch))
      (unless (string-empty-p extracted-path)
        (concat " " extracted-path)))))
