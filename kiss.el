@@ -796,6 +796,12 @@ Valid strings: bwrap, proot."
     :type string
     :custom string
     :documentation "The directory where the sources are extracted to, and where the build takes place.")
+   (build-script
+    :initarg :build-script
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The build script.")
    (install-dir
     :initarg :install-dir
     :initform ""
@@ -854,6 +860,7 @@ Valid strings: bwrap, proot."
        'kiss-build-env
        :proc-dir      proc-dir
        :build-dir     build-dir
+       :build-script  build-file
        :install-dir   install-dir
        :kiss-el-build k-el-build
        :log-dir       log-dir
@@ -2162,6 +2169,7 @@ are the same."
   (with-slots
       ((proc-dir    :proc-dir)
        (build-dir   :build-dir)
+       (build-script :build-script)
        (install-dir :install-dir)
        (k-el-build  :kiss-el-build)
        (log-dir     :log-dir)
