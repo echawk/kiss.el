@@ -249,6 +249,11 @@ would be broken or not present on the system."
   "A list of absolute paths to executable files."
   :type '(string))
 
+(defcustom kiss-build-env-hook
+  nil
+  "A list of paths to executable files."
+  :type '(string))
+
 (defcustom kiss-make-chroot-strategy 'prohibit-user-alternatives
   "Denotes the strategy that kiss--make-chroot-dir-for-pkg will use."
   :type 'symbol
@@ -1809,6 +1814,12 @@ are the same."
     ;; TODO: see if I can't implement something like this?
     ;; https://codeberg.org/kiss-community/repo/issues/121
     ;; thinking of doing kiss-build-env-hooks, which will take the package name
+    (when kiss-build-env-hook
+      (mapcar
+       (lambda (hook)
+         (concat
+          "eval $(" hook " " (last (string-split build-dir "/" t)) ")\n"))
+       kiss-build-env-hook))
 
     build-script " " install-dir " " pkg-ver " > " log-file)
    ;; Write this script to a temporary location.
