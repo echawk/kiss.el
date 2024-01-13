@@ -439,7 +439,6 @@ Valid strings: bwrap, proot."
     (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj))))
 
 
-;; FIXME: write a test for this + support hg&fossil
 (cl-defmethod kiss--source-to-string ((obj kiss-source))
   (with-slots
       ((package :package)
@@ -503,7 +502,7 @@ Valid strings: bwrap, proot."
                (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
                (nth 1)))
             (_ "")))
-    (setq extr-path (nth 1 (string-split str " " t)))
+    (setq extr-path (nth 1 str-split-on-spaces))
     (setq uri
           (replace-regexp-in-string
            (rx bol (or "git+" "hg+" "fossil+"))
@@ -1199,9 +1198,6 @@ Valid strings: bwrap, proot."
      (concat "mv -f " temp-f " " manifest-f)
      owner)))
 
-;; (kiss--manifest-to-string (kiss-manifest "xdo"))
-
-;; FIXME: impl kiss--file-executable-p
 (defun kiss--file-is-executable-p (file-path)
   "(I) Return T if FILE-PATH exists and is executable."
   (eq 0 (shell-command (concat "test -x "
@@ -1225,10 +1221,10 @@ Valid strings: bwrap, proot."
 
 (defun kiss--file-identify (file-path)
   "(I) Identify FILE-PATH as a symbol representing what kind of file it is."
-  (cond
-   ((kiss--file-is-directory-p     file-path) 'directory)
-   ((kiss--file-is-symbolic-link-p file-path) 'symlink)
-   ((kiss--file-is-regular-file-p  file-path) 'file)))
+  (pcase file-path
+    ((pred kiss--file-is-directory-p)     'directory)
+    ((pred kiss--file-is-symbolic-link-p) 'symlink)
+    ((pred kiss--file-is-regular-file-p)  'file)))
 
 ;; FIXME: go back through the code and make this also check if a directory
 ;; exists as well.
@@ -1347,7 +1343,6 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 ;; (rgrep "/usr/bin/awk$" "manifest" "/var/db/kiss/installed/")
 
-;; FIXME: this function will include '("")  in the return.
 ;;;###autoload
 (defun kiss-preferred ()
   (mapcar
@@ -1389,7 +1384,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         (kiss--lst-to-str
          (kiss--get-installed-manifest-files))
         " /dev/null"))))
-    "\n")))
+    "\n" t)))
 
 (defun kiss--get-dependencies-from-file (file-path)
   "(I) Return the dependencies in FILE-PATH."
@@ -1486,7 +1481,6 @@ when using this function compared with the iterative version."
 
 (defun kiss--get-pkg-dependency-order (pkg-lst &optional installed-p)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
-  ;; FIXME: need to do some error checking here w/ tsort
   (let ((res (tsort
               (if installed-p
                   (kiss--get-pkg-dependency-graph pkg-lst t)
@@ -1557,8 +1551,8 @@ when using this function compared with the iterative version."
 
 ;; (kiss--get-pkg-hard-dependents "mpfr")
 
-(defun kiss--get-pkg-missing-dependencies (pkg)
 ;; FIXME: have this function take a package object
+(defun kiss--get-pkg-missing-dependencies (pkg)
   "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
   (seq-remove
    #'kiss--pkg-is-installed-p
