@@ -2136,31 +2136,23 @@ are the same."
     ;; Check for missing deps
     (unless kiss-force
       (let ((missing-deps (kiss--package-get-missing-dependencies pkg-obj)))
-        (when missing-deps
-          (mapc #'kiss--try-install-build missing-deps))
+        (when missing-deps (mapc #'kiss--try-install-build missing-deps))
         (setq missing-deps (kiss--package-get-missing-dependencies pkg-obj))
-        (when missing-deps
-          (error (concat "Missing Dependencies: "
-                         (kiss--lst-to-str missing-deps))))))
+        (when missing-deps (error (concat "Missing Dependencies: "
+                                          (kiss--lst-to-str missing-deps))))))
 
     (let ((build-env-obj (kiss--build-env-for-package pkg-obj)))
-
       (kiss--run-hook "pre-extract" pkg install-dir)
-
-      ;; Extract package sources to dir
       (kiss--package-extract-sources pkg-obj build-dir)
 
       (kiss--run-hook "pre-build" name build-dir)
-
       (message (concat "Building " pkg " at version: " pkg-ver))
 
       (when (> (shell-command
                 (kiss--build-determine-build-cmd build-env-obj pkg-obj))
                0)
-        (kiss--run-hook "build-fail" name
-                        (slot-value build-env-obj :build-dir))
+        (kiss--run-hook "build-fail" name (slot-value build-env-obj :build-dir))
         (error (concat "Build of " name " at " version " failed!")))
-
       (kiss--run-hook "post-build" pkg install-dir)
 
       )))
