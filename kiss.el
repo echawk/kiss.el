@@ -870,34 +870,6 @@ Valid strings: bwrap, proot."
        :log-dir       log-dir
        :log-file      log-file))))
 
-(defun kiss--def-build-file (build-type) ;;&optional &rest args)
-  "Return the proper shell commands to perform a build with BUILD-TYPE."
-  (mapconcat
-   #'identity
-   (append
-    '("#!/bin/sh -e"
-      "export DESTDIR=$1")
-    (pcase build-type
-      ('meson
-       '("meson setup -Dprefix=/usr output"
-         "ninja -C output"
-         "ninja -C output install"))
-      ('cmake
-       '("cmake -B build -DCMAKE_INSTALL_PREFIX=/usr"
-         "cmake --build build"
-         "cmake --install build"))
-      ('gnu
-       '("./configure --prefix=/usr --sysconfdir=/etc"
-         "make"
-         "make install"))
-      ('cargo
-       '("cargo fetch"
-         "cargo build --release"
-         "mkdir -p $1/usr/bin/"
-         "cp target/release/* $1/usr/bin/"))
-      (_ (error (concat (symbol-name build-type) " is not supported!")))))
-   "\n"))
-
 ;;(slot-value (kiss--dir-to-kiss-package (car (kiss-search "kiss"))) :sources)
 
 ;; ===========================================================================
