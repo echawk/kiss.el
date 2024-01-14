@@ -2165,11 +2165,6 @@ are the same."
 
       )))
 
-;; FIXME: refactor this and make it a function instead of a macro -
-;; would like to not rely on the environment of the caller.
-;; I'm thinking that it should be possible to make a new
-;; eieio object for the build environment, which will allow this
-;; function to be pretty streamlined.
 (defun kiss--build-determine-build-cmd (build-env-obj pkg-obj)
   (with-slots
       ((proc-dir    :proc-dir)
@@ -2190,7 +2185,7 @@ are the same."
           ;; (when (kiss--file-is-directory-p fake-chroot-dir)
           ;;   (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
 
-          (kiss--make-chroot-dir-for-pkg fake-chroot-dir pkg)
+          (kiss--make-chroot-dir-for-pkg fake-chroot-dir (slot-value pkg-obj :name))
           (make-directory fake-home-dir t)
           (pcase kiss-sandbox-utility
             ("proot"
@@ -2261,14 +2256,6 @@ are the same."
       ;; Extract pkg's sources to the build directory.
       (message (concat "Extracting " pkg "..."))
       (kiss--extract-pkg-sources pkg build-dir)
-      ;; (make-directory install-dir t)
-      ;; (make-directory log-dir t)
-      ;; (kiss--build-make-script k-el-build
-      ;;                          build-script
-      ;;                          build-dir
-      ;;                          install-dir
-      ;;                          pkg-ver
-      ;;                          log-file)
 
       ;; NOTE: will need to be somewhat more clever when
       ;; executing the build script, since I would like to be able
@@ -2587,8 +2574,7 @@ are the same."
   (let ((manifest-file
          (concat dir "/var/db/kiss/installed/" pkg "/manifest")))
 
-    (unless (kiss--file-exists-p manifest-file)
-      (error "manifest file does not exit!"))
+    (cl-assert (kiss--file-exists-p manifest-file))
 
     ;; TODO: would like to investigate the penalty of using a pure
     ;; Emacs lisp based solution for this.
