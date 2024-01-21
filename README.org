@@ -178,6 +178,34 @@ updated:
 
 #+end_src
 
+Here is a way you can implement a provides system:
+
+#+begin_src elisp
+
+;; Here is an example of a somewhat hacky provides system.
+;; This uses an alist for setting which packages are "provided"
+;; by another.
+
+;; Here we tell kiss that llvm-fat provides the packages
+;; llvm, clang, and lld.
+(setq kiss-provides-alist
+      '("llvm-fat" . ("llvm" "clang" "lld")))
+
+(advice-add
+ #'kiss--pkg-is-installed-p
+ :around
+ (lambda (orig &rest args)
+   (if (boundp 'kiss-provides-alist)
+       (apply
+        orig
+        (car
+         (rassoc
+          (member args (flatten-list kiss-provides-alist))
+          kiss-provides-alist)))
+     (apply orig args))))
+
+#+end_src
+
 I highly recommend reading up on Emacs' advice system if you want to have
 total control over kiss.el or any other Emacs package for that matter.
 
