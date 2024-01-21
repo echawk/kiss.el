@@ -211,6 +211,8 @@ total control over kiss.el or any other Emacs package for that matter.
 
 =M-x info RET elisp= - See the section on "Advising Functions"
 
+Here is a good [[https://scripter.co/emacs-lisp-advice-combinators/][visual resource]].
+
 *** Adding custom compression commands
 
 The =kiss-compress-alist= can be customized to allow you to
