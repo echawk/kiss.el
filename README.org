@@ -109,6 +109,36 @@ The format for fossil and mercurial sources is identical to that
 of git sources, except with =git+= being replaced with =fossil+=
 and =hg+= respectively.
 
+*** Build Env Hooks
+
+This is an attempt to implement something resembling the old style kiss
+hooks, which took advantage of the fact that kiss was a shell script
+which could arbitrarily execute shell commands and set environment variables.
+As per the issue on codeberg [[https://codeberg.org/kiss-community/repo/issues/121][here]] there is some interest in reviving a similar
+mechanism.
+
+Instead of setting the =kiss-hook= variable, you need to set the
+=kiss-build-env-hook= variable with a list of all of the hooks that you would
+like to have set.
+
+**WARNING** I'm not entirely sold on the current idea I have here, and I am
+liable to change the mechanism in the future. This will especially be the case
+should upstream change and implement similar functionality, as that mechanism
+will be preferred.
+
+
+**** Docs
+
+Each hook in =kiss-build-env-hook= will simply take a single argument,
+that being the package name.
+
+The environment that each of these hooks /could/ be overwritten by
+a hook that occurs *later* in the list.
+
+The actual implementation of these hooks is done by simply adding
+=eval $(/path/to/kiss-build-env-hook)= to the appropriate part of the
+helper build script.
+
 ** Customization
 
 *** Overriding functions
