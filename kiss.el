@@ -642,6 +642,10 @@ Valid strings: bwrap, proot."
     (seq-remove #'kiss--pkg-is-installed-p (append depends make-depends))))
 
 (cl-defmethod kiss--package-extract-sources ((pkg-obj kiss-package) dir)
+  ;; Ensure that the build directory exists. This is needed for packages
+  ;; which have no sources.
+  (unless (kiss--file-is-directory-p dir)
+    (make-directory dir t))
   (dolist (source (slot-value pkg-obj :sources))
     (with-slots
         ((type      :type)
