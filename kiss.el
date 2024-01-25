@@ -426,7 +426,18 @@ Valid strings: bwrap, proot."
           ;; NOTE: the following could also potentially work:
           ;; (concat "hg clone -u " commit " " u)))
 
-          ('fossil (concat "fossil open -f " u " " commit))
+          ;; FIXME: Doesn't yet account for updated urls yet.
+          ('fossil
+           (if (file-exists-p (concat cache-path "/.fossil-settings"))
+               (progn
+                 (kiss--with-dir
+                  cache-path
+                  (shell-command "fossil update " commit)))
+             (progn
+               (make-directory cache-path t)
+               (kiss--with-dir
+                cache-path
+                (shell-command "fossil open -f " u " " commit)))))
 
           ('remote
            (if (file-exists-p cache-path) t
