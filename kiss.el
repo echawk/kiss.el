@@ -281,6 +281,9 @@ Valid strings: bwrap, proot."
    (string= "/opt"
             (kiss--with-dir "/opt" default-directory))))
 
+;; TODO: consider expanding this macro to create all of the functions
+;; that we will need - this will need to take a few more arguments (or
+;; possibly not)
 (defmacro kiss--update-repo-type (type)
   `(let ((repos
           (seq-uniq
