@@ -408,7 +408,23 @@ Valid strings: bwrap, proot."
              t))
 
           ;; FIXME: finish these implementations
-          ('hg (concat "hg clone -u " commit " " u))
+          ('hg
+           (progn
+             (unless (file-exists-p (concat cache-path "/.hg"))
+               (make-directory cache-path t)
+               (shell-command "hg init"))
+             (kiss--with-dir
+              (concat cache-path "/.hg")
+              (kiss--write-text
+               (concat "[paths]\n"
+                       "default = " u)
+               'utf-8 "hgrc"))
+             (kiss--with-dir
+              cache-path
+              (shell-command "hg pull -r " c))))
+
+          ;; NOTE: the following could also potentially work:
+          ;; (concat "hg clone -u " commit " " u)))
 
           ('fossil (concat "fossil open -f " u " " commit))
 
