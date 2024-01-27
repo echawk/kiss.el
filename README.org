@@ -68,7 +68,7 @@ be able to use the functions defined in kiss.el.
 - [X] upgrade^*
 - [X] version
 
-- [ ] hooks
+- [X] hooks*
 
 *NOTE*: Some of these features are /partially/ supported.
 
@@ -76,6 +76,12 @@ Feel free to submit issues & PRs!
 
 install, remove, and upgrade are all rather new in their implementations.
 They *shouldn't* send your box to =/dev/null=, but not promises (yet!).
+
+*NOTE*: The only two hooks which are *not* implemented are the =pre-source=,
+and =post-source= hooks. This is because in order to support them, there would
+have to be the addition of some ugly hacks (PRs welcome if you can find a
+nice elegant way to integrate them), and I'm not entirely convinced of their
+usefulness...
 
 ** Extensions
 
