@@ -661,7 +661,7 @@ Valid strings: bwrap, proot."
     :custom string
     :documentation "The file path to the pre-remove file.")
    (post-install-file
-    :init-arg :post-install-filej
+    :init-arg :post-install-file
     :initform ""
     :type string
     :custom string
@@ -713,7 +713,9 @@ Valid strings: bwrap, proot."
         (source-file   (concat dir-path "/sources"))
         (depends-file  (concat dir-path "/depends"))
         (checksum-file (concat dir-path "/checksums"))
-        ;; FIXME: post-install & pre-remove
+
+        (pre-remove-file   (concat dir-path "/pre-remove"))
+        (post-install-file (concat dir-path "/post-install"))
 
         (obj nil)
 
@@ -772,6 +774,11 @@ Valid strings: bwrap, proot."
         ;; remote source.
         (dotimes (i (length checksum-data))
           (oset (nth i non-git-src-objs) :checksum (nth i checksum-data)))))
+
+    (when (kiss--file-exists-p post-install-file)
+      (oset obj :post-install-file post-install-file))
+    (when (kiss--file-exists-p pre-remove-file)
+      (oset obj :pre-remove-file pre-remove-file))
     obj))
 
 (defun kiss--package-to-dir (package-obj dir)
@@ -782,7 +789,9 @@ Valid strings: bwrap, proot."
        (build-file   :build-file)
        (depends      :depends)
        (make-depends :make-depends)
-       (sources      :sources))
+       (sources      :sources)
+       (pre-remove-file   :pre-remove-file)
+       (post-install-file :post-install-file))
       package-obj
     (let ((version-str (concat version " " release "\n"))
           (depends-str
@@ -828,6 +837,10 @@ Valid strings: bwrap, proot."
                          (not (string-match-p "^/" (slot-value obj :uri)))))
                   sources))))
            (copy-file build-file (concat name "/build"))
+           (unless (string-empty-p pre-remove-file)
+             (copy-file pre-remove-file (concat name "/pre-remove")))
+           (unless (string-empty-p post-install-file)
+             (copy-file post-install-file (concat name "/post-install")))
            (when local-sources
              (dolist (file local-sources)
                (make-directory (concat name "/" (kiss--dirname file)) t)
