@@ -654,6 +654,18 @@ Valid strings: bwrap, proot."
     :documentation "List of kiss-source objects for the kiss-package"
     :optional
     )
+   (pre-remove-file
+    :init-arg :pre-remove-file
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The file path to the pre-remove file.")
+   (post-install-file
+    :init-arg :post-install-filej
+    :initform ""
+    :type string
+    :custom string
+    :documentation "The file path to the post-install file.")
    )
   )
 
