@@ -2780,7 +2780,7 @@ are the same."
   ;; The 'test $1' will run w/ '-z' for overwrite and '-e' for verify.
   (let ((rn (kiss--get-random-number)))
     (dolist (file file-path-lst)
-      (let ((actual-file (kiss--normalize-file-path (concat kiss-root file)))
+      (let ((actual-file (kiss--normalize-file-path (concat target-dir file)))
             (source-file (concat source-dir file)))
         (pcase (kiss--file-identify source-file)
 
@@ -2790,14 +2790,14 @@ are the same."
               (concat
                "mkdir -m " (kiss--file-rwx source-file) " "
                (kiss--single-quote-string actual-file))
-              (kiss--get-owner-name kiss-root))))
+              (kiss--get-owner-name target-dir))))
 
           ('symlink
            (kiss--shell-command-as-user
             (concat "cp -fP " (kiss--single-quote-string source-file)
                     " " (kiss--single-quote-string
                          (concat (kiss--dirname actual-file) "/.")))
-            (kiss--get-owner-name kiss-root)))
+            (kiss--get-owner-name target-dir)))
 
           ('file
            (let ((tmp
@@ -2810,12 +2810,12 @@ are the same."
              (kiss--shell-command-as-user
               (concat "cp -fP " (kiss--single-quote-string source-file)
                       " " tmp)
-              (kiss--get-owner-name kiss-root))
+              (kiss--get-owner-name target-dir))
 
              (kiss--shell-command-as-user
               (concat "mv -f " (kiss--single-quote-string tmp)
                       " " (kiss--single-quote-string actual-file))
-              (kiss--get-owner-name kiss-root))))))))
+              (kiss--get-owner-name target-dir))))))))
   ;; FIXME: have a better return than nil
   nil)
 
