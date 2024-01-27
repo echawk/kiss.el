@@ -2172,98 +2172,95 @@ are the same."
 
     (let ((build-env-obj (kiss--build-env-for-package pkg-obj)))
       (with-slots
-          ((proc-dir    :proc-dir)
-           (build-dir   :build-dir)
+          ((proc-dir     :proc-dir)
+           (build-dir    :build-dir)
            (build-script :build-script)
-           (install-dir :install-dir)
-           (k-el-build  :kiss-el-build)
-           (log-dir     :log-dir)
-           (log-file    :log-file))
+           (install-dir  :install-dir)
+           (k-el-build   :kiss-el-build)
+           (log-dir      :log-dir)
+           (log-file     :log-file))
           build-env-obj
 
-        (kiss--run-hook "pre-extract" pkg install-dir)
+        (kiss--run-hook "pre-extract" name install-dir)
         (kiss--package-extract-sources pkg-obj build-dir)
 
         (kiss--run-hook "pre-build" name build-dir)
-        (message (concat "Building " pkg " at version: " pkg-ver))
+        (message (concat "Building " name " at version: " version))
 
         (when (> (shell-command
                   (kiss--build-determine-build-cmd build-env-obj pkg-obj))
                  0)
           (kiss--run-hook "build-fail" name build-dir)
           (error (concat "Build of " name " at " version " failed!")))
-        (kiss--run-hook "post-build" pkg install-dir)
+        (kiss--run-hook "post-build" name install-dir)
 
-        )
+        ;; NOTE: there is definitely still some work & cleanup stuff that
+        ;; needs to happen to the below code, but I think this is pretty
+        ;; close to replacing the current build function
+        (make-directory (concat install-dir kiss-installed-db-dir name) t)
+        ;; FIXME: make this fork happen at the end of this funciton ~ easier
+        ;; to fix the dependencies and whatnot.
+        (kiss--package-to-dir pkg-obj install-dir)
 
-      ;; NOTE: there is definitely still some work & cleanup stuff that
-      ;; needs to happen to the below code, but I think this is pretty
-      ;; close to replacing the current build function
-      (make-directory (concat install-dir kiss-installed-db-dir))
-      ;; FIXME: make this fork happen at the end of this funciton ~ easier
-      ;; to fix the dependencies and whatnot.
-      (kiss--package-to-dir pkg-obj install-dir)
+        ;; FIXME: look over kiss code & implement /dev/null
+        ;; for symlinks
+        ;; Need to compute etcsums if they exist.
+        (let* ((manifest-lst
+                (kiss--get-manifest-for-dir install-dir))
+               (etc-files
+                (seq-filter
+                 (lambda (s)
+                   (and (string-match-p      (rx bol "/etc") s)
+                        (kiss--file-exists-p (concat install-dir "/" s))))
+                 manifest-lst))
+               (potential-binary-files
+                (kiss--get-potential-binary-files manifest-lst)))
 
-      ;; FIXME: look over kiss code & implement /dev/null
-      ;; for symlinks
-      ;; Need to compute etcsums if they exist.
-      (let* ((manifest-lst
-              (kiss--get-manifest-for-dir install-dir))
-             (etc-files
-              (seq-filter
-               (lambda (s)
-                 (and (string-match-p      (rx bol "/etc") s)
-                      (kiss--file-exists-p (concat install-dir "/" s))))
-               manifest-lst))
-             (potential-binary-files
-              (kiss--get-potential-binary-files manifest-lst)))
+          ;; If we have any etcfiles, create etcsums
+          (when etc-files
+            (kiss--write-text
+             (mapconcat #'identity (mapcar #'kiss--b3 etc-files) "\n")
+             'utf-8
+             (concat install-dir kiss-installed-db-dir pkg "/etcsums")))
 
-        ;; If we have any etcfiles, create etcsums
-        (when etc-files
+          ;; Next, create the manifest
           (kiss--write-text
-           (mapconcat #'identity (mapcar #'kiss--b3 etc-files) "\n")
+           ;; FIXME: I don't think this should be needed,
+           ;; since, *technically* kiss--get-manifest-for-dir
+           ;; should have already taken care of this...
+           (kiss--manifest-to-string (kiss--get-manifest-for-dir install-dir))
            'utf-8
-           (concat install-dir kiss-installed-db-dir pkg "/etcsums")))
+           (concat install-dir kiss-installed-db-dir name "/manifest"))
 
-        ;; Next, create the manifest
-        (kiss--write-text
-         ;; FIXME: I don't think this should be needed,
-         ;; since, *technically* kiss--get-manifest-for-dir
-         ;; should have already taken care of this...
-         (kiss--manifest-to-string (kiss--get-manifest-for-dir install-dir))
-         'utf-8
-         (concat install-dir kiss-installed-db-dir pkg "/manifest"))
+          ;; Potentially strip the binaries.
+          (when (and (eq 1 kiss-strip)
+                     (not (kiss--file-exists-p (concat build-dir "nostrip"))))
+            (kiss--build-strip-files
+             install-dir potential-binary-files))
 
-        ;; Potentially strip the binaries.
-        (when (and (eq 1 kiss-strip)
-                   (not (kiss--file-exists-p (concat build-dir "nostrip"))))
-          (kiss--build-strip-files
-           install-dir potential-binary-files))
+          ;; TODO: finish up this impl.
+          ;; FIXME: also need to do dependency fixing
+          (kiss--build-get-missing-dependencies
+           install-dir potential-binary-files pkg-obj))
 
-        ;; TODO: finish up this impl.
-        ;; FIXME: also need to do dependency fixing
-        (kiss--build-get-missing-dependencies
-         install-dir potential-binary-files pkg-obj))
+        ;; FIXME; need to refork the package here, since we could have
+        ;; picked up some extra dependencies
+        ;; Create the packge in the install-dir
+        ;;(kiss--package-to-dir pkg-obj install-dir)
 
-      ;; FIXME; need to refork the package here, since we could have
-      ;; picked up some extra dependencies
-      ;; Create the packge in the install-dir
-      ;;(kiss--package-to-dir pkg-obj install-dir)
+        ;; Finally create the tarball
+        (unless  (kiss--make-tarball-of-dir
+                  install-dir
+                  (concat kiss-bindir (kiss--package-bin-name pkg-obj)))
+          (error (format "Failed to create a tarball for %s" name)))
 
-      ;; Finally create the tarball
-      (unless  (kiss--make-tarball-of-dir
-                install-dir
-                (concat kiss-bindir (kiss--package-bin-name pkg-obj)))
-        (error (format "Failed to create a tarball for %s" name)))
+        (kiss--run-hook "post-package" name
+                        (concat kiss-bindir (kiss--package-bin-name pkg-obj)))
 
-      (kiss--run-hook "post-package" name
-                      (concat kiss-bindir (kiss--package-bin-name pkg-obj)))
-
-      ;; rm the build directory
-      (message (concat "Removing the build directory (" proc-dir ")"))
-      (shell-command (concat "rm -rf -- " (kiss--single-quote-string proc-dir)))
-
-      )))
+        ;; rm the build directory
+        (message (concat "Removing the build directory (" proc-dir ")"))
+        (shell-command (concat "rm -rf -- " (kiss--single-quote-string proc-dir)))
+        ))))
 
 (defun kiss--build-determine-build-cmd (build-env-obj pkg-obj)
   (with-slots
