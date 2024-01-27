@@ -628,32 +628,28 @@ Valid strings: bwrap, proot."
     :type string
     :custom string
     :documentation "The file path to the build file for a kiss-package."
-    :optional
-    )
+    :optional)
    (depends
     :initarg :depends
     :initform '()
     :type list
     :custom list
     :documentation "List of packages that are dependencies of this package."
-    :optional
-    )
+    :optional)
    (make-depends
     :initarg :make-depends
     :initform '()
     :type list
     :custom list
     :documentation "List of packages that are make depends of this kiss-package."
-    :optional
-    )
+    :optional)
    (sources
     :initarg :sources
     :initform '()
     :type list
     :custom list
     :documentation "List of kiss-source objects for the kiss-package"
-    :optional
-    )
+    :optional)
    (pre-remove-file
     :init-arg :pre-remove-file
     :initform ""
@@ -665,9 +661,7 @@ Valid strings: bwrap, proot."
     :initform ""
     :type string
     :custom string
-    :documentation "The file path to the post-install file.")
-   )
-  )
+    :documentation "The file path to the post-install file.")))
 
 (cl-defmethod kiss--package-bin-name ((pkg kiss-package))
   "(I) Return the proper name for the binary for PKG at VERSION."
