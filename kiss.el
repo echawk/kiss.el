@@ -2775,7 +2775,7 @@ are the same."
 
 ;; TODO: make this take a root directory - that way this same code
 ;; can be used over in `kiss--make-chroot-dir-for-pkg'.
-(defun kiss--install-files (source-dir file-path-lst pkg verify-p)
+(defun kiss--install-files (source-dir target-dir file-path-lst pkg verify-p)
   ;; Copy files and create directories (while preserving permissions)
   ;; The 'test $1' will run w/ '-z' for overwrite and '-e' for verify.
   (let ((rn (kiss--get-random-number)))
@@ -2934,7 +2934,7 @@ are the same."
         (message (concat "kiss/install: Installing " pkg "..."))
 
         ;; Install the packages files.
-        (kiss--install-files extr-dir (reverse new-manifest) pkg nil)
+        (kiss--install-files extr-dir kiss-root (reverse new-manifest) pkg nil)
 
         ;; Remove any files that were in the old manifest that aren't
         ;; in the new one.
@@ -2943,7 +2943,7 @@ are the same."
         ;; Install the packages files for a second time to fix
         ;; any potential mess that could have been made from the
         ;; previous rm.
-        (kiss--install-files extr-dir (reverse new-manifest) pkg t)
+        (kiss--install-files extr-dir kiss-root (reverse new-manifest) pkg t)
 
         (kiss--run-hook-pkg "post-install" pkg)
 
