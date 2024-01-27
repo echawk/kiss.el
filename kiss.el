@@ -364,7 +364,7 @@ Valid strings: bwrap, proot."
     (let ((dest-dir
            (kiss--normalize-file-path (concat kiss-srcdir p "/" ep "/"))))
       (pcase ty
-        ((or 'git 'remote)
+        ((or 'git 'hg 'fossil 'remote)
          (concat dest-dir (car (reverse (string-split u "/")))))
         ('local
          (if (string-match (rx bol "/") u)
@@ -413,9 +413,9 @@ Valid strings: bwrap, proot."
           ;; FIXME: finish these implementations
           ('hg
            (progn
-             (unless (file-exists-p (concat cache-path "/.hg"))
+             (unless (kiss--file-exists-p (concat cache-path "/.hg"))
                (make-directory cache-path t)
-               (shell-command "hg init"))
+               (kiss--with-dir cache-path (shell-command "hg init")))
              (kiss--with-dir
               (concat cache-path "/.hg")
               (kiss--write-text
@@ -424,7 +424,7 @@ Valid strings: bwrap, proot."
                'utf-8 "hgrc"))
              (kiss--with-dir
               cache-path
-              (shell-command "hg pull -r " c))))
+              (shell-command (concat "hg pull -r " commit)))))
 
           ;; NOTE: the following could also potentially work:
           ;; (concat "hg clone -u " commit " " u)))
