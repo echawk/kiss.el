@@ -187,9 +187,10 @@ Here is a way you can implement a provides system:
 ;; by another.
 
 ;; Here we tell kiss that llvm-fat provides the packages
-;; llvm, clang, and lld.
+;; llvm, clang, and lld, and that rustup provides rust.
 (setq kiss-provides-alist
-      '("llvm-fat" . ("llvm" "clang" "lld")))
+      '(("llvm-fat" . ("llvm" "clang" "lld"))
+        ("rustup"   . ("rust"))))
 
 (advice-add
  #'kiss--pkg-is-installed-p
@@ -198,10 +199,13 @@ Here is a way you can implement a provides system:
    (if (boundp 'kiss-provides-alist)
        (apply
         orig
-        (car
-         (rassoc
-          (member args (flatten-list kiss-provides-alist))
-          kiss-provides-alist)))
+        (if (member args (flatten-list kiss-provides-alist))
+            (car
+             (seq-filter
+              (lambda (provider)
+                (member args (assoc provider kiss-provides-alist)))
+              (mapcar #'car kiss-provides-alist)))
+          args))
      (apply orig args))))
 
 #+end_src
