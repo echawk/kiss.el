@@ -2359,6 +2359,13 @@ are the same."
 ;; -> download     Download sources
 ;; ===========================================================================
 
+(defun kiss--download-pkg-obj (pkg-obj)
+  (thread-last
+    (slot-value pkg-obj :sources)
+    (mapcar (lambda (o) (oset o :package (slot-value pkg-obj :name)) o))
+    (mapcar #'kiss--source-download)
+    (funcall (lambda (l) (seq-reduce (lambda (x y) (and x y)) l t)))))
+
 ;;;###autoload
 (defun kiss-download (pkgs-l)
   (interactive "sQuery: ")
@@ -2370,12 +2377,9 @@ are the same."
          ;; TODO: implement a seq-reduce to return a single value here?
          (thread-last
            pkgs-l
-           (kiss-search)
-           (car)
+           (kiss--search-pkg-obj)
            (kiss--dir-to-kiss-package)
-           (funcall (lambda (o) (slot-value o :sources)))
-           (mapcar #'kiss--source-download)
-           (funcall (lambda (l) (seq-reduce (lambda (x y) (and x y)) l t)))))
+           (kiss--download-pkg-obj)))
         (t nil)))
 
 ;; (kiss-download '("kiss" "gdb"))
