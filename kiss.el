@@ -1868,7 +1868,8 @@ are the same."
       ".so" (0+ any))))
    lib-string))
 
-(defun kiss--build-get-missing-dependencies (dir file-path-lst package)
+;; FIXME: support other kiss-elf commands
+(defun kiss--build-get-missing-dependencies (dir file-path-lst pkg-obj)
   ;; NOTE: only works w/ ldd.
   (seq-difference
    (thread-last
@@ -1893,8 +1894,8 @@ are the same."
      (mapcar (lambda (fp) (replace-regexp-in-string "\n" "" fp)))
      (mapcar #'kiss-owns)
      (seq-uniq)
-     (seq-remove (lambda (p) (string= p package))))
-   (kiss--get-pkg-dependencies package)))
+     (seq-remove (lambda (p) (string= p (slot-value pkg-obj :name)))))
+   (slot-value pkg-obj :depends)))
 
 (defun kiss--strip-file (file)
   "(I) Run strip(1) on FILE with the proper arguments."
@@ -2242,7 +2243,7 @@ are the same."
         ;; TODO: finish up this impl.
         ;; FIXME: also need to do dependency fixing
         (kiss--build-get-missing-dependencies
-         install-dir potential-binary-files pkg))
+         install-dir potential-binary-files pkg-obj))
 
       ;; FIXME; need to refork the package here, since we could have
       ;; picked up some extra dependencies
@@ -2434,7 +2435,7 @@ are the same."
           ;; TODO: finish up this impl.
           ;; FIXME: also need to do dependency fixing
           (kiss--build-get-missing-dependencies
-           install-dir potential-binary-files pkg)))
+           install-dir potential-binary-files pkg-obj)))
 
       ;; Finally create the tarball
       (message (concat "Creating tarball for " pkg))
