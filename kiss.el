@@ -1622,15 +1622,6 @@ when using this function compared with the iterative version."
 ;; -> build        Build packages
 ;; ===========================================================================
 
-;; Just some testing code to get all of the missing dependencies for the
-;; pkgs to be updated.
-;;(kiss--get-pkg-order
-;; (flatten-list
-;; (seq-remove
-;;  (lambda (i) (eq i nil))
-;;  (mapcar #'kiss--get-pkg-missing-dependencies
-;;          (cons "freecad" (cons "gimp" (kiss--get-out-of-date-pkgs))))))
-
 (defun kiss--get-manifest-for-dir (dir)
   "(I) Return a kiss compatible manifest for DIR."
   (let ((files-and-dirs
@@ -1677,37 +1668,15 @@ when using this function compared with the iterative version."
   (equal (kiss--get-manifest-for-dir dir)
          (kiss--read-file manifest-file)))
 
-;; FIXME: rm this function eventually
-(defun kiss--get-pkg-version (pkg)
-  "(I) Get the version for PKG using the car of `kiss-search'."
-  (with-slots ((v :version) (r :release))
-      (kiss--dir-to-kiss-package (car (kiss-search pkg)))
-    (concat v " " r)))
-
-;; FIXME: rm this function and use 'kiss--package-bin-name'
-(defun kiss--get-pkg-bin-name (pkg version)
-  "(I) Return the proper name for the binary for PKG at VERSION."
-  (concat pkg "@"
-          (replace-regexp-in-string " " "-" (string-trim-right version))
-          ".tar" (unless (string-empty-p kiss-compress)
-                   (concat "." kiss-compress))))
-
 (defun kiss--get-compression-command ()
   "(I) Return the proper command based on `kiss-compress'."
   (cdr (assoc kiss-compress kiss-compress-alist)))
-
-(defun kiss--get-pkg-cached-bin (pkg)
-  "(I) Return the path of the binary for PKG, nil if binary is not in the cache."
-  (let ((ver (kiss--get-pkg-version pkg)))
-    (if ver
-        (let ((bin (concat kiss-bindir
-                           (kiss--get-pkg-bin-name pkg ver))))
-          (if (file-exists-p bin) bin)))))
 
 (defun kiss--get-random-number (&optional upper-bound)
   "(I) Number from 1 to UPPER-BOUND, exclusive. Default UPPER-BOUND is 30000."
   (message "%s" (mod (abs (random)) (if upper-bound upper-bound 30000))))
 
+;; TODO: rename ?
 (defun kiss--get-tmp-destdir ()
   "(I) Return a directory that can be used as a temporary destdir."
   ;; NOTE: This is not a *perfect* system, however, it is not as easy to
@@ -2335,7 +2304,12 @@ are the same."
 
 (defun kiss--try-install-build (pkg)
   "(I) Attempt to install a binary of PKG, else build and install PKG."
-  (if (kiss--get-pkg-cached-bin pkg)
+  (if (thread-last
+        pkg
+        (kiss--search-pkg-obj)
+        (kiss--package-bin-name)
+        (concat kiss-bindir)
+        (kiss--file-exists-p))
       (kiss-install pkg)
     (kiss--build-install pkg)))
 
@@ -2505,12 +2479,6 @@ are the same."
     (kiss--shell-command-as-user
      (concat "rm -f -- " decomp-tarball)
      (kiss--get-owner-name decomp-tarball))))
-
-;; pkg_extract() in kiss
-(defun kiss--extract-pkg-sources (pkg dir)
-  "(I) Extract the cached sources of PKG to DIR."
-  (kiss--package-extract-sources
-   (kiss--dir-to-kiss-package (car (kiss-search pkg))) dir))
 
 (defun kiss--str-tarball-p (str)
   "(I) Predicate to determine if STR matches the regex for a tarball."
@@ -2849,7 +2817,11 @@ are the same."
             (cond ((and (file-exists-p pkgs-l)
                         (kiss--str-tarball-p pkgs-l))
                    pkgs-l)
-                  (t (kiss--get-pkg-cached-bin pkgs-l)))))
+                  (t
+                   (concat
+                    kiss-bindir
+                    (kiss--package-bin-name
+                     (kiss--search-pkg-obj pkgs-l)))))))
       (when tarball
         (kiss--install-tarball tarball))))))
 
