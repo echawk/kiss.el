@@ -2701,9 +2701,7 @@ are the same."
 
   (let ((vals '(4 2 1))
         (tot 0))
-    (message "%s" (length lst))
     (dotimes (i (length lst))
-      (message "%s" i)
       (setq tot (+ tot
                    (* (if (eq (nth i lst) 45) 0 1)
                       (nth i vals)))))
