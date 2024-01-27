@@ -1941,7 +1941,7 @@ are the same."
 ;; it makes much more sense to simply add the files that are missing
 ;; in the chroot each iteration, instead of rm-ing the dir and
 ;; remaking from scratch
-(defun kiss--make-chroot-dir-for-pkg (dir package &optional strategy)
+(defun kiss--make-chroot-dir-for-pkg (chroot-dir package &optional strategy)
   ;; TODO: see if we can reuse some of the logic that I use for the
   ;; installation of files here as well. Just have to source the files
   ;; from current system instead of the tarballs.
@@ -2086,7 +2086,7 @@ are the same."
       ;; Remove any packages that have already been installed into dir
       ;; from all-packages
       (let ((dir-install-db (kiss--normalize-file-path
-                             (concat dir kiss-installed-db-dir))))
+                             (concat chroot-dir kiss-installed-db-dir))))
         (when (kiss--file-is-directory-p dir-install-db)
           (setq all-pkgs (seq-difference
                           all-pkgs
@@ -2099,14 +2099,24 @@ are the same."
                (seq-uniq)
                (seq-sort #'string-lessp))))
 
+        ;; FIXME: figure out why these two expression fail.
+        ;; They will create the chroot directory properly, however when
+        ;; the build actually goes to execute, the build fails, saying
+        ;; that it is unable to find the kiss-el-build file.
+        ;; (make-directory chroot-dir t)
+        ;; (kiss--install-files
+        ;;  kiss-root chroot-dir
+        ;;  (seq-remove (lambda (s) (string= "/tmp/" s)) needed-files)
+        ;;  package nil)
+
         ;; We have to run the below code *twice* since it is possible for
         ;; the installation of symlinks to potentially fail.
         ;; This isn't ideal, but it works.
         (dotimes (_ 2)
           (dolist (file needed-files)
             (let ((normalized-file (kiss--normalize-file-path
-                                    (concat dir file))))
-              ;; TODO: make this also take in the validate argument?
+                                    (concat chroot-dir file))))
+              ;; todo: make this also take in the validate argument?
               (unless (or (kiss--file-exists-p normalized-file)
                           (kiss--file-is-directory-p normalized-file))
                 (pcase file
@@ -2132,12 +2142,12 @@ are the same."
                   (kiss--single-quote-string
                    (concat
                     (kiss--normalize-file-path
-                     (concat dir kiss-choices-db-dir pkg))
+                     (concat chroot-dir kiss-choices-db-dir pkg))
                     (concat ">" (string-join (string-split file "/" t) ">"))))
                   " "
                   (kiss--single-quote-string
                    (kiss--normalize-file-path
-                    (concat dir file)))))))
+                    (concat chroot-dir file)))))))
             package-needs-to-provide-lst)))))))
 
 (cl-defmethod kiss--package-build ((pkg-obj kiss-package))
