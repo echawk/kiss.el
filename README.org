@@ -210,6 +210,20 @@ Here is a way you can implement a provides system:
 
 #+end_src
 
+Or, if you would like to use the typical kiss binary for a particular
+command (let's say install), you can write the following:
+
+#+begin_src elisp
+(advice-add
+ #'kiss-install
+ :override
+ (lambda (pkgs-l)
+   (shell-command
+    (concat "kiss install "
+            (mapconcat #'identity (kiss--get-pkg-order pkgs-l) " ")))))
+#+end_src
+
+
 I highly recommend reading up on Emacs' advice system if you want to have
 total control over kiss.el or any other Emacs package for that matter.
 
