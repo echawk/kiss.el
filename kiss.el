@@ -2339,19 +2339,6 @@ are the same."
     #'kiss--source-get-local-checksum
     (slot-value (kiss--dir-to-kiss-package (car (kiss-search pkg))) :sources))))
 
-(defun kiss--pkg-verify-local-checksums (pkg)
-  "(I) Return t if local checksums equal the repo checksums for PKG, nil otherwise."
-  (thread-last
-    pkg
-    (kiss-search)
-    (car)
-    (kiss--dir-to-kiss-package)
-    (funcall (lambda (o) (slot-value o :sources)))
-    (mapcar #'kiss--source-validate-p)
-    (seq-remove #'identity)
-    (length)
-    (> 1)))
-
 ;;;###autoload
 (defun kiss-checksum (pkgs-l)
   (cond
@@ -2401,18 +2388,6 @@ are the same."
 (defun kiss--get-download-utility-arguments ()
   "(I) Get the proper arguments for the `kiss-get' utility."
   (cdr (assoc kiss-get kiss-get-alist)))
-
-;; (kiss--get-pkg-sources-cache-path "kiss")
-(defun kiss--get-pkg-sources-cache-path (pkg)
-  "(I) Return the cache path in `kiss-srcdir' for each of PKG's sources."
-  (mapcar
-   #'kiss--source-get-cache-path
-   (slot-value (kiss--dir-to-kiss-package (car (kiss-search pkg))) :sources)))
-
-(defun kiss--pkg-sources-available-p (pkg)
-  "(I) Return t if all of the sources for PKG are available locally, nil otherwise."
-  (seq-reduce (lambda (x y) (and x y))
-              (mapcar #'file-exists-p (kiss--get-pkg-sources-cache-path pkg)) t))
 
 ;; pkg_source_tar()
 (defun kiss--extract-tarball (tarball dir)
