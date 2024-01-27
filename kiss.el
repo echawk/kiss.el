@@ -2197,10 +2197,11 @@ are the same."
         ;; NOTE: there is definitely still some work & cleanup stuff that
         ;; needs to happen to the below code, but I think this is pretty
         ;; close to replacing the current build function
-        (make-directory (concat install-dir kiss-installed-db-dir name) t)
+        (make-directory (concat install-dir kiss-installed-db-dir) t)
         ;; FIXME: make this fork happen at the end of this funciton ~ easier
         ;; to fix the dependencies and whatnot.
-        (kiss--package-to-dir pkg-obj install-dir)
+        (kiss--package-to-dir pkg-obj
+                              (concat install-dir kiss-installed-db-dir))
 
         ;; FIXME: look over kiss code & implement /dev/null
         ;; for symlinks
@@ -2259,8 +2260,9 @@ are the same."
 
         ;; rm the build directory
         (message (concat "Removing the build directory (" proc-dir ")"))
-        (shell-command (concat "rm -rf -- " (kiss--single-quote-string proc-dir)))
-        ))))
+        (shell-command
+         (concat "rm -rf -- " (kiss--single-quote-string proc-dir)))
+        t))))
 
 (defun kiss--build-determine-build-cmd (build-env-obj pkg-obj)
   (with-slots
@@ -2475,12 +2477,16 @@ are the same."
          (progn
            ;; Download the package sources now.
            (when (kiss-download pkgs-l)
-             (mapcar #'kiss--build-pkg
-                     (kiss--get-pkg-order pkgs-l)))))
+             (thread-last
+               pkgs-l
+               (kiss--get-pkg-order)
+               (mapcar #'kiss--search-pkg-obj)
+               (mapcar #'kiss--package-build)))))
         ((atom pkgs-l)
          (progn
            (when (kiss-download pkgs-l)
-             (kiss--build-pkg pkgs-l))))))
+             (kiss--package-build
+              (kiss--search-pkg-obj pkgs-l)))))))
 
 ;; -> checksum     Generate checksums
 ;; ===========================================================================
