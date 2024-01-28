@@ -77,7 +77,7 @@ Feel free to submit issues & PRs!
 install, remove, and upgrade are all rather new in their implementations.
 They *shouldn't* send your box to =/dev/null=, but not promises (yet!).
 
-*NOTE*: The only two hooks which are *not* implemented are the =pre-source=,
+*NOTE*: The only three hooks which are *not* implemented are the =pre-source=,
 =post-source=, and =queue-status= hooks. This is because in order to support them,
 there would have to be the addition of some ugly hacks (PRs welcome if you can
 find a nice elegant way to integrate them), and I'm not entirely convinced of their
@@ -85,7 +85,7 @@ usefulness...
 
 ** Extensions
 
-Here is a list of some of the extensions that have been implmented in
+Here is a list of some of the extensions that are implemented in
 kiss.el that currently have no equivalent alternative in upstream kiss.
 
 *** Sandboxed Builds
@@ -144,6 +144,57 @@ a hook that occurs *later* in the list.
 The actual implementation of these hooks is done by simply adding
 =eval $(/path/to/kiss-build-env-hook)= to the appropriate part of the
 helper build script.
+
+*** Packages via S-Expressions
+
+Below illustrates some example code of how you can create a package
+entirely through using S-Expressions:
+
+#+begin_src elisp
+
+;; NOTE: we need to do all of this stuff w/ the build file, since
+;; kiss.el expects it to be executable. This *may* change in the future
+;; and be toggleable via a variable.
+(let ((build-file (kiss--make-temp-file)))
+  (kiss--write-text
+   "#!/bin/sh -e
+mkdir -p $1/usr/bin
+cp -f kiss contrib/* $1/usr/bin/
+"
+   'utf-8
+   build-file)
+  (shell-command (concat "chmod +x " build-file))
+
+  (kiss--package-build
+   (kiss-package
+    :name "kiss-el-test"
+    :version "git"
+    :release "1"
+    :sources
+    (list
+     (kiss--string-to-source-obj "git+https://github.com/kiss-community/kiss"))
+    :build-file build-file))
+
+  (shell-command (concat "rm -v " build-file)))
+
+;; NOTE: A potential *future* iteration may look like this:
+
+(kiss--package-build
+ (kiss-package
+  :name "kiss-el-test"
+  :version "git"
+  :release "1"
+  :sources
+  (list
+   (kiss--string-to-source-obj "git+https://github.com/kiss-community/kiss"))
+  :build-file
+  (string-join
+   '("#!/bin/sh -e"
+     "mkdir -p $1/usr/bin/"
+     "cp -f kiss contrib/* $1/usr/bin/")
+   "\n")))
+
+#+end_src
 
 ** Customization
 
@@ -260,9 +311,10 @@ that all of them would be cool to have though.
 
 - [X] Create a wrapper script that can be used from the command line
 - [X] Write an EIEIO class for packages
-- [ ] Integrate said EIEIO class throughout the codebase
-- [ ] Allow for packages to be defined via S-Expressions
-- [ ] Write an extensive unit & integration testsuite
+- [X] Integrate said EIEIO class throughout the codebase
+- [X] Allow for packages to be defined via S-Expressions
+- [ ] Write an extensive unit & integration test suite
+- [ ] Get this published on MELPA
 - [ ] Stabilize the API/come to a consensus as to what is useful.
 - [ ] Make a TUI/Menu for installing/upgrading packages
 - [ ] Be able to build GUIX derivations
