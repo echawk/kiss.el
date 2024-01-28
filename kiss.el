@@ -651,17 +651,17 @@ Valid strings: bwrap, proot."
     :documentation "List of kiss-source objects for the kiss-package"
     :optional)
    (pre-remove-file
-    :init-arg :pre-remove-file
+    :initarg :pre-remove-file
     :initform ""
     :type string
     :custom string
-    :documentation "The file path to the pre-remove file.")
+    :optional)
    (post-install-file
-    :init-arg :post-install-file
+    :initarg :post-install-file
     :initform ""
     :type string
     :custom string
-    :documentation "The file path to the post-install file.")))
+    :optional)))
 
 (cl-defmethod kiss--package-bin-name ((pkg kiss-package))
   "(I) Return the proper name for the binary for PKG at VERSION."
@@ -769,10 +769,10 @@ Valid strings: bwrap, proot."
         (dotimes (i (length checksum-data))
           (oset (nth i non-git-src-objs) :checksum (nth i checksum-data)))))
 
-    (when (kiss--file-exists-p post-install-file)
-      (oset obj :post-install-file post-install-file))
-    (when (kiss--file-exists-p pre-remove-file)
-      (oset obj :pre-remove-file pre-remove-file))
+    (oset obj :post-install-file
+          (if (kiss--file-exists-p post-install-file) post-install-file ""))
+    (oset obj :pre-remove-file
+          (if (kiss--file-exists-p pre-remove-file) pre-remove-file ""))
     obj))
 
 (defun kiss--package-to-dir (package-obj dir)
