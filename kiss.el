@@ -2378,7 +2378,6 @@ are the same."
          (thread-last
            pkgs-l
            (kiss--search-pkg-obj)
-           (kiss--dir-to-kiss-package)
            (kiss--download-pkg-obj)))
         (t nil)))
 
