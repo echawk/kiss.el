@@ -717,8 +717,7 @@ Valid strings: bwrap, proot."
         (rel   nil)
         (srcs  nil)
         (deps  nil)
-        (mdeps nil)
-        )
+        (mdeps nil))
 
     (setq ver (car (string-split (car (kiss--read-file ver-file)) " " t)))
     (setq rel (cadr (string-split (car (kiss--read-file ver-file)) " " t)))
@@ -2198,7 +2197,7 @@ are the same."
             (kiss--write-text
              (mapconcat #'identity (mapcar #'kiss--b3 etc-files) "\n")
              'utf-8
-             (concat install-dir kiss-installed-db-dir pkg "/etcsums")))
+             (concat install-dir kiss-installed-db-dir name "/etcsums")))
 
           ;; Next, create the manifest
           (kiss--write-text
