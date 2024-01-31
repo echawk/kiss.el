@@ -736,7 +736,10 @@ Valid strings: bwrap, proot."
     (when srcs (oset obj :sources srcs))
 
     (when (kiss--file-exists-p depends-file)
-      (let ((read-data (kiss--read-file depends-file)))
+      (let ((read-data
+             (seq-remove
+              (lambda (s) (string-match-p (rx bol "#") s))
+              (kiss--read-file depends-file))))
 
         (setq deps
               (seq-remove
