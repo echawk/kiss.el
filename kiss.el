@@ -740,13 +740,13 @@ Valid strings: bwrap, proot."
 
         (setq deps
               (seq-remove
-               (lambda (str) (string-match-p (rx (1+ any) (1+ " ") "make") str))
+               (lambda (str) (string-match-p (rx (1+ any) (1+ whitespace) "make") str))
                read-data))
 
         (setq mdeps
               (mapcar
                (lambda (str)
-                 (replace-regexp-in-string (rx (1+ " ") (0+ any) eol) "" str))
+                 (replace-regexp-in-string (rx (1+ whitespace) (0+ any) eol) "" str))
                (seq-difference read-data deps))))
       (when deps  (oset obj :depends deps))
       (when mdeps (oset obj :make-depends mdeps)))
