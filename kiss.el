@@ -254,16 +254,19 @@ would be broken or not present on the system."
   "A list of paths to executable files."
   :type '(string))
 
-(defcustom kiss-make-chroot-strategy 'prohibit-user-alternatives
+(defcustom kiss-make-chroot-strategy
+  'prohibit-user-alternatives
   "Denotes the strategy that kiss--make-chroot-dir-for-pkg will use."
   :type 'symbol
   :options '(permit-user-alternatives prohibit-user-alternatives))
 
-(defcustom kiss-perfom-build-in-sandbox nil
+(defcustom kiss-perfom-build-in-sandbox
+  nil
   "Set to t if you want build to be performed in a sandbox."
   :type 'boolean)
 
-(defcustom kiss-sandbox-utility "bwrap"
+(defcustom kiss-sandbox-utility
+  "bwrap"
   "set to an executable for sandboxing.
 
 Valid strings: bwrap, proot."
