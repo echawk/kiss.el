@@ -937,6 +937,7 @@ Valid strings: bwrap, proot."
 
 (defun kiss--normalize-file-path (file-path)
   "(I) Normalize the number of '/' in FILE-PATH."
+  (declare (pure t) (side-effect-free t))
   (replace-regexp-in-string (rx (1+ "/") "/") "/" file-path))
 
 (ert-deftest kiss--normalize-file-path ()
@@ -949,10 +950,12 @@ Valid strings: bwrap, proot."
 
 (defun kiss--lst-to-str (lst)
   "(I) Convert LST to a string."
+  (declare (pure t) (side-effect-free t))
   (mapconcat (lambda (s) (format "%s" s)) lst " "))
 
 (defun kiss--sanitize-ver-str (str)
   "(I) Sanitize a version string STR to be correctly compared against others."
+  (declare (pure t) (side-effect-free t))
   (thread-last
     str
     (replace-regexp-in-string " " "")
@@ -1056,6 +1059,7 @@ Valid strings: bwrap, proot."
   (shell-command (concat kiss-su " -u " user " -- " command)))
 
 (defun kiss--get-decompression-command (file-path)
+  (declare (pure t) (side-effect-free t))
   (let ((matched-rgx
          (thread-last
            kiss-decompress-alist
@@ -1272,6 +1276,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 (defun kiss--single-quote-string (str)
   "(I) Add quotes around STR.  Useful when interacting with the cli."
+  (declare (pure t) (side-effect-free t))
   (concat "'" str "'"))
 
 (ert-deftest kiss--single-quote-string ()
