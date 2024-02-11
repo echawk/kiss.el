@@ -2568,10 +2568,22 @@ are the same."
     (string= "755" (kiss--file-rwx "/usr/bin/kiss")))))
 
 (defun kiss--dirname (file-path)
-  (mapconcat
-   #'identity
-   (seq-reverse (seq-drop (seq-reverse (string-split file-path "/")) 1))
-   "/"))
+  (concat
+   "/"
+   (string-join
+    (seq-reverse (seq-drop (seq-reverse (string-split file-path "/" t)) 1))
+    "/")))
+
+(ert-deftest kiss--dirname ()
+  (let ((shell-dirname
+         (lambda (str) (replace-regexp-in-string
+                   "\n" ""
+                   (shell-command-to-string (concat "dirname " str))))))
+    (should
+     (and
+      (string=
+       (funcall shell-dirname "/usr/bin/")
+       (kiss--dirname "/usr/bin/"))))))
 
 (defun kiss--basename (file-path)
   (car (seq-reverse (string-split file-path "/"))))
