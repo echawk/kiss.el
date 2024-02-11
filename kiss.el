@@ -765,14 +765,16 @@ Valid strings: bwrap, proot."
     (when (kiss--file-exists-p checksum-file)
       (let ((checksum-data
              (kiss--read-file checksum-file))
-            (non-git-src-objs
-             (seq-remove (lambda (o) (eq (slot-value o :type) 'git))
-                         (slot-value obj :sources))))
+            (non-vc-src-objs
+             (seq-remove
+              (lambda (o)
+                ;; NOTE: all supported vc systems (for source) need to be here.
+                (pcase (slot-value o :type)
+                  ((or 'git 'hg 'fossil) t)))
+              (slot-value obj :sources))))
 
-        ;; TODO: will need to update this anytime we add support for another
-        ;; remote source.
         (dotimes (i (length checksum-data))
-          (oset (nth i non-git-src-objs) :checksum (nth i checksum-data)))))
+          (oset (nth i non-vc-src-objs) :checksum (nth i checksum-data)))))
 
     (oset obj :post-install-file
           (if (kiss--file-exists-p post-install-file) post-install-file ""))
