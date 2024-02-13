@@ -2341,11 +2341,10 @@ are the same."
 
 (defun kiss--get-pkg-local-checksums (pkg)
   "(I) Return the list of checksums for PKG from the files on disk, or nil."
-  (seq-remove
-   #'string-empty-p
-   (mapcar
-    #'kiss--source-get-local-checksum
-    (slot-value (kiss--dir-to-kiss-package (car (kiss-search pkg))) :sources))))
+  (thread-last
+    (slot-value (kiss--search-pkg-obj pkg) :sources)
+    (mapcar #'kiss--source-get-local-checksum)
+    (seq-remove #'string-empty-p)))
 
 ;;;###autoload
 (defun kiss-checksum (pkgs-l)
