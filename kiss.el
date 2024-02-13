@@ -2591,6 +2591,17 @@ are the same."
 (defun kiss--basename (file-path)
   (car (seq-reverse (string-split file-path "/"))))
 
+(ert-deftest kiss--basename ()
+  (let ((shell-basename
+         (lambda (str) (replace-regexp-in-string
+                   "\n" ""
+                   (shell-command-to-string (concat "dirname " str)))))))
+  (should
+   (and
+    (string=
+     (funcall shell-basename "/usr/bin/cc")
+     (kiss--basename "/usr/bin/cc")))))
+
 (defun kiss--pkg-conflicts (pkg extr-dir)
   "(I) Fix up DIR for PKG so as to allow for alternatives."
   (let ((conf-files (kiss--get-pkg-conflict-files pkg extr-dir)))
