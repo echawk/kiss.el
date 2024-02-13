@@ -67,9 +67,6 @@
 ;; messages is also useful more generally as it allows you to see what
 ;; exactly the package manager is doing at any given time.
 
-;; TODO: remove dependency on 'cl-lib, and replace all relevant
-;; calls either with dash.el, or with seq.
-
 ;; FIXME: in addition to these messages, there also needs to be
 ;; assertions/error checking done throughout the code.
 
@@ -233,9 +230,8 @@ would be broken or not present on the system."
   "Set to '0' disable the alternatives system and error on any file conflicts."
   :type 'integer)
 
-;; TODO: make the default 1, once package stripping actually works.
 (defcustom kiss-strip
-  0
+  1
   "Set to '1' to enable the stripping of packages."
   :type 'integer)
 
@@ -2620,8 +2616,6 @@ are the same."
          (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
          'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))))))
 
-;; TODO: make this take a root directory - that way this same code
-;; can be used over in `kiss--make-chroot-dir-for-pkg'.
 (defun kiss--install-files (source-dir target-dir file-path-lst pkg verify-p)
   ;; Copy files and create directories (while preserving permissions)
   ;; The 'test $1' will run w/ '-z' for overwrite and '-e' for verify.
