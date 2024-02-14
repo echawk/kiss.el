@@ -1587,19 +1587,6 @@ when using this function compared with the iterative version."
 
 ;; (kiss--get-pkg-hard-dependents "mpfr")
 
-;; FIXME: have this function take a package object
-(defun kiss--get-pkg-missing-dependencies (pkg)
-  "(I) Return a list of dependencies that are missing for PKG, nil otherwise."
-  (seq-remove
-   #'kiss--pkg-is-installed-p
-   (seq-uniq
-    (flatten-list
-     (mapcar #'cadr
-             (kiss--get-pkg-dependency-graph pkg))))))
-
-;; (kiss--get-pkg-missing-dependencies "gimp")
-;; (kiss--get-pkg-missing-dependencies "gcc")
-
 (defun kiss--get-pkg-orphan-alternatives (pkg)
   "(I) Return a list of orphaned alternatives that would result from removing PKG."
   (let ((orphaned-alternatives
