@@ -1305,6 +1305,13 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
                               (concat kiss-choices-db-dir path-own alt)))
                      (kiss--get-owner-name path))
 
+                    ;; Also preserve the timestamp of the file aswell.
+                    (kiss--shell-command-as-user
+                     (concat "touch -r " path " "
+                             (kiss--single-quote-string
+                              (concat kiss-choices-db-dir path-own alt)))
+                     (kiss--get-owner-name path))
+
                     ;; Update the manifest file to reflect the new version.
                     (kiss--pkg-manifest-replace
                      path-own path (concat kiss-choices-db-dir path-own alt))))
