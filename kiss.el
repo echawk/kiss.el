@@ -793,8 +793,7 @@ Valid strings: bwrap, proot."
     (let ((version-str (concat version " " release "\n"))
           (depends-str
            (concat
-            (mapconcat
-             #'identity
+            (string-join
              (sort
               (append depends (mapcar (lambda (s) (concat s " make")) make-depends))
               #'string-lessp)
@@ -802,13 +801,10 @@ Valid strings: bwrap, proot."
             "\n"))
           (sources-str
            (concat
-            (mapconcat
-             #'identity (mapcar #'kiss--source-to-string sources) "\n")
-            "\n"))
+            (string-join (mapcar #'kiss--source-to-string sources) "\n") "\n"))
           (checksum-str
            (concat
-            (mapconcat
-             #'identity
+            (string-join
              (seq-remove
               #'string-empty-p
               (mapcar (lambda (o) (slot-value o :checksum)) sources))
@@ -1333,7 +1329,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 (defun kiss--manifest-to-string (pkg-manifest)
   "(I) Convert our internal representation of PKG-MANIFEST into a string."
-  (concat (mapconcat #'identity pkg-manifest "\n") "\n"))
+  (concat (string-join pkg-manifest "\n") "\n"))
 
 ;; (kiss--manifest-to-string (kiss-manifest "xdo"))
 
