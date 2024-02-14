@@ -2600,13 +2600,13 @@ are the same."
 (ert-deftest kiss--basename ()
   (let ((shell-basename
          (lambda (str) (replace-regexp-in-string
-                   "\n" ""
-                   (shell-command-to-string (concat "dirname " str)))))))
+                        "\n" ""
+                        (shell-command-to-string (concat "basename " str))))))
   (should
    (and
     (string=
      (funcall shell-basename "/usr/bin/cc")
-     (kiss--basename "/usr/bin/cc")))))
+     (kiss--basename "/usr/bin/cc"))))))
 
 (defun kiss--pkg-conflicts (pkg extr-dir)
   "(I) Fix up DIR for PKG so as to allow for alternatives."
