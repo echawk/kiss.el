@@ -19,13 +19,17 @@
           (package-refresh-contents))
 
         (require 'use-package)
-        (use-package tsort :ensure t))
+        (use-package tsort :ensure t)
+
+        (if (getenv "KISS_EL_DIR")
+            (load-file (concat (getenv "KISS_EL_DIR") "/kiss.el"))
+          (load-file "kiss.el")))
+
      ;; TODO: add a use-package for kiss (once on melpa?)
      (current-buffer))))
 
 ;; FIXME: figure out how to have this *just work*
 (load-file (concat user-emacs-directory "elkiss-config.el"))
-(load-file "kiss.el")
 
 (setq kiss-command (nth 0 argv))
 (setq kiss-func (intern (concat "kiss-" kiss-command)))
@@ -35,7 +39,12 @@
    (message "%s" (funcall kiss-func (nth 1 argv) (nth 2 argv))))
 
   ((or "build" "checksum" "download" "install" "list" "remove")
-   (message "%s" (funcall kiss-func (nthcdr 1 argv))))
+   (if (nthcdr 1 argv)
+       (message "%s" (funcall kiss-func (nthcdr 1 argv)))
+     (progn
+       (funcall
+        kiss-func
+        (slot-value (kiss--dir-to-kiss-package default-directory) :name)))))
 
   ((or "manifest" "owns" "search")
    (message "%s" (funcall kiss-func (nth 1 argv))))
