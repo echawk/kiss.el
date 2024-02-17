@@ -2583,26 +2583,24 @@ are the same."
   "(I) Fix up DIR for PKG so as to allow for alternatives."
   (let ((conf-files (kiss--get-pkg-conflict-files pkg extr-dir)))
     (when conf-files
-      (let ((files-to-be-alts (mapcar #'car conf-files)))
+      ;; Make the choices dir in the extracted tarball.
+      (make-directory (concat extr-dir kiss-choices-db-dir) t)
 
-        ;; Make the choices dir in the extracted tarball.
-        (make-directory (concat extr-dir kiss-choices-db-dir) t)
+      ;; Move all of the files to the appropriate place.
+      (dolist (path conf-files)
+        (let* ((alt      (string-replace "/" ">" path))
+               (alt-path (concat kiss-choices-db-dir pkg alt)))
 
-        ;; Move all of the files to the appropriate place.
-        (dolist (path files-to-be-alts)
-          (let* ((alt      (string-replace "/" ">" path))
-                 (alt-path (concat kiss-choices-db-dir pkg alt)))
+          ;; Move the file to the choices directory.
+          (shell-command
+           (concat
+            "mv -f " (kiss--single-quote-string (concat extr-dir path))
+            " " (kiss--single-quote-string (concat extr-dir alt-path))))))
 
-            ;; Move the file to the choices directory.
-            (shell-command
-             (concat
-              "mv -f " (kiss--single-quote-string (concat extr-dir path))
-              " " (kiss--single-quote-string (concat extr-dir alt-path))))))
-
-        ;; Regenerate the manifest for the directory.
-        (kiss--write-text
-         (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
-         'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))))))
+      ;; Regenerate the manifest for the directory.
+      (kiss--write-text
+       (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
+       'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))))
 
 (defun kiss--install-files (source-dir target-dir file-path-lst pkg verify-p)
   ;; Copy files and create directories (while preserving permissions)
