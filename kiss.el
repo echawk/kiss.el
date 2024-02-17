@@ -2044,7 +2044,7 @@ are the same."
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
            (mapcar (lambda (s) (split-string s ">")))
            (mapcar (lambda (l) (list (kiss--basename (car l))
-                                (concat "/" (string-join (cdr l) "/")))))
+                                     (concat "/" (string-join (cdr l) "/")))))
            ;; Convert the pairs to dotted pairs.
            (mapcar (lambda (p) (cons (car p) (cadr p))))
 
@@ -2557,8 +2557,8 @@ are the same."
 (ert-deftest kiss--dirname ()
   (let ((shell-dirname
          (lambda (str) (replace-regexp-in-string
-                   "\n" ""
-                   (shell-command-to-string (concat "dirname " str))))))
+                        "\n" ""
+                        (shell-command-to-string (concat "dirname " str))))))
     (should
      (and
       (string=
@@ -2573,11 +2573,11 @@ are the same."
          (lambda (str) (replace-regexp-in-string
                         "\n" ""
                         (shell-command-to-string (concat "basename " str))))))
-  (should
-   (and
-    (string=
-     (funcall shell-basename "/usr/bin/cc")
-     (kiss--basename "/usr/bin/cc"))))))
+    (should
+     (and
+      (string=
+       (funcall shell-basename "/usr/bin/cc")
+       (kiss--basename "/usr/bin/cc"))))))
 
 (defun kiss--pkg-conflicts (pkg extr-dir)
   "(I) Fix up DIR for PKG so as to allow for alternatives."
