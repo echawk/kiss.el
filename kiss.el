@@ -2487,29 +2487,17 @@ are the same."
 
     ;; TODO: would like to investigate the penalty of using a pure
     ;; Emacs lisp based solution for this.
-    (let ((res '())
-          (temp-file (kiss--make-temp-file)))
-      (kiss--write-text
-       (thread-last
-         manifest-file
-         (kiss--read-file)
-         (seq-remove (lambda (str) (string-match-p "/$" str)))
-         (kiss--manifest-to-string))
-       'utf-8 temp-file)
+    (let ((current-installed-files
+           (thread-last
+             (kiss--get-installed-manifest-files)
+             (seq-remove (lambda (fp) (string-match-p pkg fp)))
+             (mapcar #'kiss--read-file)
+             (flatten-list)
+             (seq-remove (lambda (fp) (string-match-p (rx "/" eol) fp))))))
+      (seq-filter
+       (lambda (fp) (member fp current-installed-files))
+       (kiss--read-file manifest-file)))))
 
-      (setq res
-            (mapcar
-             (lambda (str) (reverse (string-split str ":")))
-             (string-split
-              (shell-command-to-string
-               (concat "cat " temp-file
-                       " | grep -Fxf - " (kiss--lst-to-str
-                                          (kiss--get-installed-manifest-files))
-                       " | grep -v " (concat pkg "/manifest:")))
-              "\n" t)))
-
-      (kiss--remove-file temp-file)
-      res)))
 
 (defun kiss--rwx-lst-to-octal (lst)
   (cl-assert
