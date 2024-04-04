@@ -125,7 +125,7 @@
 
 (defconst kiss-version "0.0.1"
   "The version of kiss.el.")
-(defconst kiss-compat-version "5.6.4"
+(defconst kiss-compat-version "6.1.0"
   "The version of kiss that kiss.el is compatible with.")
 
 (defcustom kiss-valid-download-utils
