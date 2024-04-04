@@ -2604,7 +2604,7 @@ are the same."
                (alt-path (concat kiss-choices-db-dir pkg alt)))
 
           ;; Move the file to the choices directory.
-          (shell-command
+          (kiss--silent-shell-command
            (concat
             "mv -f " (kiss--single-quote-string (concat extr-dir path))
             " " (kiss--single-quote-string (concat extr-dir alt-path))))))
