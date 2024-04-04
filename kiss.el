@@ -1109,7 +1109,7 @@ Valid strings: bwrap, proot."
   "(I) Decompress FILE-PATH to OUT-PATH based on the file name."
   (let ((cmd (kiss--get-decompression-command file-path)))
     (when cmd
-      (shell-command (concat cmd file-path " > " out-path)))))
+      (kiss--silent-shell-command (concat cmd file-path " > " out-path)))))
 
 (defun kiss--b3 (file-path)
   "(I) Run b3sum on FILE-PATH."
@@ -1175,7 +1175,7 @@ Valid strings: bwrap, proot."
   "(I) Run all hooks in `kiss-hook'."
   (dolist (kh kiss-hook)
     (when (kiss--file-is-executable-p kh)
-      (shell-command (format "%s %s %s %s %s" kh hook arg2 arg3 arg4)))))
+      (kiss--silent-shell-command (format "%s %s %s %s %s" kh hook arg2 arg3 arg4)))))
 
 (defun kiss--run-hook-pkg (hook pkg)
   "(I) Run PKG's HOOK."
@@ -1918,14 +1918,14 @@ are the same."
             (string-match-p (rx "0000020 001") (nth 1 od-cmd-output)))
            (string-match-p arch-rx (nth 0 od-cmd-output)))
       (message (concat "strip -g -R .comment -R .note " file))
-      (shell-command (concat "strip -g -R .comment -R .note " file)))
+      (kiss--silent-shell-command (concat "strip -g -R .comment -R .note " file)))
 
     ;; .so & executables
     (when (and
            (string-match-p elf-rx (nth 0 od-cmd-output))
            (string-match-p (rx "0000020 00" (or "2" "3")) (nth 1 od-cmd-output)))
       (message (concat "strip -s -R .comment -R .note " file))
-      (shell-command (concat "strip -s -R .comment -R .note " file)))))
+      (kiss--silent-shell-command (concat "strip -s -R .comment -R .note " file)))))
 
 (defun kiss--build-strip-files (dir file-path-lst)
   (mapcar
