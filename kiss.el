@@ -41,10 +41,6 @@
 ;; for interactive use, as well as to support a delcarative configuration.
 ;; Anything else will be out of scope (for the time being).
 
-;; TODO: support crux style usage???
-;; - Would require that this file could be ran as an Emacs script, argument
-;; parsing and all.
-
 ;; Long term I would like to have a tui/gui for managing kiss
 ;; packages - something similar to how guix and list-packages works.
 ;; This would be pretty nice, and ideally I'd like to support the same
