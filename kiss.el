@@ -454,6 +454,16 @@ Valid strings: bwrap, proot."
             (if (string-match-p (rx bol "/") u) u
               (concat (car (kiss-search p)) "/" u)))))))))
 
+(ert-deftest kiss--source-download ()
+  (let ((objs
+         (thread-last
+           '("/usr/bin/emacs"
+             "git+https://github.com/kiss-community/kiss")
+           (mapcar #'kiss--string-to-source-obj))))
+    (mapc (lambda (obj) (oset obj :package "kiss-el-test")) objs)
+    (should
+     (seq-reduce (lambda (x y) (and x y)) (mapcar #'kiss--source-download objs) t))))
+
 (cl-defmethod kiss--source-get-local-checksum ((obj kiss-source))
   (with-slots
       ((ty :type))
