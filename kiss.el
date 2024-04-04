@@ -955,6 +955,18 @@ Valid strings: bwrap, proot."
     (replace-regexp-in-string " " "")
     (replace-regexp-in-string "\n$" "")))
 
+;; FIXME: remove this macro eventually....
+(defmacro kiss--shell-command (command)
+  `(progn
+     (message ,command)
+     (shell-command ,command)))
+
+(defmacro kiss--silent-shell-command (command)
+  "Macro to make shell commands silent in the terminal."
+  `(let ((inhibit-message t)
+         (message-log-max nil))
+     (shell-command ,command)))
+
 (defun kiss--write-text (text encoding file-path)
   (with-temp-file file-path
     (insert (format "%s" text))))
@@ -964,12 +976,12 @@ Valid strings: bwrap, proot."
     (insert-file-contents-literally file-path)
     (buffer-substring-no-properties (point-min) (point-max))))
 
-(defun kiss--shell-command (command)
-  ;; Wrapper over 'shell-command' that prevents a ton of messages being
-  ;; printed.
-  (let ((inhibit-message t)
-        (message-log-max nil))
-    (shell-command command)))
+;; (defun kiss--shell-command (command)
+;;   ;; Wrapper over 'shell-command' that prevents a ton of messages being
+;;   ;; printed.
+;;   (let ((inhibit-message t)
+;;         (message-log-max nil))
+;;     (shell-command command)))
 
 ;; FIXME: impl this which can take a list of arbitrary
 ;; length commands and execute them all in one fell swoop
@@ -1050,7 +1062,7 @@ Valid strings: bwrap, proot."
 
 (defun kiss--shell-command-as-user (command user)
   "(I) Run COMMAND as USER using `kiss-su'."
-  (shell-command (concat kiss-su " -u " user " -- " command)))
+  (kiss--silent-shell-command (concat kiss-su " -u " user " -- " command)))
 
 (defun kiss--get-decompression-command (file-path)
   (declare (pure t) (side-effect-free t))
@@ -1228,24 +1240,24 @@ Valid strings: bwrap, proot."
 
 (defun kiss--file-is-executable-p (file-path)
   "(I) Return T if FILE-PATH exists and is executable."
-  (eq 0 (shell-command (concat "test -x "
-                               (kiss--single-quote-string file-path)))))
+  (eq 0 (kiss--silent-shell-command
+         (concat "test -x " (kiss--single-quote-string file-path)))))
 
 ;; TODO: Look into rm'ing these funcs since they should not have to exist.
 (defun kiss--file-is-regular-file-p (file-path)
   "(I) Return T if FILE-PATH exists and is a regular file."
-  (eq 0 (shell-command (concat "test -f "
-                               (kiss--single-quote-string file-path)))))
+  (eq 0 (kiss--silent-shell-command
+         (concat "test -f " (kiss--single-quote-string file-path)))))
 
 (defun kiss--file-is-symbolic-link-p (file-path)
   "(I) Return T if FILE-PATH exists and is a symbolic link."
-  (eq 0 (shell-command (concat "test -h "
-                               (kiss--single-quote-string file-path)))))
+  (eq 0 (kiss--silent-shell-command
+         (concat "test -h " (kiss--single-quote-string file-path)))))
 
 (defun kiss--file-is-directory-p (file-path)
   "(I) Return T if FILE-PATH exists and is a directory."
-  (eq 0 (shell-command (concat "test -d "
-                               (kiss--single-quote-string file-path)))))
+  (eq 0 (kiss--silent-shell-command
+         (concat "test -d " (kiss--single-quote-string file-path)))))
 
 (defun kiss--file-identify (file-path)
   "(I) Identify FILE-PATH as a symbol representing what kind of file it is."
@@ -2731,7 +2743,12 @@ are the same."
       (when (kiss--get-pkg-conflict-files pkg extr-dir)
         (if (eq 0 kiss-choice)
             (error "kiss/install: kiss-choice is equal to 0, erroring out!")
-          (kiss--pkg-conflicts pkg extr-dir)))
+          (progn
+            (message
+             (concat "Fixing package conflicts for " pkg " in " extr-dir))
+            (kiss--pkg-conflicts pkg extr-dir)
+            (message
+             (concat "Done fixing package conflicts.")))))
 
       ;; FIXME: This code is *technically* not needed, but hey, might as well.
       ;; This function is typically *super cheap* to run.
