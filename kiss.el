@@ -332,7 +332,6 @@ Valid strings: bwrap, proot."
     :initarg :uri
     :type string
     :documentation "The URI for the kiss-source")
-   ;; FIXME: implement the logic for 'SKIP'
    (checksum
     :initarg :checksum
     :initform ""
