@@ -2640,11 +2640,12 @@ are the same."
 
           ('file
            (let ((tmp
-                  (concat
-                   (kiss--dirname actual-file)
-                   "__kiss-el-tmp-" pkg
-                   "-" (kiss--basename actual-file)
-                   "-" rn)))
+                  (kiss--single-quote-string
+                   (concat
+                    (kiss--dirname actual-file)
+                    "__kiss-el-tmp-" pkg
+                    "-" (kiss--basename actual-file)
+                    "-" rn))))
 
              (kiss--shell-command-as-user
               (concat "cp -fP " (kiss--single-quote-string source-file)
@@ -2652,7 +2653,7 @@ are the same."
               (kiss--get-owner-name target-dir))
 
              (kiss--shell-command-as-user
-              (concat "mv -f " (kiss--single-quote-string tmp)
+              (concat "mv -f " tmp
                       " " (kiss--single-quote-string actual-file))
               (kiss--get-owner-name target-dir)))))
 
