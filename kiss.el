@@ -156,7 +156,7 @@
   :options kiss-valid-shasum-utils)
 
 (defcustom kiss-valid-sudo-like-utils
-  '("ssu" "sudo" "doas" "su")
+  '("ssu" "sudo" "doas")
   "List of valid sudo-like utils for kiss.el"
   :type '(string))
 
