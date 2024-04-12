@@ -1179,7 +1179,8 @@ Valid strings: bwrap, proot."
       ;; FIXME: need to expose the proper environment to this shell
       (with-environment-variables
           (("KISS_ROOT" kiss-root))
-        (kiss--shell-command-as-user hook-fp (kiss--get-owner kiss-root))))))
+        (kiss--shell-command-as-user
+         hook-fp (kiss--get-owner-name kiss-root))))))
 
 ;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
