@@ -2,34 +2,7 @@
 ;; -*- mode: emacs-lisp -*-
 ;; This is a CLI wrapper for the kiss.el library.
 
-;; (progn
-;;   (require 'kiss))
-
-(unless (file-exists-p (concat user-emacs-directory "elkiss-config.el"))
-  (make-directory user-emacs-directory t)
-  (with-temp-file (concat user-emacs-directory "elkiss-config.el")
-    (prin1
-     '(progn
-        (require 'package)
-        (setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                                 ("elpa"  . "https://elpa.gnu.org/packages/")))
-
-        (package-initialize)
-        (unless package-archive-contents
-          (package-refresh-contents))
-
-        (require 'use-package)
-        (use-package tsort :ensure t)
-
-        (if (getenv "KISS_EL_DIR")
-            (load-file (concat (getenv "KISS_EL_DIR") "/kiss.el"))
-          (load-file "kiss.el")))
-
-     ;; TODO: add a use-package for kiss (once on melpa?)
-     (current-buffer))))
-
-;; FIXME: figure out how to have this *just work*
-(load-file (concat user-emacs-directory "elkiss-config.el"))
+(require 'kiss)
 
 (setq kiss-command (nth 0 argv))
 (setq kiss-func (intern (concat "kiss-" kiss-command)))
