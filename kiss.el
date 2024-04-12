@@ -2573,9 +2573,10 @@ are the same."
 
 (ert-deftest kiss--dirname ()
   (let ((shell-dirname
-         (lambda (str) (replace-regexp-in-string
-                        "\n" ""
-                        (shell-command-to-string (concat "dirname " str))))))
+         (lambda (str)
+           (replace-regexp-in-string
+            "\n" ""
+            (shell-command-to-string (concat "dirname " str))))))
     (should
      (and
       (string=
@@ -2587,9 +2588,10 @@ are the same."
 
 (ert-deftest kiss--basename ()
   (let ((shell-basename
-         (lambda (str) (replace-regexp-in-string
-                        "\n" ""
-                        (shell-command-to-string (concat "basename " str))))))
+         (lambda (str)
+           (replace-regexp-in-string
+            "\n" ""
+            (shell-command-to-string (concat "basename " str))))))
     (should
      (and
       (string=
