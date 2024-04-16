@@ -87,10 +87,11 @@
 
 ;;(require 'subp)
 (eval-when-compile
+  (require 'rx)
+  (require 'pcase))
+(progn
   (require 'cl-lib)
   (require 'eieio)
-  (require 'pcase)
-  (require 'rx)
   (require 'seq)
   (require 'subr-x)
   (require 'tsort))
