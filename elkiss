@@ -4,23 +4,17 @@
 
 (require 'kiss)
 
-(setq kiss-command (nth 0 argv))
-(setq kiss-func (intern (concat "kiss-" kiss-command)))
+(setq kiss-command      (car argv))
+(setq kiss-command-args (cdr argv))
 
-(pcase kiss-command
-  ("alternatives"
-   (message "%s" (funcall kiss-func (nth 1 argv) (nth 2 argv))))
-
-  ((or "build" "checksum" "download" "install" "list" "remove")
-   (if (nthcdr 1 argv)
-       (message "%s" (funcall kiss-func (nthcdr 1 argv)))
-     (progn
-       (funcall
-        kiss-func
-        (slot-value (kiss--dir-to-kiss-package default-directory) :name)))))
-
-  ((or "manifest" "owns" "search")
-   (message "%s" (funcall kiss-func (nth 1 argv))))
-
-  ((or "preferred" "update" "upgrade")
-   (message "%s" (funcall kiss-func))))
+(let ((kiss-function-sym (intern (concat "kiss-" kiss-command))))
+  (cond
+   ((fboundp kiss-function-sym)
+    (message "%s" (apply kiss-function-sym kiss-command-args)))
+   ((executable-find (symbol-name kiss-function-sym))
+    (message
+     (shell-command-to-string
+      (string-join
+       (cons (symbol-name kiss-function-sym) kiss-command-args)
+       " "))))))
+(kill-emacs)
