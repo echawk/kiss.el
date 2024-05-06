@@ -424,12 +424,12 @@ Valid strings: bwrap, proot."
                (progn
                  (kiss--with-dir
                   cache-path
-                  (shell-command "fossil update " commit)))
+                  (shell-command (concat "fossil update " commit))))
              (progn
                (make-directory cache-path t)
                (kiss--with-dir
                 cache-path
-                (shell-command "fossil open -f " u " " commit)))))
+                (shell-command (concat "fossil open -f " u " " commit))))))
 
           ('remote
            (if (file-exists-p cache-path) t
