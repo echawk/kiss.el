@@ -1291,16 +1291,15 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
         ;; able to pipe without using mkfifo(1)
         "printf '"
         ;; TODO: think about factoring this code out.
-        (mapconcat
-         #'identity
+        (string-join
          (seq-uniq
           (mapcar
            (lambda (file-str)
              (concat
               "/"
-              (mapconcat #'identity
-                         (cdr (split-string file-str ">"))
-                         "/")))
+              (string-join
+               (cdr (split-string file-str ">"))
+               "/")))
            (nthcdr 2 (directory-files kiss-choices-db-dir))))
          "\\n")
         "'"
