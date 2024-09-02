@@ -2479,11 +2479,22 @@ are the same."
                     "-" (kiss--basename actual-file)
                     "-" rn))))
 
+             ;; TODO: check to see if we can add the '-p' flag here to avoid
+             ;; calling touch. My hunch is no, since IIRC, -p preserves
+             ;; user and group information.
              (kiss--shell-command-as-user
               (concat "cp -fP " (kiss--single-quote-string source-file)
                       " " tmp)
               (kiss--get-owner-name target-dir))
 
+             ;; Ensure that the timestamps are going to be the same.
+             (kiss--shell-command-as-user
+              (concat "touch -r " (kiss--single-quote-string source-file)
+                      " " tmp)
+              (kiss--get-owner-name target-dir))
+
+             ;; mv already preserves timestamps, hence why we do not need to
+             ;; do the touch after this mv.
              (kiss--shell-command-as-user
               (concat "mv -f " tmp
                       " " (kiss--single-quote-string actual-file))
@@ -2492,12 +2503,15 @@ are the same."
         ;; NOTE: This fix has not yet been merged upstream, but it should
         ;; make it there somewhat soon(tm). This note will be removed
         ;; when that is the case.
-        (kiss--shell-command-as-user
-         (concat "touch -r "
-                 (kiss--single-quote-string source-file)
-                 " "
-                 (kiss--single-quote-string actual-file))
-         (kiss--get-owner-name target-dir)))))
+        ;; FIXME: check to ensure that this command will never fail.
+        ;; (kiss--shell-command-as-user
+        ;;  (concat "touch -r "
+        ;;          (kiss--single-quote-string source-file)
+        ;;          " "
+        ;;          (kiss--single-quote-string actual-file))
+        ;;  (kiss--get-owner-name target-dir))
+        )
+      ))
   ;; FIXME: have a better return than nil
   nil)
 
