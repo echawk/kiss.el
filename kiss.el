@@ -360,7 +360,7 @@ Valid strings: bwrap, proot."
              u
            (concat (car (kiss-search p)) "/" u)))))))
 
-(cl-defmethod kiss--source-download ((obj kiss-source))
+(defun kiss--source-download (obj)
 
   (let ((cache-path (kiss--source-get-cache-path obj)))
     (make-directory (kiss--dirname cache-path) t)
@@ -890,7 +890,7 @@ Valid strings: bwrap, proot."
     (replace-regexp-in-string " " "")
     (replace-regexp-in-string "\n$" "")))
 
-(defmacro kiss--silent-shell-command (command)
+(defun kiss--silent-shell-command (command)
   "Macro to make shell commands silent in the terminal."
   `(let ((inhibit-message t)
          (message-log-max nil))
