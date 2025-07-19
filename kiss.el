@@ -351,7 +351,7 @@ Valid strings: bwrap, proot."
       obj
 
     (let ((dest-dir
-           (kiss--normalize-file-path (concat kiss-srcdir p "/" ep "/"))))
+           (kiss--file-normalize-file-path (concat kiss-srcdir p "/" ep "/"))))
       (pcase ty
         ((or 'git 'hg 'fossil 'remote)
          (concat dest-dir (car (reverse (string-split u "/")))))
@@ -530,7 +530,7 @@ Valid strings: bwrap, proot."
 
 
 (defun kiss--sources-file-to-sources-objs (file-path)
-  (mapcar #'kiss--string-to-source-obj (kiss--read-file file-path)))
+  (mapcar #'kiss--string-to-source-obj (kiss--file-read-file file-path)))
 
 (defun kiss--def-pkg-sources (name &rest arguments)
   (let ((src-objs (mapcar #'kiss--string-to-source-obj arguments)))
@@ -660,8 +660,8 @@ Valid strings: bwrap, proot."
         (deps  nil)
         (mdeps nil))
 
-    (setq ver (car (string-split (car (kiss--read-file ver-file)) " " t)))
-    (setq rel (cadr (string-split (car (kiss--read-file ver-file)) " " t)))
+    (setq ver (car (string-split (car (kiss--file-read-file ver-file)) " " t)))
+    (setq rel (cadr (string-split (car (kiss--file-read-file ver-file)) " " t)))
 
     (setq obj
           (make-instance
@@ -680,7 +680,7 @@ Valid strings: bwrap, proot."
       (let ((read-data
              (seq-remove
               (lambda (s) (string-match-p (rx bol "#") s))
-              (kiss--read-file depends-file))))
+              (kiss--file-read-file depends-file))))
 
         (setq deps
               (seq-remove
@@ -702,7 +702,7 @@ Valid strings: bwrap, proot."
 
     (when (kiss--file-exists-p checksum-file)
       (let ((checksum-data
-             (kiss--read-file checksum-file))
+             (kiss--file-read-file checksum-file))
             (non-vc-src-objs
              (seq-remove
               (lambda (o)
