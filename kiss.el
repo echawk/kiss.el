@@ -871,7 +871,7 @@ Valid strings: bwrap, proot."
 ;; Internal function definitions, these are considered to not be stable.
 ;; It's best not to rely on them outside of this file.
 
-(defun kiss--normalize-file-path (file-path)
+(defun kiss--file-normalize-file-path (file-path)
   "(I) Normalize the number of '/' in FILE-PATH."
   (declare (pure t) (side-effect-free t))
   (replace-regexp-in-string (rx (1+ "/") "/") "/" file-path))
@@ -926,7 +926,7 @@ Valid strings: bwrap, proot."
 ;; and to then split on the newlines - it should result in the same
 ;; code as the following for kiss-manifest, but would allow this
 ;; code to be used other places too
-(defun kiss--read-file (file-path)
+(defun kiss--file-read-file (file-path)
   "(I) Read FILE-PATH as a list of lines, with empty newlines removed."
   (when (kiss--file-exists-p file-path)
     (seq-remove
@@ -961,11 +961,12 @@ Valid strings: bwrap, proot."
   (string-to-number
    (shell-command-to-string (concat "id -u " user))))
 
-
+;; FIXME: move to kiss-file.el
 (defun kiss--get-owner (file-path)
   "(I) Return the owner uid of FILE-PATH."
   (file-attribute-user-id (file-attributes file-path)))
 
+;; FIXME: move to kiss-file.el
 (defun kiss--get-owner-name (file-path)
   "(I) Return the owner name of FILE-PATH."
   (kiss--get-user-from-uid (kiss--get-owner file-path)))
@@ -1105,7 +1106,7 @@ Valid strings: bwrap, proot."
   ;; Replace the matching line in the manifest w/ the desired
   ;; replacement.
   (let* ((manifest-f (concat kiss-installed-db-dir pkg "/manifest"))
-         (temp-f     (kiss--make-temp-file))
+         (temp-f     (kiss--file-make-temp-file))
          (owner      (kiss--get-owner-name manifest-f))
          (manifest-t (kiss--manifest-to-string
                       (reverse
@@ -1168,6 +1169,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
    (kiss--file-is-directory-p file-path)
    (kiss--file-is-regular-file-p file-path)
    (kiss--file-is-symbolic-link-p file-path)))
+
 
 
 (defun kiss--single-quote-string (str)
@@ -1238,7 +1240,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;;;###autoload
 (defun kiss-manifest (pkg)
   "Return a list of all files owned by PKG."
-  (kiss--read-file
+  (kiss--file-read-file
    (concat kiss-installed-db-dir pkg "/manifest")))
 
 
@@ -1549,7 +1551,7 @@ when using this function compared with the iterative version."
 (defun kiss--dir-matches-manifest-p (dir manifest-file)
   "(I) Return t or nil depending on whether a DIR matches MANIFEST-FILE."
   (equal (kiss--get-manifest-for-dir dir)
-         (kiss--read-file manifest-file)))
+         (kiss--file-read-file manifest-file)))
 
 (defun kiss--get-compression-command ()
   "(I) Return the proper command based on `kiss-compress'."
@@ -1935,7 +1937,7 @@ are the same."
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
            (mapcar (lambda (s) (split-string s ">")))
            (mapcar (lambda (l) (list (kiss--basename (car l))
-                                     (concat "/" (string-join (cdr l) "/")))))
+                                (concat "/" (string-join (cdr l) "/")))))
            ;; Convert the pairs to dotted pairs.
            (mapcar (lambda (p) (cons (car p) (cadr p))))
 
@@ -1951,7 +1953,7 @@ are the same."
 
       ;; Remove any packages that have already been installed into dir
       ;; from all-packages
-      (let ((dir-install-db (kiss--normalize-file-path
+      (let ((dir-install-db (kiss--file-normalize-file-path
                              (concat chroot-dir kiss-installed-db-dir))))
         (when (kiss--file-is-directory-p dir-install-db)
           (setq all-pkgs (seq-difference
@@ -1980,7 +1982,7 @@ are the same."
         ;; This isn't ideal, but it works.
         (dotimes (_ 2)
           (dolist (file needed-files)
-            (let ((normalized-file (kiss--normalize-file-path
+            (let ((normalized-file (kiss--file-normalize-file-path
                                     (concat chroot-dir file))))
               ;; todo: make this also take in the validate argument?
               (unless (or (kiss--file-exists-p normalized-file)
@@ -2007,12 +2009,12 @@ are the same."
                   "mv -f "
                   (kiss--single-quote-string
                    (concat
-                    (kiss--normalize-file-path
+                    (kiss--file-normalize-file-path
                      (concat chroot-dir kiss-choices-db-dir pkg))
                     (concat ">" (string-join (string-split file "/" t) ">"))))
                   " "
                   (kiss--single-quote-string
-                   (kiss--normalize-file-path
+                   (kiss--file-normalize-file-path
                     (concat chroot-dir file)))))))
             package-needs-to-provide-lst)))))))
 
@@ -2272,7 +2274,7 @@ are the same."
 ;; (kiss-download '("kiss" "gdb"))
 ;; (kiss-download '("hugs"))
 
-(defun kiss--make-temp-file ()
+(defun kiss--file-make-temp-file ()
   "(I) Make a temporary file using the `mktemp' utility."
   (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
 
@@ -2283,7 +2285,7 @@ are the same."
 ;; pkg_source_tar()
 (defun kiss--extract-tarball (tarball dir)
   "(I) Extract TARBALL to DIR.  Emulates GNU Tar's --strip-components=1."
-  (let ((decomp-tarball (kiss--make-temp-file)))
+  (let ((decomp-tarball (kiss--file-make-temp-file)))
     ;; Decompress the tarball.
     (kiss--decompress tarball decomp-tarball)
     ;; Extract the tarball.
@@ -2291,7 +2293,7 @@ are the same."
     ;; Get all of the top level directories from the tarball.
     (mapc
      (lambda (tld)
-       (let* ((temp-f (kiss--make-temp-file))
+       (let* ((temp-f (kiss--file-make-temp-file))
               (temp-d (concat temp-f "-" tld)))
          (message "%s" (eq 0
                            (shell-command
@@ -2375,12 +2377,12 @@ are the same."
            (thread-last
              (kiss--get-installed-manifest-files)
              (seq-remove (lambda (fp) (string-match-p pkg fp)))
-             (mapcar #'kiss--read-file)
+             (mapcar #'kiss--file-read-file)
              (flatten-list)
              (seq-remove (lambda (fp) (string-match-p (rx "/" eol) fp))))))
       (seq-filter
        (lambda (fp) (member fp current-installed-files))
-       (kiss--read-file manifest-file)))))
+       (kiss--file-read-file manifest-file)))))
 
 
 (defun kiss--rwx-lst-to-octal (lst)
@@ -2412,7 +2414,7 @@ are the same."
     (funcall (lambda (lst) (mapconcat #'number-to-string lst "")))))
 
 
-;; FIXME: use kiss--normalize-file-path
+;; FIXME: use kiss--file-normalize-file-path
 (defun kiss--dirname (file-path)
   (concat
    "/"
@@ -2453,7 +2455,7 @@ are the same."
   ;; The 'test $1' will run w/ '-z' for overwrite and '-e' for verify.
   (let ((rn (kiss--get-random-number)))
     (dolist (file file-path-lst)
-      (let ((actual-file (kiss--normalize-file-path (concat target-dir file)))
+      (let ((actual-file (kiss--file-normalize-file-path (concat target-dir file)))
             (source-file (concat source-dir file)))
         (pcase (kiss--file-identify source-file)
 
@@ -2539,7 +2541,7 @@ are the same."
 
   (let* ((proc-dir       (kiss--get-tmp-destdir))
          (extr-dir       (concat proc-dir "/extracted"))
-         (decomp-tarball (kiss--make-temp-file)))
+         (decomp-tarball (kiss--file-make-temp-file)))
 
     (make-directory extr-dir t)
 
@@ -2619,8 +2621,8 @@ are the same."
 
       ;; FIXME: need to ensure that there is no breakage when
       ;; installing a package that is not presently intsalled.
-      (let* ((new-manifest (kiss--read-file (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))
-             (old-manifest (kiss--read-file (concat kiss-installed-db-dir pkg "/manifest")))
+      (let* ((new-manifest (kiss--file-read-file (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))
+             (old-manifest (kiss--file-read-file (concat kiss-installed-db-dir pkg "/manifest")))
              (files-not-present-in-new-manifest
               ;; NOTE: the order here is backwards from upstream.
               (seq-difference old-manifest new-manifest)))
