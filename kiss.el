@@ -938,7 +938,9 @@ Valid strings: bwrap, proot."
   (pcase system-type
     ('darwin
      ;; macOS ships a working version of id.
-     (shell-command-to-string (format "id -un %d" uid)))
+     (car
+      (string-split
+       (shell-command-to-string (format "id -un %d" uid)) "\n" t)))
     ((or 'gnu/linux 'berkeley-unix)
      (let ((regex (rx bol
                       (group-n 1 (1+ (not ":"))) ":"
