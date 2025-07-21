@@ -241,3 +241,5 @@
   (let ((src-objs (mapcar #'kiss--string-to-source-obj arguments)))
     (mapc (lambda (obj) (oset obj :package name)) src-objs)
     src-objs))
+
+(provide 'kiss-source)

@@ -185,3 +185,5 @@ Valid strings: bwrap, proot."
   `(let ((default-directory ,dir-path))
      ,expr))
 
+
+(provide 'kiss-env)

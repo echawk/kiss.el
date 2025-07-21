@@ -61,3 +61,5 @@
          (replace-regexp-in-string regex "\\1"))))
     (_ (error (concat system-type " is not supported by kiss.el")))))
 
+
+(provide 'kiss-os)
