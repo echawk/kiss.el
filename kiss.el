@@ -96,180 +96,12 @@
   (require 'subr-x)
   (require 'tsort))
 
-;; FIXME: Find out what the containing group should be...
-(defgroup kiss nil
-  "The KISS package manager, in ELisp."
-  :prefix "kiss-"
-  :group :application)
+(require 'kiss-env)
+(require 'kiss-os)
+(require 'kiss-file)
+(require 'kiss-source)
 
-;; TODO: cleanup these names, they're not consistent...
-(defconst kiss-root "/")
-(defconst kiss-installed-db-dir (concat kiss-root "var/db/kiss/installed/"))
-(defconst kiss-choices-db-dir (concat kiss-root "var/db/kiss/choices/"))
 
-(defconst kiss-tmpdir
-  (concat (getenv "HOME") "/.cache/kiss/proc/"))
-
-(defconst kiss-srcdir
-  (concat (getenv "HOME") "/.cache/kiss/sources/"))
-
-(defconst kiss-bindir
-  (concat (getenv "HOME") "/.cache/kiss/bin/"))
-
-(defconst kiss-logdir
-  (concat (getenv "HOME") "/.cache/kiss/logs/"))
-
-(defconst kiss-version "0.0.1"
-  "The version of kiss.el.")
-(defconst kiss-compat-version "6.1.1"
-  "The version of kiss that kiss.el is compatible with.")
-
-(defcustom kiss-valid-download-utils
-  '("aria2c" "axel" "curl" "wget" "wget2")
-  "List of valid download utilities for kiss.el"
-  :type '(string))
-
-(defcustom kiss-get
-  (car (seq-filter #'executable-find kiss-valid-download-utils))
-  "The utility for downloading http sources."
-  :type 'string
-  :options kiss-valid-download-utils)
-
-(defcustom kiss-get-alist
-  '(("aria2c" . " -d / -o ")
-    ("axel"   . " -o ")
-    ("curl"   . " -fLo ")
-    ("wget"   . " -O ")
-    ("wget2"  . " -O "))
-  "Association List for looking up the proper arguments for a given 'kiss-get'."
-  :type 'alist)
-
-(defcustom kiss-valid-shasum-utils
-  '("openssl" "sha256sum" "sha256" "shasum" "digest")
-  "List of valid sha256sum utils for kiss.el"
-  :type '(string))
-
-(defcustom kiss-chk
-  (car (seq-filter #'executable-find kiss-valid-shasum-utils))
-  "The utility for computing SHA256 checksums."
-  :type 'string
-  :options kiss-valid-shasum-utils)
-
-(defcustom kiss-valid-sudo-like-utils
-  '("ssu" "sudo" "doas")
-  "List of valid sudo-like utils for kiss.el"
-  :type '(string))
-
-;; FIXME: when root, we do as root does - we don't need any of this.
-;; FIXME: Using 'su' is currently not supported by this package manager.
-(defcustom kiss-su
-  (car (seq-filter #'executable-find kiss-valid-sudo-like-utils))
-  "The utility that will be used to elevate priviledges."
-  :type 'string
-  :options kiss-valid-sudo-like-utils)
-
-(defcustom kiss-valid-elf-utils
-  '("readelf" "eu-readelf" "llvm-readelf" "ldd")
-  "List of valid readelf-like utilities for kiss.el"
-  :type '(string))
-
-(defcustom kiss-elf
-  (car (seq-filter #'executable-find kiss-valid-elf-utils))
-  "The utility that will be used to dump elf information."
-  :type 'string
-  :options kiss-valid-elf-utils)
-
-(defcustom kiss-valid-compress
-  '("" "bz2" "gz" "lz" "lzma" "xz" "zst")
-  "List of valid options for 'kiss-compress'."
-  :type '(string))
-
-(defcustom kiss-compress
-  "gz"
-  "The compression algorithm that should be used when making packages."
-  :type 'string
-  :options kiss-valid-compress)
-
-(defcustom kiss-compress-alist
-  '((""     . "cat")
-    ("bz2"  . "bzip2 -c")
-    ("gz"   . "gzip -c")
-    ("lz"   . "lzip -c")
-    ("lzma" . "lzma -cT0")
-    ("xz"   . "xz -cT0")
-    ("zst"  . "zstd -cT0"))
-  "Association List for looking up the proper command for a given 'kiss-compress'."
-  :type 'alist)
-
-(defcustom kiss-decompress-alist
-  `((,(rx ".tar" eol)                   . "cat ")
-    (,(rx "." (? "t") "bz" (? "2") eol) . "bzip2 -dc ")
-    (,(rx ".lz" eol)                    . "lzip -dc ")
-    (,(rx "." (? "t") "gz" eol)         . "gzip -dc ")
-    (,(rx ".lzma" eol)                  . "lzma -dcT0 ")
-    (,(rx "." (? "t") "xz" eol)         . "xz -dcT0 ")
-    (,(rx ".zst" eol)                   . "zstd -dcT0 "))
-  "Association List for determining how to decompress a tarball."
-  :type 'alist)
-
-(defcustom kiss-force
-  nil
-  "Set to t to force the package manager to skip certain sanity checks.
-
-This is primarily used in the installation and removal process, to force
-the package manager to execute the actions - even when dependencies
-would be broken or not present on the system."
-  :type 'boolean)
-
-(defcustom kiss-choice
-  1
-  "Set to '0' disable the alternatives system and error on any file conflicts."
-  :type 'integer)
-
-(defcustom kiss-strip
-  1
-  "Set to '1' to enable the stripping of packages."
-  :type 'integer)
-
-(defcustom kiss-path
-  (let ((kp (getenv "KISS_PATH"))) (when kp (split-string kp ":")))
-  "A list of directories in decreasing precedence to look for packages in."
-  :type '(string))
-
-(defcustom kiss-hook
-  (let ((kh (getenv "KISS_HOOK"))) (when kh (split-string kh ":")))
-  "A list of absolute paths to executable files."
-  :type '(string))
-
-(defcustom kiss-build-env-hook
-  nil
-  "A list of paths to executable files."
-  :type '(string))
-
-(defcustom kiss-make-chroot-strategy
-  'prohibit-user-alternatives
-  "Denotes the strategy that kiss--make-chroot-dir-for-pkg will use."
-  :type 'symbol
-  :options '(permit-user-alternatives prohibit-user-alternatives))
-
-(defcustom kiss-perfom-build-in-sandbox
-  nil
-  "Set to t if you want build to be performed in a sandbox."
-  :type 'boolean)
-
-(defcustom kiss-sandbox-utility
-  "bwrap"
-  "set to an executable for sandboxing.
-
-Valid strings: bwrap, proot."
-  :type 'string
-  :options '("bwrap" "proot"))
-
-;; Macros
-
-(defmacro kiss--with-dir (dir-path expr)
-  `(let ((default-directory ,dir-path))
-     ,expr))
 
 ;; TODO: consider expanding this macro to create all of the functions
 ;; that we will need - this will need to take a few more arguments (or
@@ -307,235 +139,6 @@ Valid strings: bwrap, proot."
           (kiss--run-hook "post-update"))))))
 
 ;; EIEIO Classes
-
-(defclass kiss-source ()
-  ((package
-    :initarg :package
-    :initform ""
-    :type string
-    :documentation "The package which this source is a source of.")
-   (type
-    :initarg :type
-    :type symbol
-    :options '(git remote local)
-    :documentation "A symbol to determine what kind of source it is.")
-   (uri
-    :initarg :uri
-    :type string
-    :documentation "The URI for the kiss-source")
-   (checksum
-    :initarg :checksum
-    :initform ""
-    :type string
-    :documentation "The checksum of the source if applicable"
-    :optional)
-   (extracted-path
-    :initarg :extracted-path
-    :initform ""
-    :type string
-    :documentation "The path where the source will be extracted to in the packages build directory."
-    :optional)
-   (commit-or-branch
-    :initarg :commit-or-branch
-    :initform ""
-    :type string
-    :documentation "The relevant commit or branch for a git source."
-    :optional)))
-
-(cl-defmethod kiss--source-get-cache-path ((obj kiss-source))
-  (with-slots
-      ((ty :type)
-       (u  :uri)
-       (p  :package)
-       (ep :extracted-path))
-      obj
-
-    (let ((dest-dir
-           (kiss--file-normalize-file-path (concat kiss-srcdir p "/" ep "/"))))
-      (pcase ty
-        ((or 'git 'hg 'fossil 'remote)
-         (concat dest-dir (car (reverse (string-split u "/")))))
-        ('local
-         (if (string-match (rx bol "/") u)
-             u
-           (concat (car (kiss-search p)) "/" u)))))))
-
-(defun kiss--source-download (obj)
-
-  (let ((cache-path (kiss--source-get-cache-path obj)))
-    (make-directory (kiss--dirname cache-path) t)
-    (with-slots
-        ((ty :type)
-         (u  :uri)
-         (cb :commit-or-branch)
-         (p  :package))
-        obj
-      (let ((commit
-             (if (string-empty-p cb)
-                 (pcase ty
-                   ('git    "HEAD")
-                   ('hg     "tip")
-                   ('fossil "trunk"))
-               cb)))
-        (pcase ty
-          ('git
-
-           (progn
-             (unless (kiss--file-exists-p (concat cache-path "/.git"))
-               (make-directory cache-path t)
-               (shell-command (concat "git init " cache-path)))
-
-             (kiss--with-dir
-              cache-path
-              (progn
-                (unless
-                    (eq 0
-                        (shell-command
-                         (concat "git remote set-url origin " u " 2> /dev/null")))
-                  (shell-command
-                   (concat "git remote add origin " u)))
-                (shell-command (concat "git fetch --depth=1 origin " commit))
-                (shell-command (concat "git reset --hard FETCH_HEAD"))))
-             ;; FIXME: return wether or not we were actually successful
-             t))
-
-          ;; FIXME: finish these implementations
-          ('hg
-           (progn
-             (unless (kiss--file-exists-p (concat cache-path "/.hg"))
-               (make-directory cache-path t)
-               (kiss--with-dir cache-path (shell-command "hg init")))
-             (kiss--with-dir
-              (concat cache-path "/.hg")
-              (kiss--write-text
-               (concat "[paths]\n"
-                       "default = " u)
-               'utf-8 "hgrc"))
-             (kiss--with-dir
-              cache-path
-              (shell-command (concat "hg pull -r " commit)))))
-
-          ;; NOTE: the following could also potentially work:
-          ;; (concat "hg clone -u " commit " " u)))
-
-          ;; FIXME: Doesn't yet account for updated urls yet.
-          ('fossil
-           (if (file-exists-p (concat cache-path "/.fossil-settings"))
-               (progn
-                 (kiss--with-dir
-                  cache-path
-                  (shell-command (concat "fossil update " commit))))
-             (progn
-               (make-directory cache-path t)
-               (kiss--with-dir
-                cache-path
-                (shell-command (concat "fossil open -f " u " " commit))))))
-
-          ('remote
-           (if (file-exists-p cache-path) t
-             (eq 0
-                 (shell-command
-                  (concat
-                   kiss-get
-                   " " u (kiss--get-download-utility-arguments) cache-path)))))
-
-          ('local
-           (kiss--file-exists-p
-            (if (string-match-p (rx bol "/") u) u
-              (concat (car (kiss-search p)) "/" u)))))))))
-
-
-(cl-defmethod kiss--source-get-local-checksum ((obj kiss-source))
-  (with-slots
-      ((ty :type))
-      obj
-    (pcase ty
-      ((or 'git 'hg 'fossil) "")
-      (_ (kiss--b3 (kiss--source-get-cache-path obj))))))
-
-(cl-defmethod kiss--source-validate-p ((obj kiss-source))
-  (if (string= (slot-value obj :checksum) "SKIP")
-      t
-    (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj))))
-
-(cl-defmethod kiss--source-to-string ((obj kiss-source))
-  (with-slots
-      ((package :package)
-       (type :type)
-       (uri :uri)
-       (checksum :checksum)
-       (extracted-path :extracted-path)
-       (commit-or-branch :commit-or-branch))
-      obj
-    (concat
-     (pcase type
-       ('git    "git+")
-       ('hg     "hg+")
-       ('fossil "fossil+")
-       (_ ""))
-     uri
-     (when (and (not (string-empty-p commit-or-branch))
-                (pcase type ((or 'git 'hg 'fossil) t)))
-       (concat "@" commit-or-branch))
-     (unless (string-empty-p extracted-path)
-       (concat " " extracted-path)))))
-
-
-;; (mapcar #'kiss--source-to-string
-;;         (slot-value
-;;          (kiss--dir-to-kiss-package (car (kiss-search "llvm")))
-;;          :sources)
-;;         )
-
-(defun kiss--string-to-source-obj (str)
-  "(I) Generate a kiss-source object from STR. Will have an empty package slot."
-
-  (let ((type      nil)
-        (uri       nil)
-        (extr-path nil)
-        (c-or-b    nil)
-        (obj       nil)
-        (str-split-on-spaces (string-split str " " t)))
-    (setq type
-          (pcase str
-            ((rx bol "git+") 'git)
-            ((rx bol "hg+") 'hg)
-            ((rx bol "fossil+") 'fossil)
-            ((rx "://") 'remote)
-            (_ 'local)))
-    (setq c-or-b
-          (pcase type
-            ((or 'git 'hg 'fossil)
-             (thread-last
-               str-split-on-spaces
-               (car)
-               (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
-               (nth 1)))
-            (_ "")))
-    (setq extr-path (nth 1 str-split-on-spaces))
-    (setq uri
-          (replace-regexp-in-string
-           (rx bol (or "git+" "hg+" "fossil+"))
-           ""
-           (thread-last
-             str-split-on-spaces
-             (car)
-             (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
-             (car))))
-
-    (setq obj (make-instance 'kiss-source :type type :uri uri))
-    (oset obj :commit-or-branch (if (eq c-or-b nil) "" c-or-b))
-    (oset obj :extracted-path (if (eq extr-path nil) "" extr-path))
-    obj))
-
-
-(defun kiss--sources-file-to-sources-objs (file-path)
-  (mapcar #'kiss--string-to-source-obj (kiss--file-read-file file-path)))
-
-(defun kiss--def-pkg-sources (name &rest arguments)
-  (let ((src-objs (mapcar #'kiss--string-to-source-obj arguments)))
-    (mapc (lambda (obj) (oset obj :package name)) src-objs)
-    src-objs))
 
 ;; FIXME: add support for post-install & pre-remove
 (defclass kiss-package ()
@@ -871,10 +474,7 @@ Valid strings: bwrap, proot."
 ;; Internal function definitions, these are considered to not be stable.
 ;; It's best not to rely on them outside of this file.
 
-(defun kiss--file-normalize-file-path (file-path)
-  "(I) Normalize the number of '/' in FILE-PATH."
-  (declare (pure t) (side-effect-free t))
-  (replace-regexp-in-string (rx (1+ "/") "/") "/" file-path))
+
 
 
 (defun kiss--lst-to-str (lst)
@@ -926,12 +526,7 @@ Valid strings: bwrap, proot."
 ;; and to then split on the newlines - it should result in the same
 ;; code as the following for kiss-manifest, but would allow this
 ;; code to be used other places too
-(defun kiss--file-read-file (file-path)
-  "(I) Read FILE-PATH as a list of lines, with empty newlines removed."
-  (when (kiss--file-exists-p file-path)
-    (seq-remove
-     (lambda (s) (string= "" s))
-     (string-split (kiss--read-text file-path) "\n"))))
+
 
 (defun kiss--get-user-from-uid (uid)
   "(I) Return the name for UID.  `$ getent passwd' is parsed for the information."
@@ -973,6 +568,7 @@ Valid strings: bwrap, proot."
   "(I) Return the owner name of FILE-PATH."
   (kiss--get-user-from-uid (kiss--get-owner file-path)))
 
+;; FIXME: move to kiss-file.el
 (defun kiss--am-owner-p (file-path)
   "(I) Return t if the current LOGNAME owns the FILE-PATH, nil otherwise."
   (eql
@@ -1130,47 +726,6 @@ Valid strings: bwrap, proot."
     (kiss--shell-command-as-user
      (concat "mv -f " temp-f " " manifest-f)
      owner)))
-
-(defun kiss--file-is-executable-p (file-path)
-  "(I) Return T if FILE-PATH exists and is executable."
-  (eq 0 (kiss--silent-shell-command
-         (concat "test -x " (kiss--single-quote-string file-path)))))
-
-;; TODO: Look into rm'ing these funcs since they should not have to exist.
-(defun kiss--file-is-regular-file-p (file-path)
-  "(I) Return T if FILE-PATH exists and is a regular file."
-  (eq 0 (kiss--silent-shell-command
-         (concat "test -f " (kiss--single-quote-string file-path)))))
-
-(defun kiss--file-is-symbolic-link-p (file-path)
-  "(I) Return T if FILE-PATH exists and is a symbolic link."
-  (eq 0 (kiss--silent-shell-command
-         (concat "test -h " (kiss--single-quote-string file-path)))))
-
-(defun kiss--file-is-directory-p (file-path)
-  "(I) Return T if FILE-PATH exists and is a directory."
-  (eq 0 (kiss--silent-shell-command
-         (concat "test -d " (kiss--single-quote-string file-path)))))
-
-(defun kiss--file-identify (file-path)
-  "(I) Identify FILE-PATH as a symbol representing what kind of file it is."
-  (pcase file-path
-    ((pred kiss--file-is-directory-p)     'directory)
-    ((pred kiss--file-is-symbolic-link-p) 'symlink)
-    ((pred kiss--file-is-regular-file-p)  'file)))
-
-;; FIXME: go back through the code and make this also check if a directory
-;; exists as well.
-;; NOTE: DO NOT USE THIS ANYWHERE THAT ISN'T ABSOLUTELY NECESSARY.
-(defun kiss--file-exists-p (file-path)
-  "(I) This function should NOT exist.
-However, `file-exists-p' and `file-symlink-p' are fundamentally broken when it
-comes to broken symlinks.  Hence the need for this function.
-This function returns t if FILE-PATH exists and nil if it doesn't."
-  (or
-   (kiss--file-is-directory-p file-path)
-   (kiss--file-is-regular-file-p file-path)
-   (kiss--file-is-symbolic-link-p file-path)))
 
 
 
@@ -2276,9 +1831,6 @@ are the same."
 ;; (kiss-download '("kiss" "gdb"))
 ;; (kiss-download '("hugs"))
 
-(defun kiss--file-make-temp-file ()
-  "(I) Make a temporary file using the `mktemp' utility."
-  (replace-regexp-in-string "\n$" "" (shell-command-to-string "mktemp")))
 
 (defun kiss--get-download-utility-arguments ()
   "(I) Get the proper arguments for the `kiss-get' utility."
@@ -2404,16 +1956,6 @@ are the same."
     tot))
 
 
-(defun kiss--file-rwx (file-path)
-  (thread-last
-    file-path
-    (file-attributes)
-    (file-attribute-modes)
-    (string-to-list)
-    (cdr)
-    (funcall (lambda (lst) (seq-partition lst 3)))
-    (mapcar #'kiss--rwx-lst-to-octal)
-    (funcall (lambda (lst) (mapconcat #'number-to-string lst "")))))
 
 
 ;; FIXME: use kiss--file-normalize-file-path
@@ -2528,8 +2070,8 @@ are the same."
       file-path-lst
       (seq-filter
        (lambda (fp) (string-match-p
-                (rx
-                 (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
+                     (rx
+                      (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
       (car)
       (funcall (lambda (str) (string-split str "/" t)))
       (reverse)
