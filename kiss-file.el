@@ -13,6 +13,13 @@
 
 (eval-when-compile
   (require 'rx))
+(progn
+  (require 'cl-lib)
+  (require 'seq)
+  (require 'subr-x))
+
+(require 'kiss-env)
+(require 'kiss-os)
 
 ;; FIXME: try to remove as many calls to external programs as possible.
 (defconst *kiss-file-required-shell-commands*
@@ -244,6 +251,19 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     (funcall (lambda (lst) (mapconcat #'number-to-string lst "")))))
 
 
+(defun kiss--file-get-owner (file-path)
+  "Return the owner uid of FILE-PATH."
+  (file-attribute-user-id (file-attributes file-path)))
+
+(defun kiss--file-get-owner-name (file-path)
+  "Return the owner name of FILE-PATH."
+  (kiss--get-user-from-uid (kiss--file-get-owner file-path)))
+
+(defun kiss--file-am-owner-p (file-path)
+  "Return t if the current LOGNAME owns the FILE-PATH, nil otherwise."
+  (eql
+   (user-real-uid)
+   (kiss--file-get-owner file-path)))
 
 (provide 'kiss-file)
 ;;; kiss-file.el ends here

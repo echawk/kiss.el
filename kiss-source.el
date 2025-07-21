@@ -9,6 +9,7 @@
 ;; This file contains the object code & related methods for kiss sources
 ;; including all logic for handling remote & local sources.
 
+(require 'kiss-env)
 (require 'kiss-file)
 
 (defclass kiss-source ()
@@ -45,7 +46,7 @@
     :documentation "The relevant commit or branch for a git source."
     :optional)))
 
-(cl-defmethod kiss--source-get-cache-path ((obj kiss-source))
+(defun kiss--source-get-cache-path (obj)
   (with-slots
       ((ty :type)
        (u  :uri)
@@ -63,7 +64,7 @@
              u
            (concat (car (kiss-search p)) "/" u)))))))
 
-(cl-defmethod kiss--source-download ((obj kiss-source))
+(defun kiss--source-download (obj)
 
   (let ((cache-path (kiss--source-get-cache-path obj)))
     (make-directory (kiss--dirname cache-path) t)
@@ -148,7 +149,7 @@
               (concat (car (kiss-search p)) "/" u)))))))))
 
 
-(cl-defmethod kiss--source-get-local-checksum ((obj kiss-source))
+(defun kiss--source-get-local-checksum (obj)
   (with-slots
       ((ty :type))
       obj
@@ -156,12 +157,12 @@
       ((or 'git 'hg 'fossil) "")
       (_ (kiss--b3 (kiss--source-get-cache-path obj))))))
 
-(cl-defmethod kiss--source-validate-p ((obj kiss-source))
+(defun kiss--source-validate-p (obj)
   (if (string= (slot-value obj :checksum) "SKIP")
       t
     (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj))))
 
-(cl-defmethod kiss--source-to-string ((obj kiss-source))
+(defun kiss--source-to-string (obj)
   (with-slots
       ((package :package)
        (type :type)
@@ -234,3 +235,8 @@
 
 (defun kiss--sources-file-to-sources-objs (file-path)
   (mapcar #'kiss--string-to-source-obj (kiss--read-file file-path)))
+
+(defun kiss--def-pkg-sources (name &rest arguments)
+  (let ((src-objs (mapcar #'kiss--string-to-source-obj arguments)))
+    (mapc (lambda (obj) (oset obj :package name)) src-objs)
+    src-objs))
