@@ -1,4 +1,4 @@
-;;; kiss-source.el --- KISS source object & methods -* lexical-binding: t; -*-
+;;; kiss-source.el --- KISS source object & methods -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 Ethan Hawk
 
@@ -9,7 +9,8 @@
 ;; This file contains the object code & related methods for kiss sources
 ;; including all logic for handling remote & local sources.
 
-(require 'kiss-env)
+(eval-when-compile
+  (require 'kiss-env))
 (require 'kiss-file)
 
 (defclass kiss-source ()
@@ -234,7 +235,7 @@
 
 
 (defun kiss--sources-file-to-sources-objs (file-path)
-  (mapcar #'kiss--string-to-source-obj (kiss--read-file file-path)))
+  (mapcar #'kiss--string-to-source-obj (kiss--file-read-file file-path)))
 
 (defun kiss--def-pkg-sources (name &rest arguments)
   (let ((src-objs (mapcar #'kiss--string-to-source-obj arguments)))
