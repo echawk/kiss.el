@@ -88,7 +88,7 @@
    (* " ")
    "00"))
 
-(defconst *kiss-zstd-magic-regex*
+(defconst *kiss-file-zstd-magic-regex*
   (rx
    (* " ")
    "28"
@@ -101,7 +101,7 @@
 
 (defun kiss--file-is-tarball-p (file-path)
   (string-match-p
-   *tarball-regex*
+   *kiss-file-tarball-magic-regex*
    (shell-command-to-string
     (concat
      "od -t x1 -j 257 -N 8 "
@@ -141,7 +141,7 @@
 
 (defun kiss--file-is-zstd-p (file-path)
   (string-match-p
-   *kiss-zstd-magic-regex*
+   *kiss-file-zstd-magic-regex*
    (shell-command-to-string
     (concat
      "od -t x1 -j 0 -N 4 "
