@@ -36,6 +36,9 @@
 (defconst kiss-logdir
   (concat (getenv "HOME") "/.cache/kiss/logs/"))
 
+;; the master branch will always be versioned as '0' - this prevents
+;; version checks from depending on master branch features & requiring anyone
+;; who depends on the library to use a branched release.
 (defconst kiss-version "0"
   "The version of kiss.el.")
 
