@@ -115,8 +115,8 @@
      (dolist (repo repos)
        (kiss--with-dir
         repo
-        (let ((repo-owner (kiss--get-owner-name repo))
-              (am-owner-p (kiss--am-owner-p repo))
+        (let ((repo-owner (kiss--file-get-owner-name repo))
+              (am-owner-p (kiss--file-am-owner-p repo))
               (pull-cmd   (pcase ,type
                             ('git    "git pull")
                             ('hg     "hg pull")
@@ -490,20 +490,6 @@
     (replace-regexp-in-string " " "")
     (replace-regexp-in-string "\n$" "")))
 
-(defun kiss--silent-shell-command (command)
-  "Macro to make shell commands silent in the terminal."
-  `(let ((inhibit-message t)
-         (message-log-max nil))
-     (shell-command ,command)))
-
-(defun kiss--write-text (text encoding file-path)
-  (with-temp-file file-path
-    (insert (format "%s" text))))
-
-(defun kiss--read-text (file-path)
-  (with-temp-buffer
-    (insert-file-contents-literally file-path)
-    (buffer-substring-no-properties (point-min) (point-max))))
 
 ;; (defun kiss--shell-command (command)
 ;;   ;; Wrapper over 'shell-command' that prevents a ton of messages being
@@ -512,14 +498,6 @@
 ;;         (message-log-max nil))
 ;;     (shell-command command)))
 
-;; FIXME: impl this which can take a list of arbitrary
-;; length commands and execute them all in one fell swoop
-;; by making a shell script that will execute them.
-;; Naturally, we just return the exit code of the
-;; shell script.
-(defun kiss--shell-commands (command-lst)
-
-  nil)
 
 ;; FIXME: potentially change this function
 ;; to simply remove the final newline at the end of the text
@@ -527,57 +505,6 @@
 ;; code as the following for kiss-manifest, but would allow this
 ;; code to be used other places too
 
-
-(defun kiss--get-user-from-uid (uid)
-  "(I) Return the name for UID.  `$ getent passwd' is parsed for the information."
-  (pcase system-type
-    ('darwin
-     ;; macOS ships a working version of id.
-     (car
-      (string-split
-       (shell-command-to-string (format "id -un %d" uid)) "\n" t)))
-    ((or 'gnu/linux 'berkeley-unix)
-     (let ((regex (rx bol
-                      (group-n 1 (1+ (not ":"))) ":"
-                      (0+ (not ":")) ":"
-                      (literal (number-to-string uid))
-                      (0+ any)
-                      eol))
-           ;; NOTE: there is a portability penalty here for using getent(1).
-           ;; This will work fine on Linux and the *BSDs, but not on macOS.
-           (cmd-out (string-split
-                     (shell-command-to-string "getent passwd") "\n" t)))
-       (thread-last
-         cmd-out
-         (seq-filter (lambda (s) (string-match regex s)))
-         (car)
-         (replace-regexp-in-string regex "\\1"))))
-    (_ (error (concat system-type " is not supported by kiss.el")))))
-
-(defun kiss--get-uid-from-user (user)
-  (string-to-number
-   (shell-command-to-string (concat "id -u " user))))
-
-;; FIXME: move to kiss-file.el
-(defun kiss--get-owner (file-path)
-  "(I) Return the owner uid of FILE-PATH."
-  (file-attribute-user-id (file-attributes file-path)))
-
-;; FIXME: move to kiss-file.el
-(defun kiss--get-owner-name (file-path)
-  "(I) Return the owner name of FILE-PATH."
-  (kiss--get-user-from-uid (kiss--get-owner file-path)))
-
-;; FIXME: move to kiss-file.el
-(defun kiss--am-owner-p (file-path)
-  "(I) Return t if the current LOGNAME owns the FILE-PATH, nil otherwise."
-  (eql
-   (user-real-uid)
-   (kiss--get-owner file-path)))
-
-(defun kiss--shell-command-as-user (command user)
-  "(I) Run COMMAND as USER using `kiss-su'."
-  (kiss--silent-shell-command (concat kiss-su " -u " user " -- " command)))
 
 (defun kiss--get-decompression-command (file-path)
   (declare (pure t) (side-effect-free t))
@@ -670,7 +597,7 @@
       (with-environment-variables
           (("KISS_ROOT" kiss-root))
         (kiss--shell-command-as-user
-         hook-fp (kiss--get-owner-name kiss-root))))))
+         hook-fp (kiss--file-get-owner-name kiss-root))))))
 
 ;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
@@ -705,7 +632,7 @@
   ;; replacement.
   (let* ((manifest-f (concat kiss-installed-db-dir pkg "/manifest"))
          (temp-f     (kiss--file-make-temp-file))
-         (owner      (kiss--get-owner-name manifest-f))
+         (owner      (kiss--file-get-owner-name manifest-f))
          (manifest-t (kiss--manifest-to-string
                       (reverse
                        (seq-sort 'string-lessp
@@ -758,7 +685,7 @@
                      (concat "cp -Pf " path " "
                              (kiss--single-quote-string
                               (concat kiss-choices-db-dir path-own alt)))
-                     (kiss--get-owner-name path))
+                     (kiss--file-get-owner-name path))
 
                     ;; Only preserve file timestamps when the file is not a link.
                     (unless (eq (kiss--file-identify path) 'symlink)
@@ -767,7 +694,7 @@
                        (concat "touch -r " path " "
                                (kiss--single-quote-string
                                 (concat kiss-choices-db-dir path-own alt)))
-                       (kiss--get-owner-name path)))
+                       (kiss--file-get-owner-name path)))
 
                     ;; Update the manifest file to reflect the new version.
                     (kiss--pkg-manifest-replace
@@ -776,7 +703,7 @@
               (kiss--shell-command-as-user
                (concat "mv -f " (kiss--single-quote-string alt-path)
                        " " path)
-               (kiss--get-owner-name path))
+               (kiss--file-get-owner-name path))
               (kiss--pkg-manifest-replace pkg alt-path path))))))
 
 ;; (f-symlink-p "/var/db/kiss/choices/gawk\\>usr\\>bin\\>awk")
@@ -1494,7 +1421,7 @@ are the same."
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
            (mapcar (lambda (s) (split-string s ">")))
            (mapcar (lambda (l) (list (kiss--basename (car l))
-                                     (concat "/" (string-join (cdr l) "/")))))
+                                (concat "/" (string-join (cdr l) "/")))))
            ;; Convert the pairs to dotted pairs.
            (mapcar (lambda (p) (cons (car p) (cadr p))))
 
@@ -1797,7 +1724,7 @@ are the same."
            (chk-sums (mapconcat
                       #'identity
                       (kiss--get-pkg-local-checksums pkgs-l) "\n")))
-      (when (and (kiss--am-owner-p chk-path)
+      (when (and (kiss--file-am-owner-p chk-path)
                  (not (string-empty-p chk-sums)))
         (kiss--write-text chk-sums 'utf-8 chk-path))))))
 
@@ -1872,10 +1799,10 @@ are the same."
 
          ;; Make sure to rm the temp file.
          (kiss--shell-command-as-user
-          (concat "rm -- " temp-f) (kiss--get-owner-name temp-f))
+          (concat "rm -- " temp-f) (kiss--file-get-owner-name temp-f))
          ;; Also rm the temp directory.
          (kiss--shell-command-as-user
-          (concat "rm -rf -- " temp-d) (kiss--get-owner-name temp-d))))
+          (concat "rm -rf -- " temp-d) (kiss--file-get-owner-name temp-d))))
 
      ;; Make sure we only go through each top level directory *once*.
      (seq-uniq
@@ -1894,7 +1821,7 @@ are the same."
     ;; Remove our decompressed tarball now that we are done with it.
     (kiss--shell-command-as-user
      (concat "rm -f -- " decomp-tarball)
-     (kiss--get-owner-name decomp-tarball))))
+     (kiss--file-get-owner-name decomp-tarball))))
 
 (defun kiss--str-tarball-p (str)
   "(I) Predicate to determine if STR matches the regex for a tarball."
@@ -1939,38 +1866,6 @@ are the same."
        (kiss--file-read-file manifest-file)))))
 
 
-(defun kiss--rwx-lst-to-octal (lst)
-  (cl-assert
-   (seq-reduce
-    (lambda (a b) (and a b))
-    (mapcar
-     (lambda (elt) (member elt (string-to-list "rwx-")))
-     (flatten-list lst)) t))
-
-  (let ((vals '(4 2 1))
-        (tot 0))
-    (dotimes (i (length lst))
-      (setq tot (+ tot
-                   (* (if (eq (nth i lst) 45) 0 1)
-                      (nth i vals)))))
-    tot))
-
-
-
-
-;; FIXME: use kiss--file-normalize-file-path
-(defun kiss--dirname (file-path)
-  (concat
-   "/"
-   (string-join
-    (seq-reverse (seq-drop (seq-reverse (string-split file-path "/" t)) 1))
-    "/")))
-
-
-(defun kiss--basename (file-path)
-  (car (seq-reverse (string-split file-path "/"))))
-
-
 (defun kiss--pkg-conflicts (pkg extr-dir)
   "(I) Fix up DIR for PKG so as to allow for alternatives."
   (let ((conf-files (kiss--get-pkg-conflict-files pkg extr-dir)))
@@ -2009,14 +1904,14 @@ are the same."
               (concat
                "mkdir -m " (kiss--file-rwx source-file) " "
                (kiss--single-quote-string actual-file))
-              (kiss--get-owner-name target-dir))))
+              (kiss--file-get-owner-name target-dir))))
 
           ('symlink
            (kiss--shell-command-as-user
             (concat "cp -fP " (kiss--single-quote-string source-file)
                     " " (kiss--single-quote-string
                          (concat (kiss--dirname actual-file) "/.")))
-            (kiss--get-owner-name target-dir)))
+            (kiss--file-get-owner-name target-dir)))
 
           ('file
            (let ((tmp
@@ -2033,20 +1928,20 @@ are the same."
              (kiss--shell-command-as-user
               (concat "cp -fP " (kiss--single-quote-string source-file)
                       " " tmp)
-              (kiss--get-owner-name target-dir))
+              (kiss--file-get-owner-name target-dir))
 
              ;; Ensure that the timestamps are going to be the same.
              (kiss--shell-command-as-user
               (concat "touch -r " (kiss--single-quote-string source-file)
                       " " tmp)
-              (kiss--get-owner-name target-dir))
+              (kiss--file-get-owner-name target-dir))
 
              ;; mv already preserves timestamps, hence why we do not need to
              ;; do the touch after this mv.
              (kiss--shell-command-as-user
               (concat "mv -f " tmp
                       " " (kiss--single-quote-string actual-file))
-              (kiss--get-owner-name target-dir)))))
+              (kiss--file-get-owner-name target-dir)))))
 
         ;; NOTE: This fix has not yet been merged upstream, but it should
         ;; make it there somewhat soon(tm). This note will be removed
@@ -2057,7 +1952,7 @@ are the same."
         ;;          (kiss--single-quote-string source-file)
         ;;          " "
         ;;          (kiss--single-quote-string actual-file))
-        ;;  (kiss--get-owner-name target-dir))
+        ;;  (kiss--file-get-owner-name target-dir))
         )
       ))
   ;; FIXME: have a better return than nil
@@ -2070,8 +1965,8 @@ are the same."
       file-path-lst
       (seq-filter
        (lambda (fp) (string-match-p
-                     (rx
-                      (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
+                (rx
+                 (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
       (car)
       (funcall (lambda (str) (string-split str "/" t)))
       (reverse)
@@ -2094,7 +1989,7 @@ are the same."
      extr-dir
      (shell-command
       (concat "tar xf " decomp-tarball)))
-    (kiss--remove-file decomp-tarball)
+    (kiss--file-remove-file decomp-tarball)
 
     (let ((pkg (kiss--get-pkg-from-manifest
                 (kiss--get-manifest-for-dir extr-dir))))
@@ -2181,7 +2076,7 @@ are the same."
 
         ;; Remove any files that were in the old manifest that aren't
         ;; in the new one.
-        (kiss--remove-files files-not-present-in-new-manifest)
+        (kiss--file-remove-files files-not-present-in-new-manifest)
 
         ;; Install the packages files for a second time to fix
         ;; any potential mess that could have been made from the
@@ -2257,63 +2152,6 @@ are the same."
 ;; -> remove       Remove packages
 ;; ===========================================================================
 
-;; TODO: need to account for symlinks w/ (file-symlink-p
-
-(defun kiss--remove-file (file-path)
-  "(I) Remove FILE-PATH as the appropriate user using rm(1)."
-  (if (kiss--file-exists-p file-path)
-      (let ((owner (kiss--get-owner-name file-path))
-            (rmcmd (concat "rm -- " (kiss--single-quote-string file-path))))
-        (eq 0
-            (if (kiss--am-owner-p file-path)
-                (shell-command rmcmd)
-              (kiss--shell-command-as-user rmcmd owner))))))
-
-(defun kiss--remove-directory (dir-path)
-  "(I) Remove DIR-PATH as the appropriate user using rmdir(1)."
-  (if (and (kiss--file-is-directory-p dir-path)
-           (not (kiss--file-is-symbolic-link-p dir-path)))
-      (let ((owner (kiss--get-owner-name dir-path))
-            (rmcmd (concat "rmdir -- " dir-path)))
-        (eq 0
-            (if (kiss--am-owner-p dir-path)
-                (shell-command rmcmd)
-              (kiss--shell-command-as-user rmcmd owner))))))
-
-(defun kiss--remove-files (file-path-lst)
-  "(I) Remove all files and empty directories in FILE-PATH-LST."
-
-  ;; TODO: Check this function with packages that have more elaborate
-  ;; symlink structures, and ensure that this function removes all of the
-  ;; files in the manifest properly.
-  ;; I think one way to remedy this would be to try to remove all of the
-  ;; directories from the file-path-lst again, once all of the symlinks are
-  ;; gone, so that way all of the dirs can be properly removed.
-
-  ;; This will return all of the /etc files/dirs.
-  ;; (cl-remove-if-not
-  ;;  (lambda (file-path) (string-match-p "/etc/" file-path))
-  ;;  file-path-lst)
-
-  ;; NOTE: I'm not entirely sure if it removing the files in the proper
-  ;; order since it should be removing all of the files in a dir first,
-  ;; then the dir itself, but when testing on 'xdo' it does not remove
-  ;; the actual directory in `kiss-installed-db-dir'.
-
-  ;; Make this local variable since we need to rm the symlinks
-  ;; separately.
-  (let ((symlink-queue '()))
-    (mapc
-     (lambda (file-path)
-       (pcase (kiss--file-identify file-path)
-         ('directory (kiss--remove-directory file-path))
-         ('symlink   (setq symlink-queue
-                           (cons file-path symlink-queue)))
-         ('file      (kiss--remove-file      file-path))))
-     file-path-lst)
-    ;; Now to cleanup broken symlinks.
-    (mapcar #'kiss--remove-file symlink-queue)))
-
 ;; NOTE: this function is slowed by the need
 ;; to use my custom file detection commands.
 ;;;###autoload
@@ -2334,7 +2172,7 @@ are the same."
                (kiss--run-hook "pre-remove"
                                pkgs-l (concat kiss-installed-db-dir pkgs-l))
 
-               (kiss--remove-files
+               (kiss--file-remove-files
                 (kiss-manifest pkgs-l)))))
         (t nil)))
 

@@ -34,6 +34,9 @@
 
   nil)
 
+(defun kiss--shell-command-as-user (command user)
+  "Run COMMAND as USER using `kiss-su'."
+  (kiss--silent-shell-command (concat kiss-su " -u " user " -- " command)))
 
 (defun kiss--get-uid-from-user (user)
   (string-to-number

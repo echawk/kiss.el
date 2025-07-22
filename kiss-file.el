@@ -259,5 +259,75 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
    (user-real-uid)
    (kiss--file-get-owner file-path)))
 
+
+;; FIXME: use kiss--file-normalize-file-path
+(defun kiss--dirname (file-path)
+  (concat
+   "/"
+   (string-join
+    (seq-reverse (seq-drop (seq-reverse (string-split file-path "/" t)) 1))
+    "/")))
+
+(defun kiss--basename (file-path)
+  (car (seq-reverse (string-split file-path "/"))))
+
+;; TODO: need to account for symlinks w/ (file-symlink-p
+
+(defun kiss--file-remove-file (file-path)
+  "Remove FILE-PATH as the appropriate user using rm(1)."
+  (if (kiss--file-exists-p file-path)
+      (let ((owner (kiss--file-get-owner-name file-path))
+            (rmcmd (concat "rm -- " (kiss--single-quote-string file-path))))
+        (eq 0
+            (if (kiss--file-am-owner-p file-path)
+                (shell-command rmcmd)
+              (kiss--shell-command-as-user rmcmd owner))))))
+
+(defun kiss--file-remove-directory (dir-path)
+  "Remove DIR-PATH as the appropriate user using rmdir(1)."
+  (if (and (kiss--file-is-directory-p dir-path)
+           (not (kiss--file-is-symbolic-link-p dir-path)))
+      (let ((owner (kiss--file-get-owner-name dir-path))
+            (rmcmd (concat "rmdir -- " dir-path)))
+        (eq 0
+            (if (kiss--file-am-owner-p dir-path)
+                (shell-command rmcmd)
+              (kiss--shell-command-as-user rmcmd owner))))))
+
+(defun kiss--file-remove-files (file-path-lst)
+  "Remove all files and empty directories in FILE-PATH-LST."
+
+  ;; TODO: Check this function with packages that have more elaborate
+  ;; symlink structures, and ensure that this function removes all of the
+  ;; files in the manifest properly.
+  ;; I think one way to remedy this would be to try to remove all of the
+  ;; directories from the file-path-lst again, once all of the symlinks are
+  ;; gone, so that way all of the dirs can be properly removed.
+
+  ;; This will return all of the /etc files/dirs.
+  ;; (cl-remove-if-not
+  ;;  (lambda (file-path) (string-match-p "/etc/" file-path))
+  ;;  file-path-lst)
+
+  ;; NOTE: I'm not entirely sure if it removing the files in the proper
+  ;; order since it should be removing all of the files in a dir first,
+  ;; then the dir itself, but when testing on 'xdo' it does not remove
+  ;; the actual directory in `kiss-installed-db-dir'.
+
+  ;; Make this local variable since we need to rm the symlinks
+  ;; separately.
+  (let ((symlink-queue '()))
+    (mapc
+     (lambda (file-path)
+       (pcase (kiss--file-identify file-path)
+         ('directory (kiss--file-remove-directory file-path))
+         ('symlink   (setq symlink-queue
+                           (cons file-path symlink-queue)))
+         ('file      (kiss--file-remove-file      file-path))))
+     file-path-lst)
+    ;; Now to cleanup broken symlinks.
+    (mapcar #'kiss--file-remove-file symlink-queue)))
+
+
 (provide 'kiss-file)
 ;;; kiss-file.el ends here
