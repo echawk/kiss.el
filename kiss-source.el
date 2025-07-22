@@ -9,6 +9,8 @@
 ;; This file contains the object code & related methods for kiss sources
 ;; including all logic for handling remote & local sources.
 
+;;; Code:
+
 (eval-when-compile
   (require 'kiss-env))
 (require 'kiss-file)
