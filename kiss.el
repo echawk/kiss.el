@@ -6,7 +6,7 @@
 ;; URL: https://github.com/ehawkvu/kiss.el
 ;; Keywords: package-manager, tools
 ;; Package-Requires: ((emacs "27.1") (compat "29.1.4.2") (tsort "1.0"))
-;; Version: 1.0.0
+;; Version: δ
 
 ;; This file is under the MIT license.
 
@@ -1494,7 +1494,7 @@ are the same."
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
            (mapcar (lambda (s) (split-string s ">")))
            (mapcar (lambda (l) (list (kiss--basename (car l))
-                                (concat "/" (string-join (cdr l) "/")))))
+                                     (concat "/" (string-join (cdr l) "/")))))
            ;; Convert the pairs to dotted pairs.
            (mapcar (lambda (p) (cons (car p) (cadr p))))
 

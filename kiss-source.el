@@ -13,6 +13,11 @@
   (require 'kiss-env))
 (require 'kiss-file)
 
+(defconst *kiss-source-required-shell-commands*
+  `("git" ,kiss-get))
+
+(kiss-ensure-shell-commands-are-available *kiss-source-required-shell-commands*)
+
 (defclass kiss-source ()
   ((package
     :initarg :package

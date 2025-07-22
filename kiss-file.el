@@ -26,13 +26,7 @@
   '("test" "sed" "od" "cut" "mktemp"))
 
 ;; Ensure all of the required commands are present on the host system.
-(cl-assert
- (not
-  (member
-   nil
-   (mapcar
-    #'executable-find
-    *kiss-file-required-shell-commands*))))
+(kiss-ensure-shell-commands-are-available *kiss-file-required-shell-commands*)
 
 ;; https://en.wikipedia.org/wiki/List_of_file_signatures
 ;; See section on tar files & friends - would like to be able to

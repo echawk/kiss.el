@@ -10,6 +10,9 @@
 
 ;;; Code:
 
+(progn
+  (require 'cl-lib))
+
 ;; FIXME: Find out what the containing group should be...
 (defgroup kiss nil
   "The KISS package manager, in ELisp."
@@ -33,10 +36,11 @@
 (defconst kiss-logdir
   (concat (getenv "HOME") "/.cache/kiss/logs/"))
 
-(defconst kiss-version "0.0.1"
+(defconst kiss-version "δ"
   "The version of kiss.el.")
-(defconst kiss-compat-version "6.1.1"
-  "The version of kiss that kiss.el is compatible with.")
+
+(defconst kiss-compat-version "6.2.0"
+  "The version of upstream kiss that kiss.el is compatible with.")
 
 (defcustom kiss-valid-download-utils
   '("aria2c" "axel" "curl" "wget" "wget2")
@@ -185,5 +189,20 @@ Valid strings: bwrap, proot."
   `(let ((default-directory ,dir-path))
      ,expr))
 
+(defun kiss-ensure-shell-commands-are-available (shell-commands-lst)
+  (cl-assert
+   (not
+    (member
+     nil
+     (mapcar
+      #'executable-find
+      shell-commands-lst)))))
+
+;; FIXME: implement a Common Lisp style features system that will
+;; autodetect different features on evaluation - like having fossil support
+;; be detected at eval time & added to the list of features - if the fossil
+;; exe is found, then add it to the list of features.
+(defcustom kiss-features '()
+  "List of features for kiss.")
 
 (provide 'kiss-env)
