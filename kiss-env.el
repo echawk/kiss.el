@@ -36,7 +36,7 @@
 (defconst kiss-logdir
   (concat (getenv "HOME") "/.cache/kiss/logs/"))
 
-(defconst kiss-version "δ"
+(defconst kiss-version "0.δ"
   "The version of kiss.el.")
 
 (defconst kiss-compat-version "6.2.0"

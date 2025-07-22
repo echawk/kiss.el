@@ -6,7 +6,7 @@
 ;; URL: https://github.com/ehawkvu/kiss.el
 ;; Keywords: package-manager, tools
 ;; Package-Requires: ((emacs "27.1") (compat "29.1.4.2") (tsort "1.0"))
-;; Version: δ
+;; Version: 0.δ
 
 ;; This file is under the MIT license.
 
