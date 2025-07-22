@@ -186,6 +186,13 @@ Valid strings: bwrap, proot."
   :type 'string
   :options '("bwrap" "proot"))
 
+;; FIXME: implement a Common Lisp style features system that will
+;; autodetect different features on evaluation - like having fossil support
+;; be detected at eval time & added to the list of features - if the fossil
+;; exe is found, then add it to the list of features.
+(defcustom kiss-features '()
+  "List of features for kiss.")
+
 ;;; Macros
 
 (defmacro kiss--with-dir (dir-path expr)
@@ -198,14 +205,18 @@ Valid strings: bwrap, proot."
     (member
      nil
      (mapcar
-      #'executable-find
+      (lambda (value)
+        (cond
+         ((stringp value) (executable-find value))
+         ;; Lists are optional values, and they are expected to have an
+         ;; associated feature symbol.
+         ((and (listp value)
+               (eql 2 (length value)))
+          (progn 
+            (when (and (stringp (car value))
+                       (executable-find (car value)))
+              (add-to-list 'kiss-features (cadr value)))
+            t))))
       shell-commands-lst)))))
-
-;; FIXME: implement a Common Lisp style features system that will
-;; autodetect different features on evaluation - like having fossil support
-;; be detected at eval time & added to the list of features - if the fossil
-;; exe is found, then add it to the list of features.
-(defcustom kiss-features '()
-  "List of features for kiss.")
 
 (provide 'kiss-env)

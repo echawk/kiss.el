@@ -16,7 +16,7 @@
 (require 'kiss-file)
 
 (defconst *kiss-source-required-shell-commands*
-  `("git" ,kiss-get))
+  `(("git" :GIT) ("hg" :MERCURIAL) ("fossil" :FOSSIL) ,kiss-get))
 
 (kiss-ensure-shell-commands-are-available *kiss-source-required-shell-commands*)
 
