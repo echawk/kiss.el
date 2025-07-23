@@ -145,24 +145,20 @@
 
 (defun kiss--file-is-executable-p (file-path)
   "Return T if FILE-PATH exists and is executable."
-  (eq 0 (kiss--silent-shell-command
-         (concat "test -x " (kiss--single-quote-string file-path)))))
+  (eq 0 (shell-command (format "test -x '%s'" file-path))))
 
 ;; TODO: Look into rm'ing these funcs since they should not have to exist.
 (defun kiss--file-is-regular-file-p (file-path)
   "Return T if FILE-PATH exists and is a regular file."
-  (eq 0 (kiss--silent-shell-command
-         (concat "test -f " (kiss--single-quote-string file-path)))))
+  (eq 0 (shell-command (format "test -f '%s'" file-path))))
 
 (defun kiss--file-is-symbolic-link-p (file-path)
   "Return T if FILE-PATH exists and is a symbolic link."
-  (eq 0 (kiss--silent-shell-command
-         (concat "test -h " (kiss--single-quote-string file-path)))))
+  (eq 0 (shell-command (format "test -h '%s'" file-path))))
 
 (defun kiss--file-is-directory-p (file-path)
   "Return T if FILE-PATH exists and is a directory."
-  (eq 0 (kiss--silent-shell-command
-         (concat "test -d " (kiss--single-quote-string file-path)))))
+  (eq 0 (shell-command (format "test -d '%s'" file-path))))
 
 (defun kiss--file-identify (file-path)
   "Identify FILE-PATH as a symbol representing what kind of file it is."
@@ -277,7 +273,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   "Remove FILE-PATH as the appropriate user using rm(1)."
   (if (kiss--file-exists-p file-path)
       (let ((owner (kiss--file-get-owner-name file-path))
-            (rmcmd (concat "rm -- " (kiss--single-quote-string file-path))))
+            (rmcmd (format "rm -- '%s'" file-path)))
         (eq 0
             (if (kiss--file-am-owner-p file-path)
                 (shell-command rmcmd)
@@ -288,7 +284,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (if (and (kiss--file-is-directory-p dir-path)
            (not (kiss--file-is-symbolic-link-p dir-path)))
       (let ((owner (kiss--file-get-owner-name dir-path))
-            (rmcmd (concat "rmdir -- " dir-path)))
+            (rmcmd (format "rmdir -- '%s'" dir-path)))
         (eq 0
             (if (kiss--file-am-owner-p dir-path)
                 (shell-command rmcmd)
