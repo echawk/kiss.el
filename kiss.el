@@ -1519,17 +1519,6 @@ are the same."
   "(I) Get the proper arguments for the `kiss-get' utility."
   (cdr (assoc kiss-get kiss-get-alist)))
 
-;; FIXME: remove this & use (kiss--file-is-tarball-p file-path)
-(defun kiss--str-tarball-p (str)
-  "(I) Predicate to determine if STR matches the regex for a tarball."
-  (string-match-p
-   (rx
-    (or (: "t" any "z")
-        (: "tar." any any)
-        (: "tar." any any any)
-        (: "tar." any any any any)) eol) str))
-
-
 ;; -> install      Install packages
 ;; ===========================================================================
 
@@ -1786,7 +1775,7 @@ are the same."
    ((atom pkgs-l)
     (let* ((tarball
             (cond ((and (file-exists-p pkgs-l)
-                        (kiss--str-tarball-p pkgs-l))
+                        (kiss--file-is-tarball-p pkgs-l))
                    pkgs-l)
                   (t
                    (concat
