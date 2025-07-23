@@ -1638,20 +1638,7 @@ are the same."
              (kiss--shell-command-as-user
               (concat "mv -f " tmp
                       " " (kiss--single-quote-string actual-file))
-              (kiss--file-get-owner-name target-dir)))))
-
-        ;; NOTE: This fix has not yet been merged upstream, but it should
-        ;; make it there somewhat soon(tm). This note will be removed
-        ;; when that is the case.
-        ;; FIXME: check to ensure that this command will never fail.
-        ;; (kiss--shell-command-as-user
-        ;;  (concat "touch -r "
-        ;;          (kiss--single-quote-string source-file)
-        ;;          " "
-        ;;          (kiss--single-quote-string actual-file))
-        ;;  (kiss--file-get-owner-name target-dir))
-        )
-      ))
+              (kiss--file-get-owner-name target-dir))))))))
   ;; FIXME: have a better return than nil
   nil)
 
