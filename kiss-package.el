@@ -13,6 +13,7 @@
 (eval-when-compile
   (require 'rx))
 (progn
+  (require 'eieio)
   (require 'seq))
 
 (require 'kiss-env)

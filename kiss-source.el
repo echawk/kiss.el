@@ -10,9 +10,10 @@
 ;; including all logic for handling remote & local sources.
 
 ;;; Code:
-
 (eval-when-compile
   (require 'kiss-env))
+(progn
+  (require 'eieio))
 (require 'kiss-file)
 
 (defconst *kiss-source-required-shell-commands*
