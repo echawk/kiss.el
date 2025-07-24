@@ -12,7 +12,8 @@
 ;;; Code:
 
 (eval-when-compile
-  (require 'rx))
+  (require 'rx)
+  (require 'pcase))
 (progn
   (require 'cl-lib)
   (require 'seq)
@@ -382,6 +383,39 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     (kiss--shell-command-as-user
      (concat "rm -f -- " decomp-tarball)
      (kiss--file-get-owner-name decomp-tarball))))
+
+(defun kiss--decompress (file-path out-path)
+  "Decompress FILE-PATH to OUT-PATH based on the file name."
+  (let ((cmd (kiss--get-decompression-command file-path)))
+    (when cmd
+      (shell-command (concat cmd file-path " > " out-path)))))
+
+(defun kiss--b3 (file-path)
+  "Run b3sum on FILE-PATH."
+  (thread-last
+    file-path
+    (concat "b3sum -l 33 ")
+    (shell-command-to-string)
+    (replace-regexp-in-string "\n$" "")
+    (funcall (lambda (str) (string-split str " ")))
+    (car)))
+
+(defun kiss--sh256 (file-path)
+  "Run `kiss-chk' with proper arguments on FILE-PATH."
+  (let ((args
+         (pcase kiss-chk
+           ("openssl"   " dgst -sha256 -r ")
+           ("sha256sum" "")
+           ("sha256"    " -r ")
+           ("shasum"    " -a 256 ")
+           ("digest"    " -a sha256 "))))
+    (thread-last
+      (concat kiss-chk args file-path)
+      (shell-command-to-string)
+      (replace-regexp-in-string "\n$" "")
+      (string-split)
+      (car))))
+
 
 (provide 'kiss-file)
 ;;; kiss-file.el ends here
