@@ -173,13 +173,18 @@ would be broken or not present on the system."
   :type 'symbol
   :options '(permit-user-alternatives prohibit-user-alternatives))
 
+(defcustom kiss-valid-sandbox-utils
+  '("bwrap" "proot")
+  "List of valid sandbox utilities for kiss.el"
+  :type '(string))
+
 (defcustom kiss-perfom-build-in-sandbox
   nil
   "Set to t if you want build to be performed in a sandbox."
   :type 'boolean)
 
 (defcustom kiss-sandbox-utility
-  "bwrap"
+  (car (seq-filter #'executable-find kiss-valid-elf-utils))
   "set to an executable for sandboxing.
 
 Valid strings: bwrap, proot."
