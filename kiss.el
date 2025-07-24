@@ -745,40 +745,6 @@ are the same."
 
 
 
-
-;; NOTE: this function will need to be updated as kiss itself updates the
-;; equivalent functionality.
-(defun kiss--lib-is-system-p (lib-string)
-  "(I) Return T if the lib indicated by LIB-STRING is expected on a posix system."
-  (string-match-p
-   (rx
-    (or
-     (: "ld-" (0+ any))
-     (: "ldd")
-     (:
-      (or
-       (: "lib" (or "c" "m"))
-       (: "libc++")
-       (: "libc++abi")
-       (: "libcrypt")
-       (: "libdl")
-       (: "libgcc_s")
-       (: "libmvec")
-       (: "libpthread")
-       (: "libresolv")
-       (: "librt")
-       (: "libstdc++")
-       (: "libtrace")
-       (: "libunwind")
-       (: "libutil")
-       (: "libxnet"))
-      ".so" (0+ any))))
-   lib-string))
-
-
-
-
-
 ;; FIXME: add in checks to the appropriate places.
 (defun kiss--build-install (pkg)
   "(I) Attempt to build and install PKG, nil if unsuccessful."
