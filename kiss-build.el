@@ -18,6 +18,11 @@
 (require 'kiss-file)
 (require 'kiss-package)
 
+(defconst *kiss-build-required-shell-commands*
+  '("cp" "mv" "rm" "cc" "realpath"))
+
+;; Ensure all of the required commands are present on the host system.
+(kiss-ensure-shell-commands-are-available *kiss-build-required-shell-commands*)
 
 (defclass kiss-build-env ()
   ((proc-dir
@@ -154,31 +159,37 @@
 ;; FIXME: support other kiss-elf commands
 (defun kiss--build-get-missing-dependencies (dir file-path-lst pkg-obj)
   ;; NOTE: only works w/ ldd.
-  (seq-difference
-   (thread-last
-     ;; dir
-     ;; (kiss--get-manifest-for-dir)
-     ;; (kiss--get-potential-binary-files)
-     file-path-lst
-     (mapcar (lambda (fp) (shell-command-to-string (concat "ldd " dir "/" fp))))
-     (string-join)
-     (string-split)
-     (seq-filter (lambda (s) (string-match-p (rx ".so") s)))
-     (mapcar #'kiss--basename)
-     (seq-uniq)
-     (seq-remove #'kiss--lib-is-system-p)
-     ;; Now we have to figure out where the lib is on the system.
-     (mapcar
-      ;; FIXME: It would be nice to use kiss's algo for this part
-      ;; since I don't know how portable this technique is when you are
-      ;; using kiss as a personal package manager
-      (lambda (lib) (shell-command-to-string (concat "cc -print-file-name=" lib))))
-     (mapcar (lambda (lib) (shell-command-to-string (concat "realpath " lib))))
-     (mapcar (lambda (fp) (replace-regexp-in-string "\n" "" fp)))
-     (mapcar #'kiss-owns)
-     (seq-uniq)
-     (seq-remove (lambda (p) (string= p (slot-value pkg-obj :name)))))
-   (slot-value pkg-obj :depends)))
+  (pcase system-type
+    ('darwin
+     (message "not supported yet...")
+     ;; otool -l /opt/homebrew/bin/mu | awk '$1 ~ /^name$/ { print $2 }'
+     )
+    ('linux 
+     (seq-difference
+      (thread-last
+        ;; dir
+        ;; (kiss--get-manifest-for-dir)
+        ;; (kiss--get-potential-binary-files)
+        file-path-lst
+        (mapcar (lambda (fp) (shell-command-to-string (concat "ldd " dir "/" fp))))
+        (string-join)
+        (string-split)
+        (seq-filter (lambda (s) (string-match-p (rx ".so") s)))
+        (mapcar #'kiss--basename)
+        (seq-uniq)
+        (seq-remove #'kiss--lib-is-system-p)
+        ;; Now we have to figure out where the lib is on the system.
+        (mapcar
+         ;; FIXME: It would be nice to use kiss's algo for this part
+         ;; since I don't know how portable this technique is when you are
+         ;; using kiss as a personal package manager
+         (lambda (lib) (shell-command-to-string (concat "cc -print-file-name=" lib))))
+        (mapcar (lambda (lib) (shell-command-to-string (concat "realpath " lib))))
+        (mapcar (lambda (fp) (replace-regexp-in-string "\n" "" fp)))
+        (mapcar #'kiss-owns)
+        (seq-uniq)
+        (seq-remove (lambda (p) (string= p (slot-value pkg-obj :name)))))
+      (slot-value pkg-obj :depends)))))
 
 
 (defun kiss--build-strip-files (dir file-path-lst)
@@ -320,7 +331,7 @@
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
            (mapcar (lambda (s) (split-string s ">")))
            (mapcar (lambda (l) (list (kiss--basename (car l))
-                                     (concat "/" (string-join (cdr l) "/")))))
+                                (concat "/" (string-join (cdr l) "/")))))
            ;; Convert the pairs to dotted pairs.
            (mapcar (lambda (p) (cons (car p) (cadr p))))
 
@@ -513,6 +524,7 @@
         (shell-command
          (concat "rm -rf -- " (kiss--single-quote-string proc-dir)))
         t))))
+
 (defun kiss--build-determine-build-cmd (build-env-obj pkg-obj)
   (with-slots
       ((proc-dir    :proc-dir)

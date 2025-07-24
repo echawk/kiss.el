@@ -193,6 +193,14 @@ Valid strings: bwrap, proot."
 (defcustom kiss-features '()
   "List of features for kiss.")
 
+;; Setup some features automatically.
+
+(when kiss-sandbox-utility
+  (add-to-list 'kiss-features :BUILD-SANDBOX))
+
+(when kiss-elf
+  (add-to-list 'kiss-features :MISSING-DEPENDENCY-FIXING))
+
 ;;; Macros
 
 (defmacro kiss--with-dir (dir-path expr)

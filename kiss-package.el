@@ -21,7 +21,7 @@
 (require 'kiss-source)
 
 (defconst *kiss-package-required-shell-commands*
-  '("cp"))
+  '("cp" "chown" "chmod" "mv"))
 
 (kiss-ensure-shell-commands-are-available *kiss-package-required-shell-commands*)
 
@@ -288,6 +288,7 @@
    (kiss--package-sanitize-ver-str
     (kiss--get-installed-pkg-version pkg))))
 
+;; FIXME: consider moving to kiss-file.el?
 ;; FIXME?: may need to have this code take in a general path
 ;; for pkg - this is so that this code can be reused to implement
 ;; the conflicts system.
