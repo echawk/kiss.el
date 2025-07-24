@@ -235,13 +235,13 @@
          ;; and remove the appropriate libraries...
          ;; (let ((package "curl"))
          ;;   (seq-difference
-         ;;    (kiss--get-pkg-dependency-graph package)
-         ;;    (kiss--get-pkg-dependency-graph package t)))
+         ;;    (kiss--package-get-dependency-graph package)
+         ;;    (kiss--package-get-dependency-graph package t)))
 
-         (kiss--get-pkg-dependency-order
+         (kiss--package-get-dependency-order
           (seq-uniq
            (append
-            (cdr (reverse (kiss--get-pkg-dependency-order package)))
+            (cdr (reverse (kiss--package-get-dependency-order package)))
             ;; FIXME: need to discuss *how* this should be
             ;; done w/ the rest of the community.
             ;; I'm personally in favor of having a "kiss-system" package.
@@ -310,7 +310,7 @@
            ;; this is intended to have packages who are closer to
            ;; the "core" of the system be prioritized when
            ;; having their alternatives swapped to.
-           (kiss--get-pkg-order)
+           (kiss--package-get-order)
 
            ;; Get all of the manifest files and look files that are in choices dir.
            (mapcar #'kiss-manifest)

@@ -412,7 +412,7 @@
                (kiss--read-text file-path))
               "\n")))))
 
-(defun kiss--get-pkg-dependencies (pkg &optional installed-p)
+(defun kiss--package-get-dependencies (pkg &optional installed-p)
   "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies.
 
 Optionally, if INSTALLED-P is t, then the system installed package will be
@@ -435,7 +435,7 @@ read instead."
 
 
 ;; FIXME: have this tak a list of package objects??
-(defun kiss--get-pkg-dependency-graph (pkg-lst &optional installed-p)
+(defun kiss--package-get-dependency-graph (pkg-lst &optional installed-p)
   "(I) Generate a graph of the dependencies for PKG-LST.
 
 Optionally, if INSTALLED-P is t, then the dependencies for each
@@ -456,8 +456,8 @@ provided that the package is actually installed."
                    (dep-deps
                     ;; If installed-p is t and the package is installed.
                     (if (and installed-p (kiss--pkg-is-installed-p dep))
-                        (kiss--get-pkg-dependencies dep t)
-                      (kiss--get-pkg-dependencies dep)))
+                        (kiss--package-get-dependencies dep t)
+                      (kiss--package-get-dependencies dep)))
                    (item `(,dep ,dep-deps)))
               (if (not (member item res))
                   (setq res (cons item res)))
@@ -465,8 +465,8 @@ provided that the package is actually installed."
     res))
 
 ;; FIXME: implement installed-p argument here.
-(defun kiss--get-pkg-dependency-graph-rec (pkg-lst)
-  "(I) A Recursive & TCO-ed implementation of `kiss--get-pkg-dependency-graph'.
+(defun kiss--package-get-dependency-graph-rec (pkg-lst)
+  "(I) A Recursive & TCO-ed implementation of `kiss--package-get-dependency-graph'.
 
 This version of the function is meant primarily as a resource for people
 looking to implement kiss in other functional programming languages.
@@ -476,28 +476,28 @@ when using this function compared with the iterative version."
                 ((atom pkg-lst) `(,pkg-lst))
                 ((listp pkg-lst) pkg-lst))))
 
-    (named-let kiss--get-pkg-dependency-graph-rec-impl
+    (named-let kiss--package-get-dependency-graph-rec-impl
         ((queue pkgs) (seen '()) (res '()))
       (let* ((new-queue (seq-remove (lambda (e) (member e seen)) queue))
              (dep (car new-queue)))
         (if dep
             (let* ((new-seen (cons dep seen))
-                   (dep-deps (kiss--get-pkg-dependencies dep))
+                   (dep-deps (kiss--package-get-dependencies dep))
                    (item `(,dep ,dep-deps))
                    (new-res (if (not (member item res)) (cons item res) res)))
-              (kiss--get-pkg-dependency-graph-rec-impl
+              (kiss--package-get-dependency-graph-rec-impl
                (append dep-deps (cdr new-queue)) new-seen new-res))
           res)))))
 
-;; (benchmark-elapse (kiss--get-pkg-dependency-graph (mapcar #'car (kiss-list))))
-;; (benchmark-elapse (kiss--get-pkg-dependency-graph-rec (mapcar #'car (kiss-list))))
+;; (benchmark-elapse (kiss--package-get-dependency-graph (mapcar #'car (kiss-list))))
+;; (benchmark-elapse (kiss--package-get-dependency-graph-rec (mapcar #'car (kiss-list))))
 
-(defun kiss--get-pkg-dependency-order (pkg-lst &optional installed-p)
+(defun kiss--package-get-dependency-order (pkg-lst &optional installed-p)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
   (let ((res (tsort
               (if installed-p
-                  (kiss--get-pkg-dependency-graph pkg-lst t)
-                (kiss--get-pkg-dependency-graph pkg-lst)))))
+                  (kiss--package-get-dependency-graph pkg-lst t)
+                (kiss--package-get-dependency-graph pkg-lst)))))
     (if res res (error "Circular dependency detected!"))))
 
 (defun kiss--remove-redundant-dependencies (dep-lst)
@@ -507,12 +507,12 @@ when using this function compared with the iterative version."
      (member pkg
              (thread-last
                dep-lst
-               (mapcar #'kiss--get-pkg-dependencies)
+               (mapcar #'kiss--package-get-dependencies)
                (flatten-list)
                (seq-uniq))))
    dep-lst))
 
-(defun kiss--get-pkg-make-dependents (pkg)
+(defun kiss--package-get-make-dependents (pkg)
   "(I) Return a list of installed packages that have a make dependency on PKG."
   (mapcar
    (lambda (dep-file)
@@ -529,22 +529,22 @@ when using this function compared with the iterative version."
      #'file-exists-p
      (mapcar (lambda (p) (concat kiss-installed-db-dir p "/depends"))
              (nthcdr 2 (directory-files kiss-installed-db-dir)))))))
-;; (kiss--get-pkg-make-dependents "ant")
+;; (kiss--package-get-make-dependents "ant")
 
-(defun kiss--get-pkg-make-orphans ()
+(defun kiss--package-get-make-orphans ()
   "(I) Return a list of packages which only have make dependents."
   ;; NOTE: This function is pretty slow at the moment.
   (seq-filter
    (lambda (pkg)
-     (and (eq (kiss--get-pkg-hard-dependents pkg) nil)
+     (and (eq (kiss--package-get-hard-dependents pkg) nil)
           (not
-           (eq (kiss--get-pkg-make-dependents pkg) nil))))
+           (eq (kiss--package-get-make-dependents pkg) nil))))
    (mapcar #'car (kiss-list))))
 
-;; (kiss--get-pkg-make-orphans)
-;; (length (kiss--get-pkg-make-orphans))
+;; (kiss--package-get-make-orphans)
+;; (length (kiss--package-get-make-orphans))
 
-(defun kiss--get-pkg-hard-dependents (pkg)
+(defun kiss--package-get-hard-dependents (pkg)
   "(I) Return a list of installed packages that have a runtime dependency on PKG."
   (mapcar
    (lambda (dep-file)
@@ -562,9 +562,9 @@ when using this function compared with the iterative version."
      (mapcar (lambda (p) (concat kiss-installed-db-dir p "/depends"))
              (nthcdr 2 (directory-files kiss-installed-db-dir)))))))
 
-;; (kiss--get-pkg-hard-dependents "mpfr")
+;; (kiss--package-get-hard-dependents "mpfr")
 
-(defun kiss--get-pkg-orphan-alternatives (pkg)
+(defun kiss--package-get-orphan-alternatives (pkg)
   "(I) Return a list of orphaned alternatives that would result from removing PKG."
   (let ((orphaned-alternatives
          (seq-filter
@@ -574,7 +574,7 @@ when using this function compared with the iterative version."
     (if orphaned-alternatives
         (mapcar #'cadr orphaned-alternatives))))
 
-;; (benchmark-elapse (kiss--get-pkg-make-dependents "meson"))
+;; (benchmark-elapse (kiss--package-get-make-dependents "meson"))
 
 (defun kiss--pkg-is-removable-p (pkg)
   "(I) Return t if PKG is removable, nil otherwise."
@@ -585,8 +585,8 @@ when using this function compared with the iterative version."
   ;; * the package does not leave any orphaned alternatives
   (and
    (kiss--pkg-is-installed-p pkg)
-   (eq (kiss--get-pkg-hard-dependents pkg) nil)
-   (eq (kiss--get-pkg-orphan-alternatives pkg) nil)))
+   (eq (kiss--package-get-hard-dependents pkg) nil)
+   (eq (kiss--package-get-orphan-alternatives pkg) nil)))
 
 ;; -> build        Build packages
 ;; ===========================================================================
@@ -837,7 +837,7 @@ are the same."
            (when (kiss-download pkgs-l)
              (thread-last
                pkgs-l
-               (kiss--get-pkg-order)
+               (kiss--package-get-order)
                (mapcar #'kiss--search-pkg-obj)
                (mapcar #'kiss--package-build)))))
         ((atom pkgs-l)
@@ -852,7 +852,7 @@ are the same."
 ;; Initial working impl of kiss-checksum below; need to refactor some of
 ;; the functionality since kiss-download has similar needs.
 
-(defun kiss--get-pkg-local-checksums (pkg)
+(defun kiss--package-get-local-checksums (pkg)
   "(I) Return the list of checksums for PKG from the files on disk, or nil."
   (thread-last
     (slot-value (kiss--search-pkg-obj pkg) :sources)
@@ -869,7 +869,7 @@ are the same."
            (chk-path (concat pkg-path "/checksums"))
            (chk-sums (mapconcat
                       #'identity
-                      (kiss--get-pkg-local-checksums pkgs-l) "\n")))
+                      (kiss--package-get-local-checksums pkgs-l) "\n")))
       (when (and (kiss--file-am-owner-p chk-path)
                  (not (string-empty-p chk-sums)))
         (kiss--write-text chk-sums 'utf-8 chk-path))))))
@@ -918,10 +918,10 @@ are the same."
 ;;   ;; * all of the dependencies for the packge are installed
 ;;   (and
 ;;    (kiss--pkg-is-installed-p pkg)
-;;    (eq (kiss--get-pkg-hard-dependents pkg) nil)
-;;    (eq (kiss--get-pkg-orphan-alternatives pkg) nil)))
+;;    (eq (kiss--package-get-hard-dependents pkg) nil)
+;;    (eq (kiss--package-get-orphan-alternatives pkg) nil)))
 
-(defun kiss--get-pkg-conflict-files (pkg dir)
+(defun kiss--package-get-conflict-files (pkg dir)
   ;; It is assumed that DIR will be an extracted kiss pkg.
   (let ((manifest-file
          (concat dir "/var/db/kiss/installed/" pkg "/manifest")))
@@ -944,7 +944,7 @@ are the same."
 
 (defun kiss--pkg-conflicts (pkg extr-dir)
   "(I) Fix up DIR for PKG so as to allow for alternatives."
-  (let ((conf-files (kiss--get-pkg-conflict-files pkg extr-dir)))
+  (let ((conf-files (kiss--package-get-conflict-files pkg extr-dir)))
     (when conf-files
       ;; Make the choices dir in the extracted tarball.
       (make-directory (concat extr-dir kiss-choices-db-dir) t)
@@ -1021,7 +1021,7 @@ are the same."
   ;; FIXME: have a better return than nil
   nil)
 
-(defun kiss--get-pkg-from-manifest (file-path-lst)
+(defun kiss--package-get-from-manifest (file-path-lst)
   "(I) Determine the package name from a manifest."
   (when (member kiss-installed-db-dir file-path-lst)
     (thread-last
@@ -1054,7 +1054,7 @@ are the same."
       (concat "tar xf " decomp-tarball)))
     (kiss--file-remove-file decomp-tarball)
 
-    (let ((pkg (kiss--get-pkg-from-manifest
+    (let ((pkg (kiss--package-get-from-manifest
                 (kiss--get-manifest-for-dir extr-dir))))
 
       (unless pkg
@@ -1087,7 +1087,7 @@ are the same."
 
       (kiss--run-hook "pre-install" pkg extr-dir)
 
-      (when (kiss--get-pkg-conflict-files pkg extr-dir)
+      (when (kiss--package-get-conflict-files pkg extr-dir)
         (if (eq 0 kiss-choice)
             (error "kiss/install: kiss-choice is equal to 0, erroring out!")
           (progn
@@ -1161,7 +1161,7 @@ are the same."
   (interactive)
   (cond
    ((listp pkgs-l)
-    (mapcar #'kiss-install (kiss--get-pkg-order pkgs-l)))
+    (mapcar #'kiss-install (kiss--package-get-order pkgs-l)))
    ((atom pkgs-l)
     (let* ((tarball
             (cond ((and (file-exists-p pkgs-l)
@@ -1224,7 +1224,7 @@ are the same."
   (cond ((listp pkgs-l)
          (mapcar #'kiss-remove
                  (reverse
-                  (kiss--get-pkg-order pkgs-l))))
+                  (kiss--package-get-order pkgs-l))))
         ((atom pkgs-l)
          (if (or kiss-force (kiss--pkg-is-removable-p pkgs-l))
              (progn
@@ -1366,7 +1366,7 @@ are the same."
         (setq oodpkgs (remove "kiss" oodpkgs)))
       ;; Build & install each package individually
       ;; - ensures that new dependencies are installed before their dependents.
-      (dolist (pkg (kiss--get-pkg-order oodpkgs))
+      (dolist (pkg (kiss--package-get-order oodpkgs))
         (kiss--try-install-build pkg)))))
 
 (defun kiss--pkgs-without-repo ()
@@ -1384,14 +1384,14 @@ are the same."
              (kiss-search p)))))
      pkgs-l)))
 
-(defun kiss--get-pkg-order (pkgs-lst)
+(defun kiss--package-get-order (pkgs-lst)
   "(I) Get the proper build order for the packages in PKGS-LST."
-  (seq-intersection (kiss--get-pkg-dependency-order pkgs-lst) pkgs-lst))
+  (seq-intersection (kiss--package-get-dependency-order pkgs-lst) pkgs-lst))
 
 ;; This returns the proper order to build all of the out of date packages.
-;; (kiss--get-pkg-order (kiss--get-out-of-date-pkgs))
+;; (kiss--package-get-order (kiss--get-out-of-date-pkgs))
 ;; (benchmark-elapse
-;;   (kiss--get-pkg-order '("blender" "rust" "llvm" "ghc" "zig" "lld")))
+;;   (kiss--package-get-order '("blender" "rust" "llvm" "ghc" "zig" "lld")))
 
 ;; Little snippet to get a list of all of the installed git-version packages.
 ;; (benchmark-elapse
