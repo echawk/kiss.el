@@ -183,7 +183,7 @@
 
 (defun kiss--build-strip-files (dir file-path-lst)
   (mapcar
-   (lambda (fp) (kiss--strip-file (concat dir fp)))
+   (lambda (fp) (kiss--file-strip-file (concat dir fp)))
    file-path-lst))
 
 ;; FIXME: need to implement some kind of overwrite protection here,
@@ -320,7 +320,7 @@
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
            (mapcar (lambda (s) (split-string s ">")))
            (mapcar (lambda (l) (list (kiss--basename (car l))
-                                (concat "/" (string-join (cdr l) "/")))))
+                                     (concat "/" (string-join (cdr l) "/")))))
            ;; Convert the pairs to dotted pairs.
            (mapcar (lambda (p) (cons (car p) (cadr p))))
 

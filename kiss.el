@@ -776,39 +776,7 @@ are the same."
    lib-string))
 
 
-(defun kiss--strip-file (file)
-  "(I) Run strip(1) on FILE with the proper arguments."
-  (let* ((od-cmd-output
-          (string-split
-           (shell-command-to-string
-            (concat "od -A o -t c -N 18" " " file))
-           "\n"))
-         (elf-rx (rx (0+ any) "177"
-                     (0+ " ") "E"
-                     (0+ " ") "L"
-                     (0+ " ") "F"))
-         (arch-rx (rx (0+ any) "!"
-                      (0+ any) "<"
-                      (0+ any) "a"
-                      (0+ any) "r"
-                      (0+ any) "c"
-                      (0+ any) "h"
-                      (0+ any) ">")))
-    ;; .o & .a files.
-    (when (or
-           (and
-            (string-match-p elf-rx (nth 0 od-cmd-output))
-            (string-match-p (rx "0000020 001") (nth 1 od-cmd-output)))
-           (string-match-p arch-rx (nth 0 od-cmd-output)))
-      (message (concat "strip -g -R .comment -R .note " file))
-      (kiss--silent-shell-command (concat "strip -g -R .comment -R .note " file)))
 
-    ;; .so & executables
-    (when (and
-           (string-match-p elf-rx (nth 0 od-cmd-output))
-           (string-match-p (rx "0000020 00" (or "2" "3")) (nth 1 od-cmd-output)))
-      (message (concat "strip -s -R .comment -R .note " file))
-      (kiss--silent-shell-command (concat "strip -s -R .comment -R .note " file)))))
 
 
 ;; FIXME: add in checks to the appropriate places.
