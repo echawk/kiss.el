@@ -189,38 +189,6 @@
     (cdr (assoc matched-rgx kiss-decompress-alist))))
 
 
-(defun kiss--decompress (file-path out-path)
-  "(I) Decompress FILE-PATH to OUT-PATH based on the file name."
-  (let ((cmd (kiss--get-decompression-command file-path)))
-    (when cmd
-      (kiss--silent-shell-command (concat cmd file-path " > " out-path)))))
-
-(defun kiss--b3 (file-path)
-  "(I) Run b3sum on FILE-PATH."
-  (thread-last
-    file-path
-    (concat "b3sum -l 33 ")
-    (shell-command-to-string)
-    (replace-regexp-in-string "\n$" "")
-    (funcall (lambda (str) (string-split str " ")))
-    (car)))
-
-(defun kiss--sh256 (file-path)
-  "(I) Run `kiss-chk' with proper arguments on FILE-PATH."
-  (let ((args
-         (pcase kiss-chk
-           ("openssl"   " dgst -sha256 -r ")
-           ("sha256sum" "")
-           ("sha256"    " -r ")
-           ("shasum"    " -a 256 ")
-           ("digest"    " -a sha256 "))))
-    (thread-last
-      (concat kiss-chk args file-path)
-      (shell-command-to-string)
-      (replace-regexp-in-string "\n$" "")
-      (string-split)
-      (car))))
-
 ;; Public code below.
 
 ;;[006] List of hooks ----------------------------------------------------------
