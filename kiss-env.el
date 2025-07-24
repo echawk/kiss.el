@@ -204,7 +204,7 @@ Valid strings: bwrap, proot."
   (add-to-list 'kiss-features :BUILD-SANDBOX))
 
 (when kiss-elf
-  (add-to-list 'kiss-features :MISSING-DEPENDENCY-FIXING))
+  (add-to-list 'kiss-features :FIX-MISSING-DEPENDENCIES))
 
 ;;; Macros
 
