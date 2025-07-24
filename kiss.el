@@ -669,9 +669,8 @@ when using this function compared with the iterative version."
    dir
    (eq 0
        (shell-command
-        (concat "tar -cf -  . | "
-                (kiss--get-compression-command)
-                " > " (kiss--single-quote-string file-path))))))
+        (format "tar -cf -  . | %s > '%s'"
+                (kiss--get-compression-command) file-path)))))
 
 (defun kiss--get-potential-binary-files (file-path-lst)
   "(I) Return a list of files in FILE-PATH-LST that `strip` or `ldd` could use."
@@ -890,9 +889,8 @@ are the same."
 
           ;; Move the file to the choices directory.
           (kiss--silent-shell-command
-           (concat
-            "mv -f " (kiss--single-quote-string (concat extr-dir path))
-            " " (kiss--single-quote-string (concat extr-dir alt-path))))))
+           (format
+            "mv -f '%s' '%s'" (concat extr-dir path) (concat extr-dir alt-path)))))
 
       ;; Regenerate the manifest for the directory.
       (kiss--write-text
@@ -911,16 +909,13 @@ are the same."
           ('directory
            (unless (kiss--file-is-directory-p actual-file)
              (kiss--shell-command-as-user
-              (concat
-               "mkdir -m " (kiss--file-rwx source-file) " "
-               (kiss--single-quote-string actual-file))
+              (format "mkdir -m %s '%s'" (kiss--file-rwx source-file) actual-file)
               (kiss--file-get-owner-name target-dir))))
 
           ('symlink
            (kiss--shell-command-as-user
-            (concat "cp -fP " (kiss--single-quote-string source-file)
-                    " " (kiss--single-quote-string
-                         (concat (kiss--dirname actual-file) "/.")))
+            (format "cp -fP '%s' '%s'" source-file
+                    (concat (kiss--dirname actual-file) "/."))
             (kiss--file-get-owner-name target-dir)))
 
           ('file
@@ -936,21 +931,18 @@ are the same."
              ;; calling touch. My hunch is no, since IIRC, -p preserves
              ;; user and group information.
              (kiss--shell-command-as-user
-              (concat "cp -fP " (kiss--single-quote-string source-file)
-                      " " tmp)
+              (format "cp -fP '%s' '%s'" source-file tmp)
               (kiss--file-get-owner-name target-dir))
 
              ;; Ensure that the timestamps are going to be the same.
              (kiss--shell-command-as-user
-              (concat "touch -r " (kiss--single-quote-string source-file)
-                      " " tmp)
+              (format "touch -r '%s' '%s'" source-file tmp)
               (kiss--file-get-owner-name target-dir))
 
              ;; mv already preserves timestamps, hence why we do not need to
              ;; do the touch after this mv.
              (kiss--shell-command-as-user
-              (concat "mv -f " tmp
-                      " " (kiss--single-quote-string actual-file))
+              (format "mv -f '%s' '%s'" tmp actual-file)
               (kiss--file-get-owner-name target-dir))))))))
   ;; FIXME: have a better return than nil
   nil)
@@ -962,8 +954,8 @@ are the same."
       file-path-lst
       (seq-filter
        (lambda (fp) (string-match-p
-                     (rx
-                      (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
+                (rx
+                 (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
       (car)
       (funcall (lambda (str) (string-split str "/" t)))
       (reverse)
