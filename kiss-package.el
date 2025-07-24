@@ -272,5 +272,53 @@
                (make-directory (concat name "/" (kiss--dirname file)) t)
                (copy-file (concat build-file-dir "/" file) (concat name "/" file))))))))))
 
+(defun kiss--package-sanitize-ver-str (str)
+  "Sanitize a version string STR to be correctly compared against others."
+  (declare (pure t) (side-effect-free t))
+  (thread-last
+    str
+    (replace-regexp-in-string " " "")
+    (replace-regexp-in-string "\n$" "")))
+
+(defun kiss--package-remote-eq-pkg-local-p (pkg)
+  "Return t if the version of PKG is the same locally and from the remotes."
+  (string=
+   (kiss--package-sanitize-ver-str
+    (kiss--read-text (concat (car (kiss-search pkg)) "/version")))
+   (kiss--package-sanitize-ver-str
+    (kiss--get-installed-pkg-version pkg))))
+
+;; FIXME?: may need to have this code take in a general path
+;; for pkg - this is so that this code can be reused to implement
+;; the conflicts system.
+;; pkg_manifest_replace() in kiss
+(defun kiss--package-manifest-replace (pkg old new)
+  "Replace the line matching OLD in the manifest of PKG with NEW."
+  ;; Replace the matching line in the manifest w/ the desired
+  ;; replacement.
+  (let* ((manifest-f (concat kiss-installed-db-dir pkg "/manifest"))
+         (temp-f     (kiss--file-make-temp-file))
+         (owner      (kiss--file-get-owner-name manifest-f))
+         (manifest-t (kiss--manifest-to-string
+                      (reverse
+                       (seq-sort 'string-lessp
+                                 (mapcar (lambda (s) (if (string= s old) new s))
+                                         (kiss-manifest pkg)))))))
+
+    (kiss--write-text manifest-t 'utf-8 temp-f)
+
+    ;; TODO: see if this can be avoided.
+    ;; Ensure the ownership is preserved.
+    ;; NOTE: chown can work with uids instead of names
+    (kiss--shell-command-as-user
+     (concat "chown " owner ":" owner " " temp-f) owner)
+    ;; Ensure the permissions are set correctly.
+    (kiss--shell-command-as-user
+     (concat "chmod " (kiss--file-rwx manifest-f) " " temp-f) owner)
+    ;; Move it into place.
+    (kiss--shell-command-as-user
+     (concat "mv -f " temp-f " " manifest-f)
+     owner)))
+
 
 (provide 'kiss-package)

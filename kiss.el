@@ -154,14 +154,6 @@
   (declare (pure t) (side-effect-free t))
   (mapconcat (lambda (s) (format "%s" s)) lst " "))
 
-(defun kiss--sanitize-ver-str (str)
-  "(I) Sanitize a version string STR to be correctly compared against others."
-  (declare (pure t) (side-effect-free t))
-  (thread-last
-    str
-    (replace-regexp-in-string " " "")
-    (replace-regexp-in-string "\n$" "")))
-
 
 ;; (defun kiss--shell-command (command)
 ;;   ;; Wrapper over 'shell-command' that prevents a ton of messages being
@@ -262,38 +254,6 @@
 ;; (kiss-alternatives "busybox" "/usr/bin/mkswap")
 ;; (kiss-alternatives)
 
-;; FIXME?: may need to have this code take in a general path
-;; for pkg - this is so that this code can be reused to implement
-;; the conflicts system.
-;; pkg_manifest_replace() in kiss
-(defun kiss--pkg-manifest-replace (pkg old new)
-  "(I) Replace the line matching OLD in the manifest of PKG with NEW."
-  ;; Replace the matching line in the manifest w/ the desired
-  ;; replacement.
-  (let* ((manifest-f (concat kiss-installed-db-dir pkg "/manifest"))
-         (temp-f     (kiss--file-make-temp-file))
-         (owner      (kiss--file-get-owner-name manifest-f))
-         (manifest-t (kiss--manifest-to-string
-                      (reverse
-                       (seq-sort 'string-lessp
-                                 (mapcar (lambda (s) (if (string= s old) new s))
-                                         (kiss-manifest pkg)))))))
-
-    (kiss--write-text manifest-t 'utf-8 temp-f)
-
-    ;; TODO: see if this can be avoided.
-    ;; Ensure the ownership is preserved.
-    ;; NOTE: chown can work with uids instead of names
-    (kiss--shell-command-as-user
-     (concat "chown " owner ":" owner " " temp-f) owner)
-    ;; Ensure the permissions are set correctly.
-    (kiss--shell-command-as-user
-     (concat "chmod " (kiss--file-rwx manifest-f) " " temp-f) owner)
-    ;; Move it into place.
-    (kiss--shell-command-as-user
-     (concat "mv -f " temp-f " " manifest-f)
-     owner)))
-
 
 
 (defun kiss--single-quote-string (str)
@@ -337,14 +297,14 @@
                        (kiss--file-get-owner-name path)))
 
                     ;; Update the manifest file to reflect the new version.
-                    (kiss--pkg-manifest-replace
+                    (kiss--package-manifest-replace
                      path-own path (concat kiss-choices-db-dir path-own alt))))
               ;; Move over our new desired alternative to the real file.
               (kiss--shell-command-as-user
                (concat "mv -f " (kiss--single-quote-string alt-path)
                        " " path)
                (kiss--file-get-owner-name path))
-              (kiss--pkg-manifest-replace pkg alt-path path))))))
+              (kiss--package-manifest-replace pkg alt-path path))))))
 
 ;; (f-symlink-p "/var/db/kiss/choices/gawk\\>usr\\>bin\\>awk")
 ;; (f-exists?  "/var/db/kiss/choices/busybox\\>usr\\>bin\\>sh")
@@ -1068,8 +1028,8 @@ are the same."
       file-path-lst
       (seq-filter
        (lambda (fp) (string-match-p
-                (rx
-                 (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
+                     (rx
+                      (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
       (car)
       (funcall (lambda (str) (string-split str "/" t)))
       (reverse)
@@ -1388,18 +1348,11 @@ are the same."
 ;; -> upgrade      Update the system
 ;; ===========================================================================
 
-(defun kiss--pkg-remote-eq-pkg-local-p (pkg)
-  "(I) Return t if the version of PKG is the same locally and from the remotes."
-  (string=
-   (kiss--sanitize-ver-str
-    (kiss--read-text (concat (car (kiss-search pkg)) "/version")))
-   (kiss--sanitize-ver-str
-    (kiss--get-installed-pkg-version pkg))))
 
 ;; TODO: consider making this *not* internal.
 (defun kiss--get-out-of-date-pkgs ()
   "(I) Return a list of PKGS that are out of date."
-  (seq-remove 'kiss--pkg-remote-eq-pkg-local-p
+  (seq-remove 'kiss--package-remote-eq-pkg-local-p
               (mapcar 'car (kiss-list))))
 
 ;;;###autoload
