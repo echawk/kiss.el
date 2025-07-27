@@ -99,45 +99,13 @@
 (require 'kiss-env)
 (require 'kiss-os)
 (require 'kiss-file)
+(require 'kiss-hook)
 (require 'kiss-source)
 (require 'kiss-package)
 (require 'kiss-build)
+(require 'kiss-update)
 
 
-;; TODO: consider expanding this macro to create all of the functions
-;; that we will need - this will need to take a few more arguments (or
-;; possibly not)
-(defmacro kiss--update-repo-type (type)
-  `(let ((repos
-          (seq-uniq
-           (mapcar (intern (concat "kiss--get-" (symbol-name ,type) "-dir-toplevel"))
-                   (funcall
-                    (intern (concat "kiss--kiss-path-" (symbol-name ,type) "-repos")))))))
-     (dolist (repo repos)
-       (kiss--with-dir
-        repo
-        (let ((repo-owner (kiss--file-get-owner-name repo))
-              (am-owner-p (kiss--file-am-owner-p repo))
-              (pull-cmd   (pcase ,type
-                            ('git    "git pull")
-                            ('hg     "hg pull")
-                            ('fossil "fossil pull")))
-              (update-cmd (pcase ,type
-                            ('git    "git submodule update --remote --init -f")
-                            ('hg     "hg update")
-                            ('fossil "fossil update"))))
-
-          (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
-          ;; TODO: would like to make this a macro so that way this
-          ;; code can be deduped
-          (if am-owner-p
-              (progn
-                (shell-command pull-cmd)
-                (shell-command update-cmd))
-            (progn
-              (kiss--shell-command-as-user pull-cmd repo-owner)
-              (kiss--shell-command-as-user update-cmd repo-owner)))
-          (kiss--run-hook "post-update"))))))
 
 ;;(slot-value (kiss--dir-to-kiss-package (car (kiss-search "kiss"))) :sources)
 
@@ -183,53 +151,6 @@
 
 ;; Public code below.
 
-;;[006] List of hooks ----------------------------------------------------------
-
-;;Each hook is executed in the order it appears in KISS_HOOK and is given its
-;;own environment/arguments accordingly. The hooks are documented as follows.
-
-;;+---------------+--------+----------+--------------------+----------------+
-;;| hook          | arg1   | arg2     | arg3               | arg4           |
-;;+---------------+--------+----------+--------------------+----------------+
-;;|               |        |          |                    |                |
-;;| build-fail    | Type   | Package  | Build directory    |                | x
-;;| post-build    | Type   | Package  | DESTDIR            |                | x
-;;| post-install  | Type   | Package  | Installed database |                | x
-;;| post-package  | Type   | Package  | Tarball            |                | x
-;;| post-source   | Type   | Package  | Verbatim source    | Resolved source|
-;;| post-update   | Type   | [7]      |                    |                | x
-;;| pre-build     | Type   | Package  | Build directory    |                | x
-;;| pre-extract   | Type   | Package  | DESTDIR            |                | x
-;;| pre-install   | Type   | Package  | Extracted package  |                | x
-;;| pre-remove    | Type   | Package  | Installed database |                | x
-;;| pre-source    | Type   | Package  | Verbatim source    | Resolved source|
-;;| pre-update    | Type   | [7] [8]  |                    |                | x
-;;| queue-status  | Type   | Package  | Number in queue    | Total in queue |
-;;|               |        |          |                    |                |
-;;+---------------+--------+----------+--------------------+----------------+
-
-;;[7] The -update hooks start in the current repository. In other words, you can
-;;    operate on the repository directly or grab the value from '$PWD'.
-
-;;[8] The second argument of pre-update is '0' if the current user owns the
-;;    repository and '1' if they do not. In the latter case, privilege
-;;    escalation is required to preserve ownership.
-
-(defun kiss--run-hook (hook &optional arg2 arg3 arg4)
-  "(I) Run all hooks in `kiss-hook'."
-  (dolist (kh kiss-hook)
-    (when (kiss--file-is-executable-p kh)
-      (kiss--silent-shell-command (format "%s %s %s %s %s" kh hook arg2 arg3 arg4)))))
-
-(defun kiss--run-hook-pkg (hook pkg)
-  "(I) Run PKG's HOOK."
-  (let ((hook-fp (concat kiss-installed-db-dir pkg "/" hook)))
-    (when (kiss--file-is-executable-p hook-fp)
-      ;; FIXME: need to expose the proper environment to this shell
-      (with-environment-variables
-          (("KISS_ROOT" kiss-root))
-        (kiss--shell-command-as-user
-         hook-fp (kiss--file-get-owner-name kiss-root))))))
 
 ;; -> kiss [a|b|c|d|i|l|p|r|s|u|U|v] [pkg]...
 ;; -> alternatives List and swap alternatives
@@ -809,39 +730,6 @@ are the same."
 
 ;; (kiss--pkg-verify-local-checksums "chromium")
 
-;; -> download     Download sources
-;; ===========================================================================
-
-(defun kiss--download-pkg-obj (pkg-obj)
-  (thread-last
-    (slot-value pkg-obj :sources)
-    (mapcar (lambda (o) (oset o :package (slot-value pkg-obj :name)) o))
-    (mapcar #'kiss--source-download)
-    (funcall (lambda (l) (seq-reduce (lambda (x y) (and x y)) l t)))))
-
-;;;###autoload
-(defun kiss-download (pkgs-l)
-  (interactive "sQuery: ")
-  (cond ((listp pkgs-l)
-         (seq-reduce
-          (lambda (x y) (and x y))
-          (flatten-list (mapcar #'kiss-download pkgs-l)) t))
-        ((atom pkgs-l)
-         ;; TODO: implement a seq-reduce to return a single value here?
-         (thread-last
-           pkgs-l
-           (kiss--search-pkg-obj)
-           (kiss--download-pkg-obj)))
-        (t nil)))
-
-;; (kiss-download '("kiss" "gdb"))
-;; (kiss-download '("hugs"))
-
-
-(defun kiss--get-download-utility-arguments ()
-  "(I) Get the proper arguments for the `kiss-get' utility."
-  (cdr (assoc kiss-get kiss-get-alist)))
-
 ;; -> install      Install packages
 ;; ===========================================================================
 
@@ -1037,12 +925,12 @@ are the same."
       (if (kiss--pkg-is-installed-p pkg)
           (progn
             (shell-command
-             (concat "cp " kiss-installed-db-dir pkg "/manifest"
-                     " " proc-dir "/manifest-copy"))
+             (format "cp '%s%s/manifest' '%s/manifest-copy'"
+                     kiss-installed-db-dir pkg proc-dir))
             (if (file-exists-p (concat kiss-installed-db-dir pkg "/etcsums"))
                 (shell-command
-                 (concat "cp " kiss-installed-db-dir pkg "/etcsums"
-                         " " proc-dir "/etcsums-copy")))))
+                 (format "cp '%s%s/etcsums' '%s/etcsums-copy'"
+                         kiss-installed-db-dir pkg proc-dir)))))
 
       ;; generate a list of files which exist in the current (installed)
       ;; manifest that do not exist in the new (to be installed) manifest.
@@ -1184,92 +1072,6 @@ are the same."
 ;; ===========================================================================
 
 ;; TODO: see if Emacs has something built-in to do most of this (vc.el).
-
-(defun kiss--dir-is-git-repo-p (dir)
-  "(I) Return t if DIR is a git repo, nil otherwise."
-  (eq 0 (shell-command (concat "git -C " dir " rev-parse 'HEAD@{upstream}'"))))
-
-(defun kiss--git-subm-superproject-dir (dir)
-  "(I) Return the directory for a git submodule's (DIR) superproject."
-  (replace-regexp-in-string
-   "\n$" ""
-   (shell-command-to-string
-    (concat "git -C " dir " rev-parse --show-superproject-working-tree"))))
-
-(defun kiss--dir-is-git-subm-p (dir)
-  "(I) Return t if DIR is a git submodule, nil otherwise."
-  (not (string-empty-p (kiss--git-subm-superproject-dir dir))))
-
-(defun kiss--get-git-dir-toplevel (dir)
-  "(I) Return the toplevel directory for a git repo, of which DIR is a subdir."
-  (let* ((dir-is-subm-p (kiss--dir-is-git-subm-p dir))
-         (repo (if dir-is-subm-p
-                   (kiss--git-subm-superproject-dir dir)
-                 dir)))
-    (replace-regexp-in-string
-     "\n$" ""
-     (shell-command-to-string
-      (concat "git -C " repo " rev-parse --show-toplevel")))))
-
-(defun kiss--kiss-path-git-repos ()
-  "(I) Return only the repos in `kiss-path' that are git repos."
-  (seq-filter 'kiss--dir-is-git-repo-p kiss-path))
-
-;; TODO: display whether signature verification is enabled...
-(defun kiss--update-git-repos ()
-  "(I) Update all git repos in `kiss-path'."
-  (kiss--update-repo-type 'git))
-
-(defun kiss--get-hg-dir-toplevel (dir)
-  (kiss--with-dir dir (shell-command-to-string "hg root")))
-
-(defun kiss--dir-is-hg-repo-p (dir)
-  (kiss--with-dir dir (eq 0 (shell-command "hg root"))))
-
-(defun kiss--kiss-path-hg-repos ()
-  (seq-filter #'kiss--dir-is-hg-repo-p kiss-path))
-
-(defun kiss--update-hg-repos ()
-  (kiss--update-repo-type 'hg))
-
-(defun kiss--get-fossil-dir-toplevel (dir)
-  (kiss--with-dir
-   dir
-   (let ((tld
-          (thread-last
-            (shell-command-to-string "fossil info")
-            (funcall (lambda (output) (split-string output "\n" t)))
-            (mapcar (lambda (line) (string-split line ":")))
-            (seq-filter (lambda (lst) (string= "local-root" (car lst)))))))
-     (when tld
-       (replace-regexp-in-string (rx (1+ space)) "" (cadr (car tld)))))))
-
-(defun kiss--dir-is-fossil-repo-p (dir)
-  (if (kiss--get-fossil-dir-toplevel dir) t nil))
-
-(defun kiss--kiss-path-fossil-repos ()
-  (seq-filter #'kiss--dir-is-fossil-repo-p kiss-path))
-
-(defun kiss--update-fossil-repos ()
-  (kiss--update-repo-type 'fossil))
-
-;; TODO: Rethink how to integrate this.
-;; (defun kiss--print-git-repo-MOTD ()
-;;   "(I) Print out all of the MOTDs from each git repo."
-;;   (let ((git-repos (delete-dups (cl-mapcar 'kiss--get-git-dir-toplevel (kiss--kiss-path-git-repos)))))
-;;     (dolist (repo git-repos)
-;;       (if (file-exists-p (concat repo "/MOTD"))
-;;           (shell-command-to-string (concat "cat " repo "/MOTD"))))))
-
-;;;###autoload
-(defun kiss-update ()
-  (interactive)
-  (message "kiss-update")
-  (kiss--update-git-repos)
-  (when (executable-find "hg")
-    (kiss--update-hg-repos))
-  (when (executable-find "fossil")
-    (kiss--update-fossil-repos)))
 
 ;; -> upgrade      Update the system
 ;; ===========================================================================
