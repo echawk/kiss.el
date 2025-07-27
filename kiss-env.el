@@ -225,10 +225,12 @@ Valid strings: bwrap, proot."
          ;; associated feature symbol.
          ((and (listp value)
                (eql 2 (length value)))
-          (progn 
-            (when (and (stringp (car value))
-                       (executable-find (car value)))
-              (add-to-list 'kiss-features (cadr value)))
+          (progn
+            (let ((cmd  (car  value))
+                  (feat (cadr value)))
+              (when (and (stringp cmd) (executable-find cmd))
+                (unless (member feat kiss-features)
+                  (add-to-list 'kiss-features feat))))
             t))))
       shell-commands-lst)))))
 
