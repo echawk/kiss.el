@@ -153,7 +153,7 @@
    ;; Write this script to a temporary location.
    'utf-8 k-el-build)
   ;; Mark the script as executable.
-  (shell-command (concat "chmod +x " (kiss--single-quote-string k-el-build))))
+  (shell-command (format "chmod +x '%s'" k-el-build)))
 
 
 ;; FIXME: support other kiss-elf commands
@@ -331,7 +331,7 @@
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
            (mapcar (lambda (s) (split-string s ">")))
            (mapcar (lambda (l) (list (kiss--basename (car l))
-                                (concat "/" (string-join (cdr l) "/")))))
+                                     (concat "/" (string-join (cdr l) "/")))))
            ;; Convert the pairs to dotted pairs.
            (mapcar (lambda (p) (cons (car p) (cadr p))))
 
@@ -399,17 +399,16 @@
                 ;; We just have to move over the file from the
                 ;; choices dir in the fake chroot to the right place.
                 (shell-command
-                 (concat
-                  "mv -f "
-                  (kiss--single-quote-string
-                   (concat
-                    (kiss--file-normalize-file-path
-                     (concat chroot-dir kiss-choices-db-dir pkg))
-                    (concat ">" (string-join (string-split file "/" t) ">"))))
-                  " "
-                  (kiss--single-quote-string
+                 (format
+                  "mv -f '%s' '%s'"
+                  
+                  (concat
                    (kiss--file-normalize-file-path
-                    (concat chroot-dir file)))))))
+                    (concat chroot-dir kiss-choices-db-dir pkg))
+                   (concat ">" (string-join (string-split file "/" t) ">")))
+                  
+                  (kiss--file-normalize-file-path
+                   (concat chroot-dir file))))))
             package-needs-to-provide-lst)))))))
 
 (defun kiss--package-build (pkg-obj)
@@ -522,7 +521,7 @@
         ;; rm the build directory
         (message (concat "Removing the build directory (" proc-dir ")"))
         (shell-command
-         (concat "rm -rf -- " (kiss--single-quote-string proc-dir)))
+         (format "rm -rf -- '%s'" proc-dir))
         t))))
 
 (defun kiss--build-determine-build-cmd (build-env-obj pkg-obj)

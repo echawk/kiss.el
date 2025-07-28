@@ -175,14 +175,6 @@
 ;; (kiss-alternatives "busybox" "/usr/bin/mkswap")
 ;; (kiss-alternatives)
 
-
-
-(defun kiss--single-quote-string (str)
-  "(I) Add quotes around STR.  Useful when interacting with the cli."
-  (declare (pure t) (side-effect-free t))
-  (concat "'" str "'"))
-
-
 (defun kiss--pkg-swap (pkg path)
   "(I) Swap the owner of PATH to PKG, modifying the relevant package manifests."
   (if (kiss--pkg-is-installed-p pkg)
@@ -203,18 +195,14 @@
                                      " to " pkg))
                     ;; Save the path into kiss-choices-db-dir
                     (kiss--shell-command-as-user
-                     (concat "cp -Pf " path " "
-                             (kiss--single-quote-string
-                              (concat kiss-choices-db-dir path-own alt)))
+                     (format "cp -Pf '%s' '%s%s%s'" path kiss-choices-db-dir path-own alt)
                      (kiss--file-get-owner-name path))
 
                     ;; Only preserve file timestamps when the file is not a link.
                     (unless (eq (kiss--file-identify path) 'symlink)
                       ;; Also preserve the timestamp of the file aswell.
                       (kiss--shell-command-as-user
-                       (concat "touch -r " path " "
-                               (kiss--single-quote-string
-                                (concat kiss-choices-db-dir path-own alt)))
+                       (format "touch -r '%s' '%s%s%s'" path kiss-choices-db-dir path-own alt)
                        (kiss--file-get-owner-name path)))
 
                     ;; Update the manifest file to reflect the new version.
@@ -222,8 +210,7 @@
                      path-own path (concat kiss-choices-db-dir path-own alt))))
               ;; Move over our new desired alternative to the real file.
               (kiss--shell-command-as-user
-               (concat "mv -f " (kiss--single-quote-string alt-path)
-                       " " path)
+               (format "mv -f '%s' '%s'" alt-path path)
                (kiss--file-get-owner-name path))
               (kiss--package-manifest-replace pkg alt-path path))))))
 
@@ -808,12 +795,11 @@ are the same."
 
           ('file
            (let ((tmp
-                  (kiss--single-quote-string
-                   (concat
-                    (kiss--dirname actual-file)
-                    "__kiss-el-tmp-" pkg
-                    "-" (kiss--basename actual-file)
-                    "-" rn))))
+                  (format "'%s__kiss-el-tmp-%s-%s-%s'"
+                          (kiss--dirname actual-file)
+                          pkg
+                          (kiss--basename actual-file)
+                          rn)))
 
              ;; TODO: check to see if we can add the '-p' flag here to avoid
              ;; calling touch. My hunch is no, since IIRC, -p preserves
