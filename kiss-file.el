@@ -24,7 +24,8 @@
 
 ;; FIXME: try to remove as many calls to external programs as possible.
 (defconst *kiss-file-required-shell-commands*
-  '("test" "sed" "od" "cut" "mktemp" "tar" "mv" "cp" "rm" "rmdir"))
+  '("test" "sed" "od" "cut" "mktemp" "tar" "mv" "cp" "rm" "rmdir"
+    ("strip" :BINARY-STRIPPING)))
 
 ;; Ensure all of the required commands are present on the host system.
 (kiss-ensure-shell-commands-are-available *kiss-file-required-shell-commands*)
