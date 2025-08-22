@@ -64,7 +64,7 @@
       obj
 
     (let ((dest-dir
-           (kiss--normalize-file-path (concat kiss-srcdir p "/" ep "/"))))
+           (kiss--file-normalize-file-path (concat kiss-srcdir p "/" ep "/"))))
       (pcase ty
         ((or 'git 'hg 'fossil 'remote)
          (concat dest-dir (car (reverse (string-split u "/")))))
