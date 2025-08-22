@@ -128,7 +128,7 @@
            (shell-command (concat "cp -PRf " cache "/. "  outdir)))
           (_
            (if (kiss--file-is-tarball-p cache)
-               (kiss--extract-tarball cache outdir)
+               (kiss--file-extract-tarball cache outdir)
              (shell-command (concat "cp -PRf " cache " " outdir)))))))))
 
 (defun kiss--dir-to-kiss-package (dir-path)
