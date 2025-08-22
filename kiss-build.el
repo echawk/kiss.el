@@ -17,6 +17,7 @@
 (require 'kiss-env)
 (require 'kiss-file)
 (require 'kiss-package)
+(require 'kiss-download)
 
 (defconst *kiss-build-required-shell-commands*
   '("cp" "mv" "rm" "cc" "realpath"))
