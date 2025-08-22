@@ -127,7 +127,7 @@
           ((or 'git 'hg 'fossil)
            (shell-command (concat "cp -PRf " cache "/. "  outdir)))
           (_
-           (if (kiss--str-tarball-p cache)
+           (if (kiss--file-is-tarball-p cache)
                (kiss--extract-tarball cache outdir)
              (shell-command (concat "cp -PRf " cache " " outdir)))))))))
 
