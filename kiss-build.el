@@ -19,12 +19,6 @@
 (require 'kiss-package)
 (require 'kiss-download)
 
-(defconst *kiss-build-required-shell-commands*
-  '("cp" "mv" "rm" "cc" "realpath"))
-
-;; Ensure all of the required commands are present on the host system.
-(kiss-ensure-shell-commands-are-available *kiss-build-required-shell-commands*)
-
 (defclass kiss-build-env ()
   ((proc-dir
     :initarg :proc-dir
@@ -165,7 +159,7 @@
      (message "not supported yet...")
      ;; otool -l /opt/homebrew/bin/mu | awk '$1 ~ /^name$/ { print $2 }'
      )
-    ('linux 
+    ('gnu/linux
      (seq-difference
       (thread-last
         ;; dir

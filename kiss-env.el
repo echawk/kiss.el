@@ -228,10 +228,44 @@ Valid strings: bwrap, proot."
           (progn
             (let ((cmd  (car  value))
                   (feat (cadr value)))
-              (when (and (stringp cmd) (executable-find cmd))
+              (when (cond ((listp cmd)
+                           (cl-reduce (lambda (a b) (and a b)) (mapcar #'executable-find cmd)))
+                          ((stringp cmd)
+                           (executable-find cmd)))
                 (unless (member feat kiss-features)
                   (add-to-list 'kiss-features feat))))
             t))))
       shell-commands-lst)))))
+
+(defconst *kiss-required-shell-commands*
+  `(
+    ;; Source downloading.
+    ,kiss-get
+
+    ;; File utilities.
+    "test" "sed" "od" "cut" "mktemp" "tar" "mv" "cp" "rm" "rmdir" "chown" "chmod"
+
+    ;; OS utilies.
+    "id" ,kiss-su
+
+    ;; Build utilites.
+    "realpath"
+
+    ))
+
+(kiss-ensure-shell-commands-are-available *kiss-required-shell-commands*)
+
+(defconst *kiss-optional-shell-commands*
+  `(
+    ;; For sources & repositories.
+    ("git" :GIT) ("hg" :MERCURIAL) ("fossil" :FOSSIL)
+
+    ;; Strip binaries and libraries.
+    ("strip" :BINARY-STRIPPING)
+
+    ;; Detection of missing dependencies.
+    (,(pcase system-type
+        ('gnu/linux '("ldd" "cc" "realpath")))
+     :DEPENDENCY-FIXING)))
 
 (provide 'kiss-env)

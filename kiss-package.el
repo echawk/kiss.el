@@ -20,12 +20,6 @@
 (require 'kiss-file)
 (require 'kiss-source)
 
-(defconst *kiss-package-required-shell-commands*
-  '("cp" "chown" "chmod" "mv"))
-
-(kiss-ensure-shell-commands-are-available *kiss-package-required-shell-commands*)
-
-
 ;; FIXME: add support for post-install & pre-remove
 (defclass kiss-package ()
   ((name

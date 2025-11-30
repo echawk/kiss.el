@@ -18,12 +18,6 @@
 
 (require 'kiss-env)
 
-(defconst *kiss-os-required-shell-commands*
-  '("id"))
-
-(kiss-ensure-shell-commands-are-available *kiss-os-required-shell-commands*)
-
-
 (defun kiss--silent-shell-command (command)
   "Run shell commands silently in the terminal."
   `(let ((inhibit-message t)

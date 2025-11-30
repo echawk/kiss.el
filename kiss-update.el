@@ -20,11 +20,6 @@
 (require 'kiss-source)
 (require 'kiss-hook)
 
-(defconst *kiss-update-required-shell-commands*
-  '())
-
-(kiss-ensure-shell-commands-are-available *kiss-update-required-shell-commands*)
-
 ;; TODO: consider expanding this macro to create all of the functions
 ;; that we will need - this will need to take a few more arguments (or
 ;; possibly not)
@@ -140,9 +135,9 @@
 ;;;###autoload
 (defun kiss-update ()
   (interactive)
-  (dolist (pair '((:GIT    #'kiss--update-git-repos)
-                  (:HG     #'kiss--update-hg-repos)
-                  (:FOSSIL #'kiss--update-fossil-repos)))
+  (dolist (pair '((:GIT       #'kiss--update-git-repos)
+                  (:MERCURIAL #'kiss--update-hg-repos)
+                  (:FOSSIL    #'kiss--update-fossil-repos)))
     (when (member (car pair) kiss-features)
       (funcall (cadr pair)))))
 
