@@ -32,3 +32,5 @@
   (let ((res (kiss-search q)))
     (when res
       (kiss--dir-to-kiss-package (car res)))))
+
+(provide 'kiss-search)
