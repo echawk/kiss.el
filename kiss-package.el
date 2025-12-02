@@ -14,11 +14,13 @@
   (require 'rx))
 (progn
   (require 'eieio)
+  (require 'tsort)
   (require 'seq))
 
 (require 'kiss-env)
 (require 'kiss-file)
 (require 'kiss-manifest)
+(require 'kiss-os)
 (require 'kiss-source)
 
 ;; FIXME: add support for post-install & pre-remove
@@ -316,5 +318,253 @@
      (concat "mv -f " temp-f " " manifest-f)
      owner)))
 
+(defun kiss--package-get-conflict-files (pkg dir)
+  ;; It is assumed that DIR will be an extracted kiss pkg.
+  (let ((manifest-file
+         (concat dir "/var/db/kiss/installed/" pkg "/manifest")))
+
+    (cl-assert (kiss--file-exists-p manifest-file))
+
+    ;; TODO: would like to investigate the penalty of using a pure
+    ;; Emacs lisp based solution for this.
+    (let ((current-installed-files
+           (thread-last
+             (kiss--get-installed-manifest-files)
+             (seq-remove (lambda (fp) (string-match-p pkg fp)))
+             (mapcar #'kiss--file-read-file)
+             (flatten-list)
+             (seq-remove (lambda (fp) (string-match-p (rx "/" eol) fp))))))
+      (seq-filter
+       (lambda (fp) (member fp current-installed-files))
+       (kiss--file-read-file manifest-file)))))
+
+(defun kiss--pkg-conflicts (pkg extr-dir)
+  "(I) Fix up DIR for PKG so as to allow for alternatives."
+  (let ((conf-files (kiss--package-get-conflict-files pkg extr-dir)))
+    (when conf-files
+      ;; Make the choices dir in the extracted tarball.
+      (make-directory (concat extr-dir kiss-choices-db-dir) t)
+
+      ;; Move all of the files to the appropriate place.
+      (dolist (path conf-files)
+        (let* ((alt      (string-replace "/" ">" path))
+               (alt-path (concat kiss-choices-db-dir pkg alt)))
+
+          ;; Move the file to the choices directory.
+          (kiss--silent-shell-command
+           (format
+            "mv -f '%s' '%s'" (concat extr-dir path) (concat extr-dir alt-path)))))
+
+      ;; Regenerate the manifest for the directory.
+      (kiss--write-text
+       (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
+       'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))))
+
+(defun kiss--package-get-orphan-alternatives (pkg)
+  "(I) Return a list of orphaned alternatives that would result from removing PKG."
+  (let ((orphaned-alternatives
+         (seq-filter
+          (lambda (pair) (seq-contains-p pair pkg))
+          (kiss-preferred))))
+    ;; Return the files associated with PKG.
+    (if orphaned-alternatives
+        (mapcar #'cadr orphaned-alternatives))))
+
+(defun kiss--pkg-is-installed-p (pkg)
+  "(I) Return t if PKG is installed, nil otherwise."
+  (kiss--file-exists-p (concat kiss-installed-db-dir pkg)))
+
+(defun kiss--get-installed-pkg-version (pkg)
+  "(I) Return the version string for PKG, nil if PKG is not installed."
+  (if (kiss--pkg-is-installed-p pkg)
+      (let ((pdir (concat kiss-installed-db-dir pkg)))
+        (replace-regexp-in-string
+         "\n$" ""
+         ;; TODO: see if there is a way to avoid
+         ;; depending on f.el
+         (kiss--read-text (concat pdir "/version"))))))
+
+(defun kiss--pkg-is-removable-p (pkg)
+  "(I) Return t if PKG is removable, nil otherwise."
+
+  ;; A package is removable when the following conditions are met:
+  ;; * the pkg is installed on the current system
+  ;; * nothing on the system hard depends on the package
+  ;; * the package does not leave any orphaned alternatives
+  (and
+   (kiss--pkg-is-installed-p pkg)
+   (eq (kiss--package-get-hard-dependents pkg) nil)
+   (eq (kiss--package-get-orphan-alternatives pkg) nil)))
+
+
+(defun kiss--get-dependencies-from-file (file-path)
+  "(I) Return the dependencies in FILE-PATH."
+  (when (file-exists-p file-path)
+    (seq-remove
+     #'string-empty-p
+     ;; All of this below is to emulate `awk '{print $1}' < file'
+     (mapcar (lambda (s) (car (string-split s " ")))
+             (string-split
+              (replace-regexp-in-string
+               "#.*$" ""
+               (kiss--read-text file-path))
+              "\n")))))
+
+(defun kiss--package-get-dependencies (pkg &optional installed-p)
+  "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies.
+
+Optionally, if INSTALLED-P is t, then the system installed package will be
+read instead."
+  ;; Faster (older) version of the function here.
+  (kiss--get-dependencies-from-file
+   (if (and installed-p (kiss--pkg-is-installed-p pkg))
+       (concat kiss-installed-db-dir pkg "/depends")
+     (concat (car (kiss-search pkg)) "/depends")))
+
+  ;; (with-slots
+  ;;     ((hd :depends)
+  ;;      (md :make-depends))
+  ;;     (kiss--dir-to-kiss-package
+  ;;      (if (and installed-p (kiss--pkg-is-installed-p pkg))
+  ;;          (concat kiss-installed-db-dir pkg)
+  ;;        (car (kiss-search pkg))))
+  ;;   (append md hd))
+  )
+
+(defun kiss--pkgs-without-repo ()
+  "(I) Return all packages that are installed that are not in a remote repo."
+  (let ((pkgs-l (mapcar 'car (kiss-list))))
+    (seq-filter
+     (lambda (p)
+       ;; Naturally, anything that was only *installed* will have 0 other
+       ;; occurances.
+       (eq 0
+           (length
+            ;; Remove the installed-db-dir *repo* from the list.
+            (seq-remove
+             (lambda (repo) (string-match-p kiss-installed-db-dir repo))
+             (kiss-search p)))))
+     pkgs-l)))
+
+(defun kiss--package-get-order (pkgs-lst)
+  "(I) Get the proper build order for the packages in PKGS-LST."
+  (seq-intersection (kiss--package-get-dependency-order pkgs-lst) pkgs-lst))
+
+(defun kiss--package-get-local-checksums (pkg)
+  "(I) Return the list of checksums for PKG from the files on disk, or nil."
+  (thread-last
+    (slot-value (kiss--search-pkg-obj pkg) :sources)
+    (mapcar #'kiss--source-get-local-checksum)
+    (seq-remove #'string-empty-p)))
+
+(defun kiss--package-get-hard-dependents (pkg)
+  "(I) Return a list of installed packages that have a runtime dependency on PKG."
+  (mapcar
+   (lambda (dep-file)
+     (replace-regexp-in-string
+      "/depends" ""
+      (replace-regexp-in-string
+       kiss-installed-db-dir ""
+       dep-file)))
+   (seq-filter
+    (lambda (depfile)
+      (string-match (rx bol (literal pkg) (zero-or-more " ") eol)
+                    (kiss--read-text depfile)))
+    (seq-filter
+     #'file-exists-p
+     (mapcar (lambda (p) (concat kiss-installed-db-dir p "/depends"))
+             (nthcdr 2 (directory-files kiss-installed-db-dir)))))))
+
+(defun kiss--package-get-make-orphans ()
+  "(I) Return a list of packages which only have make dependents."
+  ;; NOTE: This function is pretty slow at the moment.
+  (seq-filter
+   (lambda (pkg)
+     (and (eq (kiss--package-get-hard-dependents pkg) nil)
+          (not
+           (eq (kiss--package-get-make-dependents pkg) nil))))
+   (mapcar #'car (kiss-list))))
+
+(defun kiss--package-get-make-dependents (pkg)
+  "(I) Return a list of installed packages that have a make dependency on PKG."
+  (mapcar
+   (lambda (dep-file)
+     (replace-regexp-in-string
+      "/depends" ""
+      (replace-regexp-in-string
+       kiss-installed-db-dir ""
+       dep-file)))
+   (seq-filter
+    (lambda (depfile)
+      (string-match (rx bol (literal pkg) (one-or-more " ") (literal "make"))
+                    (kiss--read-text depfile)))
+    (seq-filter
+     #'file-exists-p
+     (mapcar (lambda (p) (concat kiss-installed-db-dir p "/depends"))
+             (nthcdr 2 (directory-files kiss-installed-db-dir)))))))
+
+;; FIXME: have this tak a list of package objects??
+(defun kiss--package-get-dependency-graph (pkg-lst &optional installed-p)
+  "(I) Generate a graph of the dependencies for PKG-LST.
+
+Optionally, if INSTALLED-P is t, then the dependencies for each
+package in PKG-LST are queried from the installed dependency file,
+provided that the package is actually installed."
+  (let ((queue
+         (cond
+          ((atom pkg-lst) `(,pkg-lst))
+          ((listp pkg-lst) pkg-lst)))
+        (seen '())
+        (res '()))
+    (while queue
+      (setq queue (seq-remove (lambda (e) (member e seen)) queue))
+      (if (car queue)
+          (progn
+            (setq seen (cons (car queue) seen))
+            (let* ((dep (car queue))
+                   (dep-deps
+                    ;; If installed-p is t and the package is installed.
+                    (if (and installed-p (kiss--pkg-is-installed-p dep))
+                        (kiss--package-get-dependencies dep t)
+                      (kiss--package-get-dependencies dep)))
+                   (item `(,dep ,dep-deps)))
+              (if (not (member item res))
+                  (setq res (cons item res)))
+              (setq queue (append dep-deps (cdr queue)))))))
+    res))
+
+;; FIXME: implement installed-p argument here.
+(defun kiss--package-get-dependency-graph-rec (pkg-lst)
+  "(I) A Recursive & TCO-ed implementation of `kiss--package-get-dependency-graph'.
+
+This version of the function is meant primarily as a resource for people
+looking to implement kiss in other functional programming languages.
+It is also important to note that there is no meaninful decrease in speed
+when using this function compared with the iterative version."
+  (let* ((pkgs (cond
+                ((atom pkg-lst) `(,pkg-lst))
+                ((listp pkg-lst) pkg-lst))))
+
+    (named-let kiss--package-get-dependency-graph-rec-impl
+        ((queue pkgs) (seen '()) (res '()))
+      (let* ((new-queue (seq-remove (lambda (e) (member e seen)) queue))
+             (dep (car new-queue)))
+        (if dep
+            (let* ((new-seen (cons dep seen))
+                   (dep-deps (kiss--package-get-dependencies dep))
+                   (item `(,dep ,dep-deps))
+                   (new-res (if (not (member item res)) (cons item res) res)))
+              (kiss--package-get-dependency-graph-rec-impl
+               (append dep-deps (cdr new-queue)) new-seen new-res))
+          res)))))
+
+
+(defun kiss--package-get-dependency-order (pkg-lst &optional installed-p)
+  "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."
+  (let ((res (tsort
+              (if installed-p
+                  (kiss--package-get-dependency-graph pkg-lst t)
+                (kiss--package-get-dependency-graph pkg-lst)))))
+    (if res res (error "Circular dependency detected!"))))
 
 (provide 'kiss-package)
