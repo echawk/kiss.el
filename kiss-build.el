@@ -16,6 +16,7 @@
 
 (require 'kiss-env)
 (require 'kiss-file)
+(require 'kiss-manifest)
 (require 'kiss-hook)
 (require 'kiss-package)
 (require 'kiss-download)

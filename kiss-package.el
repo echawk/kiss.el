@@ -18,6 +18,7 @@
 
 (require 'kiss-env)
 (require 'kiss-file)
+(require 'kiss-manifest)
 (require 'kiss-source)
 
 ;; FIXME: add support for post-install & pre-remove
