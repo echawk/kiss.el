@@ -198,8 +198,31 @@ Valid strings: bwrap, proot."
 (defcustom kiss-features '()
   "List of features for kiss.")
 
-;; Setup some features automatically.
 
+;; Some common functions
+
+(defun kiss--get-decompression-command (file-path)
+  (declare (pure t) (side-effect-free t))
+  (let ((matched-rgx
+         (thread-last
+           kiss-decompress-alist
+           (mapcar #'car)
+           (seq-filter (lambda (rgx) (string-match-p rgx file-path)))
+           (car))))
+    (cdr (assoc matched-rgx kiss-decompress-alist))))
+
+(defun kiss--get-compression-command ()
+  "(I) Return the proper command based on `kiss-compress'."
+  (cdr (assoc kiss-compress kiss-compress-alist)))
+
+(defun kiss--get-random-number (&optional upper-bound)
+  "(I) Number from 1 to UPPER-BOUND, exclusive. Default UPPER-BOUND is 30000."
+  (message "%s" (mod (abs (random)) (if upper-bound upper-bound 30000))))
+
+(defun kiss--lst-to-str (lst)
+  "(I) Convert LST to a string."
+  (declare (pure t) (side-effect-free t))
+  (mapconcat (lambda (s) (format "%s" s)) lst " "))
 
 ;;; Macros
 

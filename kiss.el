@@ -117,14 +117,6 @@
 ;; It's best not to rely on them outside of this file.
 
 
-
-
-(defun kiss--lst-to-str (lst)
-  "(I) Convert LST to a string."
-  (declare (pure t) (side-effect-free t))
-  (mapconcat (lambda (s) (format "%s" s)) lst " "))
-
-
 ;; (defun kiss--shell-command (command)
 ;;   ;; Wrapper over 'shell-command' that prevents a ton of messages being
 ;;   ;; printed.
@@ -140,15 +132,6 @@
 ;; code to be used other places too
 
 
-(defun kiss--get-decompression-command (file-path)
-  (declare (pure t) (side-effect-free t))
-  (let ((matched-rgx
-         (thread-last
-           kiss-decompress-alist
-           (mapcar #'car)
-           (seq-filter (lambda (rgx) (string-match-p rgx file-path)))
-           (car))))
-    (cdr (assoc matched-rgx kiss-decompress-alist))))
 
 
 ;; Public code below.
@@ -546,14 +529,6 @@ when using this function compared with the iterative version."
   "(I) Return t or nil depending on whether a DIR matches MANIFEST-FILE."
   (equal (kiss--get-manifest-for-dir dir)
          (kiss--file-read-file manifest-file)))
-
-(defun kiss--get-compression-command ()
-  "(I) Return the proper command based on `kiss-compress'."
-  (cdr (assoc kiss-compress kiss-compress-alist)))
-
-(defun kiss--get-random-number (&optional upper-bound)
-  "(I) Number from 1 to UPPER-BOUND, exclusive. Default UPPER-BOUND is 30000."
-  (message "%s" (mod (abs (random)) (if upper-bound upper-bound 30000))))
 
 ;; TODO: rename ?
 (defun kiss--get-tmp-destdir ()
