@@ -16,6 +16,7 @@
 
 (require 'kiss-env)
 (require 'kiss-source)
+(require 'kiss-search)
 
 
 (defun kiss--download-pkg-obj (pkg-obj)

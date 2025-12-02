@@ -102,6 +102,8 @@
 (require 'kiss-hook)
 (require 'kiss-source)
 (require 'kiss-package)
+(require 'kiss-search)
+(require 'kiss-download)
 (require 'kiss-build)
 (require 'kiss-update)
 
@@ -1030,20 +1032,6 @@ are the same."
                 (kiss-manifest pkgs-l)))))
         (t nil)))
 
-;; -> search       Search for packages
-;; ===========================================================================
-;;;###autoload
-(defun kiss-search (q)
-  (interactive "sQuery: ")
-  (seq-filter 'file-exists-p
-              (mapcar (lambda (repo) (concat repo "/" q))
-                      `(,@kiss-path
-                        ,kiss-installed-db-dir))))
-
-(defun kiss--search-pkg-obj (q)
-  (let ((res (kiss-search q)))
-    (when res
-      (kiss--dir-to-kiss-package (car res)))))
 
 ;; -> update       Update the repositories
 ;; ===========================================================================
