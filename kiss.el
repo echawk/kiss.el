@@ -571,15 +571,6 @@ when using this function compared with the iterative version."
   (eq 0 (shell-command
          (concat "cp -Lrf " (car (kiss-search pkg)) " " dir))))
 
-(defun kiss--make-tarball-of-dir (dir file-path)
-  "(I) Make a compressed tarball of DIR saved into FILE-PATH."
-  (kiss--with-dir
-   dir
-   (eq 0
-       (shell-command
-        (format "tar -cf -  . | %s > '%s'"
-                (kiss--get-compression-command) file-path)))))
-
 (defun kiss--get-potential-binary-files (file-path-lst)
   "(I) Return a list of files in FILE-PATH-LST that `strip` or `ldd` could use."
   (seq-filter

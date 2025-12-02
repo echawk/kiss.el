@@ -506,7 +506,7 @@
         ;;(kiss--package-to-dir pkg-obj install-dir)
 
         ;; Finally create the tarball
-        (unless  (kiss--make-tarball-of-dir
+        (unless  (kiss--file-make-tarball-of-dir
                   install-dir
                   (concat kiss-bindir (kiss--package-bin-name pkg-obj)))
           (error (format "Failed to create a tarball for %s" name)))

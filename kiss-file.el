@@ -319,6 +319,15 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     ;; Now to cleanup broken symlinks.
     (mapcar #'kiss--file-remove-file symlink-queue)))
 
+(defun kiss--file-make-tarball-of-dir (dir file-path)
+  "(I) Make a compressed tarball of DIR saved into FILE-PATH."
+  (kiss--with-dir
+   dir
+   (eq 0
+       (shell-command
+        (format "tar -cf -  . | %s > '%s'"
+                (kiss--get-compression-command) file-path)))))
+
 (defun kiss--file-extract-tarball (tarball dir)
   "(I) Extract TARBALL to DIR.  Emulates GNU Tar's --strip-components=1."
   (let ((decomp-tarball (kiss--file-make-temp-file)))
