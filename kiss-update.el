@@ -135,10 +135,11 @@
 ;;;###autoload
 (defun kiss-update ()
   (interactive)
-  (dolist (pair '((:GIT       #'kiss--update-git-repos)
-                  (:MERCURIAL #'kiss--update-hg-repos)
-                  (:FOSSIL    #'kiss--update-fossil-repos)))
-    (when (member (car pair) kiss-features)
-      (funcall (cadr pair)))))
+  (when (member :GIT kiss-features)
+    (kiss--update-git-repos))
+  (when (member :MERCURIAL kiss-features)
+    (kiss--update-hg-repos))
+  (when (member :FOSSIL kiss-features)
+    (kiss--update-fossil-repos)))
 
 (provide 'kiss-update)
