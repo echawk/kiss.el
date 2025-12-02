@@ -200,11 +200,6 @@ Valid strings: bwrap, proot."
 
 ;; Setup some features automatically.
 
-(when kiss-sandbox-utility
-  (add-to-list 'kiss-features :BUILD-SANDBOX))
-
-(when kiss-elf
-  (add-to-list 'kiss-features :FIX-MISSING-DEPENDENCIES))
 
 ;;; Macros
 
@@ -263,9 +258,14 @@ Valid strings: bwrap, proot."
     ;; Strip binaries and libraries.
     ("strip" :BINARY-STRIPPING)
 
+    ;; Sandboxed builds
+    (,kiss-sandbox-utility :BUILD-SANDBOX)
+
     ;; Detection of missing dependencies.
     (,(pcase system-type
         ('gnu/linux '("ldd" "cc" "realpath")))
      :DEPENDENCY-FIXING)))
+
+(kiss-ensure-shell-commands-are-available *kiss-optional-shell-commands*)
 
 (provide 'kiss-env)
