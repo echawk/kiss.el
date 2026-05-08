@@ -247,7 +247,9 @@ Valid strings: bwrap, proot."
             (let ((cmd  (car  value))
                   (feat (cadr value)))
               (when (cond ((listp cmd)
-                           (cl-reduce (lambda (a b) (and a b)) (mapcar #'executable-find cmd)))
+                           (and cmd
+                                (cl-reduce (lambda (a b) (and a b))
+                                           (mapcar #'executable-find cmd))))
                           ((stringp cmd)
                            (executable-find cmd)))
                 (unless (member feat kiss-features)
