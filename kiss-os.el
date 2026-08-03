@@ -18,7 +18,7 @@
 
 (require 'kiss-env)
 
-(defun kiss--silent-shell-command (command)
+(defmacro kiss--silent-shell-command (command)
   "Run shell commands silently in the terminal."
   `(let ((inhibit-message t)
          (message-log-max nil))
