@@ -9,7 +9,6 @@
 ;;; Code:
 
 (progn
-  (require 'eieio)
   (require 'subr-x)
   (require 'seq)
   )
@@ -21,59 +20,24 @@
 (require 'kiss-package)
 (require 'kiss-download)
 
-(defclass kiss-build-env ()
-  ((proc-dir
-    :initarg :proc-dir
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The directory where all the build files are located.")
-   (build-dir
-    :initarg :build-dir
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The directory where the sources are extracted to, and where the build takes place.")
-   (build-script
-    :initarg :build-script
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The build script.")
-   (install-dir
-    :initarg :install-dir
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The directory where the built package will be installed to.")
-   (kiss-el-build
-    :initarg :kiss-el-build
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The path to the script resulting from 'kiss--build-make-script'.")
-   (log-dir
-    :initarg :log-dir
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The directory where the log file will be stored.")
-   (log-file
-    :initarg :log-file
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The path to the log file.")))
+(defun kiss-build-env (&rest fields)
+  "Create a portable build-environment record from keyword FIELDS."
+  (unless (zerop (mod (length fields) 2))
+    (error "kiss-build-env requires keyword/value pairs"))
+  (let ((environment (list :proc-dir "" :build-dir "" :build-script ""
+                           :install-dir "" :kiss-el-build "" :log-dir ""
+                           :log-file "")))
+    (while fields
+      (setf (plist-get environment (pop fields)) (pop fields)))
+    environment))
 
 
 (defun kiss--build-env-for-package (pkg-obj)
   ;; TODO: when/if i implement the ability for build-files to be
   ;; text of the commands to run, this is where the logic will be at.
-  (with-slots
-      ((build-file :build-file)
-       (name       :name)
-       (version    :version))
-      pkg-obj
+  (let ((build-file (plist-get pkg-obj :build-file))
+        (name (plist-get pkg-obj :name))
+        (version (plist-get pkg-obj :version)))
     (let*
         ((proc-dir        (kiss--get-tmp-destdir))
          (build-dir       (concat proc-dir "/build/" name "/"))
@@ -95,8 +59,7 @@
                                version
                                log-file)
 
-      (make-instance
-       'kiss-build-env
+      (kiss-build-env
        :proc-dir      proc-dir
        :build-dir     build-dir
        :build-script  build-file
@@ -185,8 +148,8 @@
         (mapcar (lambda (fp) (replace-regexp-in-string "\n" "" fp)))
         (mapcar #'kiss-owns)
         (seq-uniq)
-        (seq-remove (lambda (p) (string= p (slot-value pkg-obj :name)))))
-      (slot-value pkg-obj :depends)))))
+        (seq-remove (lambda (p) (string= p (plist-get pkg-obj :name)))))
+      (plist-get pkg-obj :depends)))))
 
 
 (defun kiss--build-strip-files (dir file-path-lst)
@@ -302,7 +265,7 @@
                       (seq-filter (lambda (triple) (string= pkg (car triple))))
                       (mapcar (lambda (tr) (nth 1 tr)))
                       (seq-remove (lambda (s) (string-match-p "/$" s))))))
-                 (flatten-list)
+                 (apply #'append)
                  ;; Ensure that if there are multiple providers (for example
                  ;; /usr/bin/ls), that it only shows up once.
                  (seq-uniq)
@@ -322,7 +285,7 @@
 
            ;; Get all of the manifest files and look files that are in choices dir.
            (mapcar #'kiss-manifest)
-           (flatten-list)
+           (apply #'append)
            (seq-uniq)
            (seq-filter
             (lambda (s) (string-match-p (rx (literal kiss-choices-db-dir) (1+ any)) s)))
@@ -354,7 +317,7 @@
              (thread-last
                all-pkgs
                (mapcar #'kiss-manifest)
-               (flatten-list)
+               (apply #'append)
                (seq-uniq)
                (seq-sort #'string-lessp))))
 
@@ -409,15 +372,13 @@
             package-needs-to-provide-lst)))))))
 
 (defun kiss--package-build (pkg-obj)
-  (with-slots
-      ((name         :name)
-       (version      :version)
-       (release      :release)
-       (build-file   :build-file)
-       (depends      :depends)
-       (make-depends :make-depends)
-       (sources      :sources))
-      pkg-obj
+  (let ((name (plist-get pkg-obj :name))
+        (version (plist-get pkg-obj :version))
+        (release (plist-get pkg-obj :release))
+        (build-file (plist-get pkg-obj :build-file))
+        (depends (plist-get pkg-obj :depends))
+        (make-depends (plist-get pkg-obj :make-depends))
+        (sources (plist-get pkg-obj :sources)))
 
     ;; Check for missing deps
     (unless kiss-force
@@ -428,15 +389,13 @@
                                           (kiss--lst-to-str missing-deps))))))
 
     (let ((build-env-obj (kiss--build-env-for-package pkg-obj)))
-      (with-slots
-          ((proc-dir     :proc-dir)
-           (build-dir    :build-dir)
-           (build-script :build-script)
-           (install-dir  :install-dir)
-           (k-el-build   :kiss-el-build)
-           (log-dir      :log-dir)
-           (log-file     :log-file))
-          build-env-obj
+      (let ((proc-dir (plist-get build-env-obj :proc-dir))
+            (build-dir (plist-get build-env-obj :build-dir))
+            (build-script (plist-get build-env-obj :build-script))
+            (install-dir (plist-get build-env-obj :install-dir))
+            (k-el-build (plist-get build-env-obj :kiss-el-build))
+            (log-dir (plist-get build-env-obj :log-dir))
+            (log-file (plist-get build-env-obj :log-file)))
 
         (kiss--run-hook "pre-extract" name install-dir)
         (kiss--package-extract-sources pkg-obj build-dir)
@@ -522,15 +481,13 @@
         t))))
 
 (defun kiss--build-determine-build-cmd (build-env-obj pkg-obj)
-  (with-slots
-      ((proc-dir    :proc-dir)
-       (build-dir   :build-dir)
-       (build-script :build-script)
-       (install-dir :install-dir)
-       (k-el-build  :kiss-el-build)
-       (log-dir     :log-dir)
-       (log-file    :log-file))
-      build-env-obj
+  (let ((proc-dir (plist-get build-env-obj :proc-dir))
+        (build-dir (plist-get build-env-obj :build-dir))
+        (build-script (plist-get build-env-obj :build-script))
+        (install-dir (plist-get build-env-obj :install-dir))
+        (k-el-build (plist-get build-env-obj :kiss-el-build))
+        (log-dir (plist-get build-env-obj :log-dir))
+        (log-file (plist-get build-env-obj :log-file)))
     (if kiss-perfom-build-in-sandbox
         ;; TODO: make these variables user configurable
         (let ((fake-chroot-dir "/tmp/kiss-fake-chroot/")
@@ -541,7 +498,7 @@
           ;; (when (kiss--file-is-directory-p fake-chroot-dir)
           ;;   (shell-command (concat "/usr/bin/rm -rvf " fake-chroot-dir)))
 
-          (kiss--make-chroot-dir-for-pkg fake-chroot-dir (slot-value pkg-obj :name))
+          (kiss--make-chroot-dir-for-pkg fake-chroot-dir (plist-get pkg-obj :name))
           (make-directory fake-home-dir t)
           (pcase kiss-sandbox-utility
             ("proot"
@@ -550,7 +507,7 @@
               " -r " fake-chroot-dir " "
               " -b " fake-home-dir ":" "/home" " "
               " -b " (kiss--dirname k-el-build) ":" (kiss--dirname k-el-build) " "
-              " -b " (kiss--dirname (slot-value pkg-obj :build-file)) ":" (kiss--dirname (slot-value pkg-obj :build-file)) " "
+              " -b " (kiss--dirname (plist-get pkg-obj :build-file)) ":" (kiss--dirname (plist-get pkg-obj :build-file)) " "
               " -b " build-dir ":" build-dir " "
               " -b " install-dir ":" install-dir " "
               " -b " log-dir ":" log-dir" "

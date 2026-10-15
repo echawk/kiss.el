@@ -90,8 +90,6 @@
   (require 'rx)
   (require 'pcase))
 (progn
-  (require 'cl-lib)
-  (require 'eieio)
   (require 'seq)
   (require 'subr-x)
   (require 'tsort))
@@ -112,7 +110,7 @@
 
 
 
-;;(slot-value (kiss--dir-to-kiss-package (car (kiss-search "kiss"))) :sources)
+;;(plist-get (kiss--dir-to-kiss-package (car (kiss-search "kiss"))) :sources)
 
 ;; ===========================================================================
 
@@ -257,7 +255,7 @@
              (thread-last
                dep-lst
                (mapcar #'kiss--package-get-dependencies)
-               (flatten-list)
+               (apply #'append)
                (seq-uniq))))
    dep-lst))
 
@@ -286,6 +284,7 @@
 
 (defun kiss--get-potential-binary-files (file-path-lst)
   "(I) Return a list of files in FILE-PATH-LST that `strip` or `ldd` could use."
+  (declare (pure t) (side-effect-free t))
   (seq-filter
    (lambda (file-path)
      (string-match-p
@@ -302,57 +301,14 @@
    file-path-lst))
 
 (defun kiss--get-potential-binary-files-fast (file-path-lst)
-  "A *much* faster version of kiss--get-potential-binary-files.
+  "Return the exact portable binary-file classification for FILE-PATH-LST.
 
-Takes the same argument as the other function, a FILE-PATH-LST.
-
-Not yet the default, since I have not yet been able to confirm that
-this implementation will always result in exactly the same files
-as the other implementation.  It is important to note though, that at
-least with chromium, as well as some other test packages, the lists
-are the same."
-  ;; First, we need to detect all of the potenial names for 'lib'
-  ;; This inolves us doing a pretty liberal string match, which
-  ;; after we get the relevant lines, we extract the symbol name
-  ;; that we are interested in.
-  (let ((lib-symbols
-         (seq-uniq
-          (mapcar
-           #'intern
-           (flatten-list
-            (mapcar (lambda (l)
-                      (seq-filter
-                       (lambda (s) (string-match-p "lib.?.?.?.?" s)) l))
-                    (mapcar
-                     (lambda (s) (string-split s "/"))
-                     (seq-filter
-                      (lambda (s) (string-match-p "/lib.?.?.?.?/$" s))
-                      file-path-lst))))))))
-    (let ((found-files
-           ;; This is the code to approximate the rx or match.
-           (seq-filter (lambda (l)
-                         (and
-                          (or
-                           (seq-contains-p l 'sbin)
-                           (seq-contains-p l 'bin)
-                           ;; NOTE: may ned to double check the logic
-                           ;; on this remove - may need to actually
-                           ;; check for this to be non-nil?
-                           (remove nil (mapcar (lambda (libs) (member libs l))
-                                               lib-symbols)))
-                          (not (eq '## (car (reverse l))))))
-
-                       ;; Here is where the big speed up is.
-                       ;; Instead of comparing strings, which is slow
-                       ;; all the time always (except maybe in snobol4...)
-                       ;; we convert our file path strings into lists
-                       ;; of symbols, which are much, much faster to act on.
-                       (mapcar
-                        (lambda (fp) (mapcar #'intern (cdr (string-split fp "/"))))
-                        file-path-lst))))
-      (mapcar
-       (lambda (ff) (concat "/" (mapconcat #'symbol-name ff "/")))
-       found-files))))
+This compatibility entry point used to intern every path component.  Interning
+mutates the global obarray, leaks unbounded symbols, and did not prove exactly
+equivalent to the authoritative matcher.  Keep one pure implementation until
+a benchmarked, equivalence-tested replacement is available."
+  (declare (pure t) (side-effect-free t))
+  (kiss--get-potential-binary-files file-path-lst))
 
 
 

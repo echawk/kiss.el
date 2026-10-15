@@ -15,7 +15,6 @@
   (require 'rx)
   (require 'pcase))
 (progn
-  (require 'cl-lib)
   (require 'seq)
   (require 'subr-x))
 
@@ -209,12 +208,9 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 (defun kiss--rwx-lst-to-octal (lst)
   (declare (pure t) (side-effect-free t))
-  (cl-assert
-   (seq-reduce
-    (lambda (a b) (and a b))
-    (mapcar
-     (lambda (elt) (member elt (string-to-list "rwx-")))
-     (flatten-list lst)) t))
+  (unless (seq-every-p (lambda (elt) (memq elt '(?r ?w ?x ?-)))
+                         lst)
+    (error "Invalid permission character"))
 
   (let ((vals '(4 2 1))
         (tot 0))

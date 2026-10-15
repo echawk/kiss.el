@@ -13,9 +13,6 @@
 (eval-when-compile
   (require 'rx)
   (require 'pcase))
-(progn
-  (require 'cl-lib))
-
 (require 'kiss-env)
 
 (defmacro kiss--silent-shell-command (command)

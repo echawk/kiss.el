@@ -187,6 +187,10 @@ the mapping agrees with the (4,2,1) bit layout of POSIX modes."
     (should (= (kiss--rwx-lst-to-octal (list d w x)) 3))
     (should (= (kiss--rwx-lst-to-octal (list r w d)) 6))))
 
+(ert-deftest kiss-file/rwx-triad-rejects-invalid-permission-symbols ()
+  "Permission conversion refuses malformed input instead of silently guessing."
+  (should-error (kiss--rwx-lst-to-octal '(?r ?w ?q))))
+
 (ert-deftest kiss-file/file-rwx-matches-chmod ()
   "kiss--file-rwx reports the mode set by chmod, as three octal digits."
   (let ((dir (kiss-test-make-tmpdir)))

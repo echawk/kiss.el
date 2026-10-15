@@ -21,8 +21,10 @@
 
 (defun kiss--download-pkg-obj (pkg-obj)
   (thread-last
-    (slot-value pkg-obj :sources)
-    (mapcar (lambda (o) (oset o :package (slot-value pkg-obj :name)) o))
+    (plist-get pkg-obj :sources)
+    (mapcar (lambda (o)
+              (setf (plist-get o :package) (plist-get pkg-obj :name))
+              o))
     (mapcar #'kiss--source-download)
     (funcall (lambda (l) (seq-reduce (lambda (x y) (and x y)) l t)))))
 
@@ -30,9 +32,7 @@
 (defun kiss-download (pkgs-l)
   (interactive "sQuery: ")
   (cond ((listp pkgs-l)
-         (seq-reduce
-          (lambda (x y) (and x y))
-          (flatten-list (mapcar #'kiss-download pkgs-l)) t))
+         (seq-every-p #'identity (mapcar #'kiss-download pkgs-l)))
         ((atom pkgs-l)
          ;; TODO: implement a seq-reduce to return a single value here?
          (thread-last
@@ -46,6 +46,7 @@
 
 (defun kiss--get-download-utility-arguments ()
   "(I) Get the proper arguments for the `kiss-get' utility."
+  (declare (side-effect-free t))
   (cdr (assoc kiss-get kiss-get-alist)))
 
 (provide 'kiss-download)

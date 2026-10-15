@@ -12,12 +12,8 @@ cd "$(dirname "$0")"
 
 EMACS="${EMACS:-emacs}"
 
-# tsort is a hard build dependency of kiss.el (kiss-package.el requires it);
-# the vendored copy lives next to the sources and -L . makes it findable.
-[ -f tsort.el ] || cp /tmp/kisscheck/tsort.el . 2>/dev/null || true
-
 export KISS_TEST_SELECTOR="${1:-${KISS_TEST_SELECTOR:-}}"
 export KISS_TEST_EXCLUDE="${KISS_TEST_EXCLUDE:-}"
 
 exec "$EMACS" -Q --batch -L . \
-  --eval "(load (expand-file-name \"test/run-ert.el\" default-directory))"
+  --eval "(progn (require 'package) (package-initialize) (load (expand-file-name \"test/run-ert.el\" default-directory)))"

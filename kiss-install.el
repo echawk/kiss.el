@@ -35,6 +35,7 @@
 The embedded `.../installed/P/manifest' record is authoritative; relying on
 the parent database-directory record made valid archives with a minimal
 manifest impossible to identify."
+  (declare (side-effect-free t))
   (let ((manifest-path
          (seq-find
           (lambda (path)

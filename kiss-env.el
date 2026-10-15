@@ -10,8 +10,7 @@
 
 ;;; Code:
 
-(progn
-  (require 'cl-lib))
+(require 'seq)
 
 ;; FIXME: Find out what the containing group should be...
 (defgroup kiss nil
@@ -215,6 +214,7 @@ Valid strings: bwrap, proot."
 
 (defun kiss--get-compression-command ()
   "(I) Return the proper command based on `kiss-compress'."
+  (declare (side-effect-free t))
   (cdr (assoc kiss-compress kiss-compress-alist)))
 
 (defun kiss--get-random-number (&optional upper-bound)
@@ -235,31 +235,25 @@ can safely be used to construct temporary paths."
      ,expr))
 
 (defun kiss-ensure-shell-commands-are-available (shell-commands-lst)
-  (cl-assert
-   (not
-    (member
-     nil
-     (mapcar
-      (lambda (value)
-        (cond
-         ((stringp value) (executable-find value))
-         ;; Lists are optional values, and they are expected to have an
-         ;; associated feature symbol.
-         ((and (listp value)
-               (eql 2 (length value)))
-          (progn
-            (let ((cmd  (car  value))
-                  (feat (cadr value)))
-              (when (cond ((listp cmd)
-                           (and cmd
-                                (cl-reduce (lambda (a b) (and a b))
-                                           (mapcar #'executable-find cmd))))
-                          ((stringp cmd)
-                           (executable-find cmd)))
-                (unless (member feat kiss-features)
-                  (add-to-list 'kiss-features feat))))
-            t))))
-      shell-commands-lst)))))
+  (unless
+      (seq-every-p
+       (lambda (value)
+         (cond
+          ((stringp value) (executable-find value))
+          ;; Lists are optional values, and they are expected to have an
+          ;; associated feature symbol.
+          ((and (listp value) (= 2 (length value)))
+           (let ((cmd (car value))
+                 (feat (cadr value)))
+             (when (if (listp cmd)
+                       (and cmd (seq-every-p #'executable-find cmd))
+                     (and (stringp cmd) (executable-find cmd)))
+               (unless (member feat kiss-features)
+                 (add-to-list 'kiss-features feat)))
+             t))
+          (t nil)))
+       shell-commands-lst)
+    (error "A required shell command is unavailable")))
 
 (defconst *kiss-required-shell-commands*
   `(

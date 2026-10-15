@@ -13,73 +13,48 @@
 (eval-when-compile
   (require 'kiss-env))
 (progn
-  (require 'eieio)
   (require 'seq))
 (require 'kiss-file)
 
-(defclass kiss-source ()
-  ((package
-    :initarg :package
-    :initform ""
-    :type string
-    :documentation "The package which this source is a source of.")
-   (type
-    :initarg :type
-    :type symbol
-    :options '(git hg fossil remote local)
-    :documentation "A symbol to determine what kind of source it is.")
-   (uri
-    :initarg :uri
-    :type string
-    :documentation "The URI for the kiss-source")
-   (checksum
-    :initarg :checksum
-    :initform ""
-    :type string
-    :documentation "The checksum of the source if applicable"
-    :optional)
-   (extracted-path
-    :initarg :extracted-path
-    :initform ""
-    :type string
-    :documentation "The path where the source will be extracted to in the packages build directory."
-    :optional)
-   (commit-or-branch
-    :initarg :commit-or-branch
-    :initform ""
-    :type string
-    :documentation "The relevant commit or branch for a git source."
-    :optional)))
+(defun kiss-source (&rest fields)
+  "Create a portable source record from keyword FIELDS.
+
+The representation is a property list instead of an EIEIO object.  It maps
+directly to a Scheme alist/SRFI record or a Common Lisp plist and deliberately
+keeps no Emacs object-system dependency in the package format layer."
+  (unless (zerop (mod (length fields) 2))
+    (error "kiss-source requires keyword/value pairs"))
+  (let ((source (list :package "" :type nil :uri "" :checksum ""
+                      :extracted-path "" :commit-or-branch "")))
+    (while fields
+      (setf (plist-get source (pop fields)) (pop fields)))
+    source))
 
 (defun kiss--source-get-cache-path (obj)
-  (with-slots
-      ((ty :type)
-       (u  :uri)
-       (p  :package)
-       (ep :extracted-path))
-      obj
-
-    (let ((dest-dir
-           (kiss--file-normalize-file-path (concat kiss-srcdir p "/" ep "/"))))
-      (pcase ty
-        ((or 'git 'hg 'fossil 'remote)
-         (concat dest-dir (car (reverse (string-split u "/")))))
-        ('local
-         (if (string-match (rx bol "/") u)
-             u
-           (concat (car (kiss-search p)) "/" u)))))))
+  (declare (side-effect-free t))
+  (let* ((ty (plist-get obj :type))
+         (u  (plist-get obj :uri))
+         (p  (plist-get obj :package))
+         (ep (plist-get obj :extracted-path))
+         (dest-dir (kiss--file-normalize-file-path
+                    (concat kiss-srcdir p "/" ep "/"))))
+    (pcase ty
+      ((or 'git 'hg 'fossil 'remote)
+       (concat dest-dir (car (reverse (string-split u "/")))))
+      ('local
+       (if (string-match (rx bol "/") u)
+           u
+         (concat (car (kiss-search p)) "/" u))))))
 
 (defun kiss--source-download (obj)
 
   (let ((cache-path (kiss--source-get-cache-path obj)))
     (make-directory (kiss--dirname cache-path) t)
-    (with-slots
-        ((ty :type)
-         (u  :uri)
-         (cb :commit-or-branch)
-         (p  :package))
-        obj
-      (let ((commit
+    (let* ((ty (plist-get obj :type))
+           (u (plist-get obj :uri))
+           (cb (plist-get obj :commit-or-branch))
+           (p (plist-get obj :package))
+           (commit
              (if (string-empty-p cb)
                  (pcase ty
                    ('git    "HEAD")
@@ -151,34 +126,27 @@
           ('local
            (kiss--file-exists-p
             (if (string-match-p (rx bol "/") u) u
-              (concat (car (kiss-search p)) "/" u)))))))))
+              (concat (car (kiss-search p)) "/" u))))))))
 
 
 (defun kiss--source-get-local-checksum (obj)
-  (with-slots
-      ((ty :type))
-      obj
-    (pcase ty
-      ((or 'git 'hg 'fossil) "")
-      (_ (kiss--b3 (kiss--source-get-cache-path obj))))))
+  (pcase (plist-get obj :type)
+    ((or 'git 'hg 'fossil) "")
+    (_ (kiss--b3 (kiss--source-get-cache-path obj)))))
 
 (defun kiss--source-validate-p (obj)
-  (if (string= (slot-value obj :checksum) "SKIP")
+  (if (string= (plist-get obj :checksum) "SKIP")
       t
-    (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj))))
+    (string= (plist-get obj :checksum) (kiss--source-get-local-checksum obj))))
 
 (defun kiss--source-to-string (obj)
   "Return the canonical KISS `sources' record for OBJ."
   ;; OBJ is mutable, so this is effect-free but not compiler-pure.
   (declare (side-effect-free t))
-  (with-slots
-      ((package :package)
-       (type :type)
-       (uri :uri)
-       (checksum :checksum)
-       (extracted-path :extracted-path)
-       (commit-or-branch :commit-or-branch))
-      obj
+  (let ((type (plist-get obj :type))
+        (uri (plist-get obj :uri))
+        (extracted-path (plist-get obj :extracted-path))
+        (commit-or-branch (plist-get obj :commit-or-branch)))
     (concat
      (pcase type
        ('git    "git+")
@@ -192,12 +160,6 @@
      (unless (string-empty-p extracted-path)
        (concat " " extracted-path)))))
 
-
-;; (mapcar #'kiss--source-to-string
-;;         (slot-value
-;;          (kiss--dir-to-kiss-package (car (kiss-search "llvm")))
-;;          :sources)
-;;         )
 
 (defun kiss--string-to-source-obj (str)
   "(I) Generate a kiss-source object from STR. Will have an empty package slot."
@@ -237,9 +199,9 @@
              (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
              (car))))
 
-    (setq obj (make-instance 'kiss-source :type type :uri uri))
-    (oset obj :commit-or-branch (if (eq c-or-b nil) "" c-or-b))
-    (oset obj :extracted-path (if (eq extr-path nil) "" extr-path))
+    (setq obj (kiss-source :type type :uri uri
+                           :commit-or-branch (or c-or-b "")
+                           :extracted-path (or extr-path "")))
     obj))
 
 
@@ -252,7 +214,7 @@
 
 (defun kiss--def-pkg-sources (name &rest arguments)
   (let ((src-objs (mapcar #'kiss--string-to-source-obj arguments)))
-    (mapc (lambda (obj) (oset obj :package name)) src-objs)
+    (mapc (lambda (obj) (setf (plist-get obj :package) name)) src-objs)
     src-objs))
 
 (provide 'kiss-source)

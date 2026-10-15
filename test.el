@@ -15,7 +15,7 @@
            '("/usr/bin/emacs"
              "git+https://github.com/kiss-community/kiss")
            (mapcar #'kiss--string-to-source-obj))))
-    (mapc (lambda (obj) (oset obj :package "kiss-el-test")) objs)
+    (mapc (lambda (obj) (setf (plist-get obj :package) "kiss-el-test")) objs)
     (should
      (seq-reduce (lambda (x y) (and x y)) (mapcar #'kiss--source-download objs) t))))
 
@@ -33,42 +33,28 @@
 (ert-deftest kiss--string-to-source-obj ()
   ;; Git source w/ branch
   (should
-   (with-slots
-       ((package          :package)
-        (type             :type)
-        (uri              :uri)
-        (checksum         :checksum)
-        (extracted-path   :extracted-path)
-        (commit-or-branch :commit-or-branch))
-       (kiss--string-to-source-obj "git+https://github.com/ehawkvu/clasp@musl")
+   (let ((obj (kiss--string-to-source-obj
+               "git+https://github.com/ehawkvu/clasp@musl")))
      (and
-      (string-empty-p package)
-      (eq type 'git)
-      (string= uri "https://github.com/ehawkvu/clasp")
-      (string-empty-p checksum)
-      (string-empty-p extracted-path)
-      (string= "musl" commit-or-branch))))
+      (string-empty-p (plist-get obj :package))
+      (eq (plist-get obj :type) 'git)
+      (string= (plist-get obj :uri) "https://github.com/ehawkvu/clasp")
+      (string-empty-p (plist-get obj :checksum))
+      (string-empty-p (plist-get obj :extracted-path))
+      (string= "musl" (plist-get obj :commit-or-branch)))))
   ;; Remote source w/ extracted path & package
   (should
    (let ((obj
           (kiss--string-to-source-obj
            "https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.5/llvm-17.0.5.src.tar.xz llvm")))
-     (oset obj :package "llvm")
-     (with-slots
-         ((package          :package)
-          (type             :type)
-          (uri              :uri)
-          (checksum         :checksum)
-          (extracted-path   :extracted-path)
-          (commit-or-branch :commit-or-branch))
-         obj
-       (and
-        (string= package "llvm")
-        (eq type 'remote)
-        (string= uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.5/llvm-17.0.5.src.tar.xz")
-        (string-empty-p checksum)
-        (string= extracted-path "llvm")
-        (string-empty-p commit-or-branch))))))
+     (setf (plist-get obj :package) "llvm")
+     (and
+      (string= (plist-get obj :package) "llvm")
+      (eq (plist-get obj :type) 'remote)
+      (string= (plist-get obj :uri) "https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.5/llvm-17.0.5.src.tar.xz")
+      (string-empty-p (plist-get obj :checksum))
+      (string= (plist-get obj :extracted-path) "llvm")
+      (string-empty-p (plist-get obj :commit-or-branch))))))
 
 (ert-deftest kiss--normalize-file-path ()
   (should

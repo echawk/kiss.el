@@ -9,9 +9,7 @@
 ;; Wrappers for searching.
 
 ;;; Code:
-(progn
-  (require 'seq)
-  (require 'cl-lib))
+(require 'seq)
 
 (require 'kiss-env)
 (require 'kiss-file)

@@ -13,7 +13,6 @@
 (eval-when-compile
   (require 'rx))
 (progn
-  (require 'eieio)
   (require 'tsort)
   (require 'seq))
 
@@ -23,86 +22,32 @@
 (require 'kiss-os)
 (require 'kiss-source)
 
-;; FIXME: add support for post-install & pre-remove
-(defclass kiss-package ()
-  ((name
-    :initarg :name
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The name of a kiss-package.")
-   (version
-    :initarg :version
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The version of a kiss-package")
-   (release
-    :initarg :release
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The release of a kiss-package")
-   ;; NOTE: would like this ot be optionally a build script -
-   ;; that way one can define a package entirely through elisp -
-   ;; when it comes time to build th package, there is a check
-   ;; on whether or not the string that is within :build-file is a
-   ;; file, if it is, execute said file, otherwise, (note this is an extension)
-   ;; we save the string to a file, mark it executable, and execute that file
-   (build-file
-    :initarg :build-file
-    :initform ""
-    :type string
-    :custom string
-    :documentation "The file path to the build file for a kiss-package."
-    :optional)
-   (depends
-    :initarg :depends
-    :initform '()
-    :type list
-    :custom list
-    :documentation "List of packages that are dependencies of this package."
-    :optional)
-   (make-depends
-    :initarg :make-depends
-    :initform '()
-    :type list
-    :custom list
-    :documentation "List of packages that are make depends of this kiss-package."
-    :optional)
-   (sources
-    :initarg :sources
-    :initform '()
-    :type list
-    :custom list
-    :documentation "List of kiss-source objects for the kiss-package"
-    :optional)
-   (pre-remove-file
-    :initarg :pre-remove-file
-    :initform ""
-    :type string
-    :custom string
-    :optional)
-   (post-install-file
-    :initarg :post-install-file
-    :initform ""
-    :type string
-    :custom string
-    :optional)))
+(defun kiss-package (&rest fields)
+  "Create a portable package record from keyword FIELDS.
+
+The record is a plist so that package-format logic maps one-for-one to a
+Common Lisp plist or a Scheme alist/record."
+  (unless (zerop (mod (length fields) 2))
+    (error "kiss-package requires keyword/value pairs"))
+  (let ((package (list :name "" :version "" :release "" :build-file ""
+                       :depends '() :make-depends '() :sources '()
+                       :pre-remove-file "" :post-install-file "")))
+    (while fields
+      (setf (plist-get package (pop fields)) (pop fields)))
+    package))
 
 (defun kiss--package-bin-name (pkg)
   "Return the proper name for the binary for PKG at VERSION."
-  (with-slots ((v :version) (r :release) (n :name)) pkg
-    (concat n "@" v "-" r ".tar"
-            (unless (string-empty-p kiss-compress)
-              (concat "." kiss-compress)))))
+  (declare (side-effect-free t))
+  (concat (plist-get pkg :name) "@" (plist-get pkg :version) "-"
+          (plist-get pkg :release) ".tar"
+          (unless (string-empty-p kiss-compress)
+            (concat "." kiss-compress))))
 
 (defun kiss--package-get-missing-dependencies (pkg-obj)
-  (with-slots
-      ((depends      :depends)
-       (make-depends :make-depends))
-      pkg-obj
-    (seq-remove #'kiss--pkg-is-installed-p (append depends make-depends))))
+  (seq-remove #'kiss--pkg-is-installed-p
+              (append (plist-get pkg-obj :depends)
+                      (plist-get pkg-obj :make-depends))))
 
 (defun kiss--package-extract-sources (pkg-obj dir)
   ;; Ensure that the build directory exists. This is needed for packages
@@ -110,12 +55,10 @@
   (unless (kiss--file-is-directory-p dir)
     ;; NOTE make-directory is not handled by us.
     (make-directory dir t))
-  (dolist (source (slot-value pkg-obj :sources))
-    (with-slots
-        ((type      :type)
-         (extr-path :extracted-path))
-        source
-      (let ((cache  (kiss--source-get-cache-path source))
+  (dolist (source (plist-get pkg-obj :sources))
+    (let ((type (plist-get source :type))
+          (extr-path (plist-get source :extracted-path)))
+      (let ((cache (kiss--source-get-cache-path source))
             (outdir (concat dir "/" extr-path)))
         (unless (kiss--file-is-directory-p outdir)
           (make-directory outdir t))
@@ -151,8 +94,7 @@
     (setq rel (cadr (string-split (car (kiss--file-read-file ver-file)) " " t)))
 
     (setq obj
-          (make-instance
-           'kiss-package
+          (kiss-package
            :name name
            :build-file build-file
            :version ver
@@ -160,8 +102,8 @@
 
     (when (kiss--file-exists-p source-file)
       (setq srcs (kiss--sources-file-to-sources-objs source-file))
-      (mapc (lambda (o) (oset o :package name)) srcs))
-    (when srcs (oset obj :sources srcs))
+      (mapc (lambda (o) (setf (plist-get o :package) name)) srcs))
+    (when srcs (setf (plist-get obj :sources) srcs))
 
     (when (kiss--file-exists-p depends-file)
       (let ((read-data
@@ -179,8 +121,8 @@
                (lambda (str)
                  (replace-regexp-in-string (rx (1+ whitespace) (0+ any) eol) "" str))
                (seq-difference read-data deps))))
-      (when deps  (oset obj :depends deps))
-      (when mdeps (oset obj :make-depends mdeps)))
+      (when deps  (setf (plist-get obj :depends) deps))
+      (when mdeps (setf (plist-get obj :make-depends) mdeps)))
 
     ;; TODO: make all local sources absolute paths.
     ;; We obviosly still support the notion of relative paths in the
@@ -194,31 +136,30 @@
              (seq-remove
               (lambda (o)
                 ;; NOTE: all supported vc systems (for source) need to be here.
-                (pcase (slot-value o :type)
+                (pcase (plist-get o :type)
                   ((or 'git 'hg 'fossil) t)))
-              (slot-value obj :sources))))
+              (plist-get obj :sources))))
 
         (dotimes (i (length checksum-data))
-          (oset (nth i non-vc-src-objs) :checksum (nth i checksum-data)))))
+          (setf (plist-get (nth i non-vc-src-objs) :checksum)
+                (nth i checksum-data)))))
 
-    (oset obj :post-install-file
+    (setf (plist-get obj :post-install-file)
           (if (kiss--file-exists-p post-install-file) post-install-file ""))
-    (oset obj :pre-remove-file
+    (setf (plist-get obj :pre-remove-file)
           (if (kiss--file-exists-p pre-remove-file) pre-remove-file ""))
     obj))
 
 (defun kiss--package-to-dir (package-obj dir)
-  (with-slots
-      ((name         :name)
-       (version      :version)
-       (release      :release)
-       (build-file   :build-file)
-       (depends      :depends)
-       (make-depends :make-depends)
-       (sources      :sources)
-       (pre-remove-file   :pre-remove-file)
-       (post-install-file :post-install-file))
-      package-obj
+  (let ((name (plist-get package-obj :name))
+        (version (plist-get package-obj :version))
+        (release (plist-get package-obj :release))
+        (build-file (plist-get package-obj :build-file))
+        (depends (plist-get package-obj :depends))
+        (make-depends (plist-get package-obj :make-depends))
+        (sources (plist-get package-obj :sources))
+        (pre-remove-file (plist-get package-obj :pre-remove-file))
+        (post-install-file (plist-get package-obj :post-install-file)))
     (let ((version-str (concat version " " release "\n"))
           (depends-str
            (concat
@@ -236,7 +177,7 @@
             (string-join
              (seq-remove
               #'string-empty-p
-              (mapcar (lambda (o) (slot-value o :checksum)) sources))
+              (mapcar (lambda (o) (plist-get o :checksum)) sources))
              "\n")
             "\n")))
       (kiss--with-dir
@@ -252,11 +193,11 @@
          (let ((build-file-dir (kiss--dirname build-file))
                (local-sources
                 (mapcar
-                 (lambda (obj) (slot-value obj :uri))
+                 (lambda (obj) (plist-get obj :uri))
                  (seq-filter
                   (lambda (obj)
-                    (and (eq (slot-value obj :type) 'local)
-                         (not (string-match-p "^/" (slot-value obj :uri)))))
+                    (and (eq (plist-get obj :type) 'local)
+                         (not (string-match-p "^/" (plist-get obj :uri)))))
                   sources))))
            ;; NOTE: copy-file is handled by emacs, not us.
            (copy-file build-file (concat name "/build"))
@@ -323,7 +264,8 @@
   (let ((manifest-file
          (concat dir "/var/db/kiss/installed/" pkg "/manifest")))
 
-    (cl-assert (kiss--file-exists-p manifest-file))
+    (unless (kiss--file-exists-p manifest-file)
+      (error "Missing package manifest: %s" manifest-file))
 
     ;; TODO: would like to investigate the penalty of using a pure
     ;; Emacs lisp based solution for this.
@@ -332,7 +274,7 @@
              (kiss--get-installed-manifest-files)
              (seq-remove (lambda (fp) (string-match-p pkg fp)))
              (mapcar #'kiss--file-read-file)
-             (flatten-list)
+             (apply #'append)
              (seq-remove (lambda (fp) (string-match-p (rx "/" eol) fp))))))
       (seq-filter
        (lambda (fp) (member fp current-installed-files))
@@ -421,14 +363,6 @@ read instead."
        (concat kiss-installed-db-dir pkg "/depends")
      (concat (car (kiss-search pkg)) "/depends")))
 
-  ;; (with-slots
-  ;;     ((hd :depends)
-  ;;      (md :make-depends))
-  ;;     (kiss--dir-to-kiss-package
-  ;;      (if (and installed-p (kiss--pkg-is-installed-p pkg))
-  ;;          (concat kiss-installed-db-dir pkg)
-  ;;        (car (kiss-search pkg))))
-  ;;   (append md hd))
   )
 
 (defun kiss--pkgs-without-repo ()
@@ -453,7 +387,7 @@ read instead."
 (defun kiss--package-get-local-checksums (pkg)
   "(I) Return the list of checksums for PKG from the files on disk, or nil."
   (thread-last
-    (slot-value (kiss--search-pkg-obj pkg) :sources)
+    (plist-get (kiss--search-pkg-obj pkg) :sources)
     (mapcar #'kiss--source-get-local-checksum)
     (seq-remove #'string-empty-p)))
 
@@ -533,6 +467,21 @@ provided that the package is actually installed."
               (setq queue (append dep-deps (cdr queue)))))))
     res))
 
+(defun kiss--package-get-dependency-graph-rec-step (queue seen res)
+  "Build a dependency graph from QUEUE, carrying SEEN and RES.
+This named helper replaces a local recursive binding so the algorithm maps
+directly to a normal Scheme or Common Lisp function."
+  (let* ((new-queue (seq-remove (lambda (entry) (member entry seen)) queue))
+         (dep (car new-queue)))
+    (if dep
+        (let* ((new-seen (cons dep seen))
+               (dep-deps (kiss--package-get-dependencies dep))
+               (item `(,dep ,dep-deps))
+               (new-res (if (member item res) res (cons item res))))
+          (kiss--package-get-dependency-graph-rec-step
+           (append dep-deps (cdr new-queue)) new-seen new-res))
+      res)))
+
 ;; FIXME: implement installed-p argument here.
 (defun kiss--package-get-dependency-graph-rec (pkg-lst)
   "(I) A Recursive & TCO-ed implementation of `kiss--package-get-dependency-graph'.
@@ -541,23 +490,8 @@ This version of the function is meant primarily as a resource for people
 looking to implement kiss in other functional programming languages.
 It is also important to note that there is no meaninful decrease in speed
 when using this function compared with the iterative version."
-  (let* ((pkgs (cond
-                ((atom pkg-lst) `(,pkg-lst))
-                ((listp pkg-lst) pkg-lst))))
-
-    (named-let kiss--package-get-dependency-graph-rec-impl
-        ((queue pkgs) (seen '()) (res '()))
-      (let* ((new-queue (seq-remove (lambda (e) (member e seen)) queue))
-             (dep (car new-queue)))
-        (if dep
-            (let* ((new-seen (cons dep seen))
-                   (dep-deps (kiss--package-get-dependencies dep))
-                   (item `(,dep ,dep-deps))
-                   (new-res (if (not (member item res)) (cons item res) res)))
-              (kiss--package-get-dependency-graph-rec-impl
-               (append dep-deps (cdr new-queue)) new-seen new-res))
-          res)))))
-
+  (let ((pkgs (if (listp pkg-lst) pkg-lst (list pkg-lst))))
+    (kiss--package-get-dependency-graph-rec-step pkgs '() '())))
 
 (defun kiss--package-get-dependency-order (pkg-lst &optional installed-p)
   "(I) Return the proper build order of the dependencies for each pkg in PKG-LST."

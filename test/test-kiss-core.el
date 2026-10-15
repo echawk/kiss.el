@@ -5,6 +5,7 @@
 ;; implementation: canonical records, graph ordering, and filesystem layout.
 
 (require 'ert)
+(require 'cl-lib)
 (require 'kiss)
 (require 'kiss-test-fixture)
 
@@ -48,17 +49,41 @@
         (remote (kiss--string-to-source-obj
                  "https://example.invalid/archive.tar.xz dist"))
         (local (kiss--string-to-source-obj "files/config.h")))
-    (should (eq (slot-value git :type) 'git))
-    (should (string= (slot-value git :uri)
+    (should (eq (plist-get git :type) 'git))
+    (should (string= (plist-get git :uri)
                      "https://example.invalid/project.git"))
-    (should (string= (slot-value git :commit-or-branch) "v1.2"))
-    (should (string= (slot-value git :extracted-path) "build"))
+    (should (string= (plist-get git :commit-or-branch) "v1.2"))
+    (should (string= (plist-get git :extracted-path) "build"))
     ;; Canonical output uses @ for either supported git ref delimiter.
     (should (string= (kiss--source-to-string git)
                      "git+https://example.invalid/project.git@v1.2 build"))
-    (should (eq (slot-value remote :type) 'remote))
-    (should (string= (slot-value remote :extracted-path) "dist"))
-    (should (eq (slot-value local :type) 'local))))
+    (should (eq (plist-get remote :type) 'remote))
+    (should (string= (plist-get remote :extracted-path) "dist"))
+    (should (eq (plist-get local :type) 'local))))
+
+(ert-deftest kiss-records/constructors-provide-total-portable-records ()
+  "Portable records have stable defaults and reject malformed field input."
+  (let ((source (kiss-source :uri "source.tar.xz"))
+        (package (kiss-package :name "demo"))
+        (build-env (kiss-build-env :proc-dir "/tmp/kiss/")))
+    (should (equal (plist-get source :package) ""))
+    (should (null (plist-get source :type)))
+    (should (equal (plist-get source :extracted-path) ""))
+    (should (equal (plist-get package :depends) '()))
+    (should (equal (plist-get package :make-depends) '()))
+    (should (equal (plist-get build-env :log-file) "")))
+  (should-error (kiss-source :uri))
+  (should-error (kiss-package :name))
+  (should-error (kiss-build-env :proc-dir)))
+
+(ert-deftest kiss-core/binary-file-classifier-is-pure-and-consistent ()
+  "The compatibility classifier preserves the authoritative pure result."
+  (let ((paths '("/usr/bin/demo" "/usr/sbin/admin" "/usr/lib/libdemo.so"
+                 "/etc/demo.conf" "/usr/share/doc/readme")))
+    (should (equal (kiss--get-potential-binary-files paths)
+                   '("/usr/bin/demo" "/usr/sbin/admin" "/usr/lib/libdemo.so")))
+    (should (equal (kiss--get-potential-binary-files-fast paths)
+                   (kiss--get-potential-binary-files paths)))))
 
 (ert-deftest kiss-source/file-reader-ignores-comment-and-blank-records ()
   "Only source payload records become source objects."
@@ -69,7 +94,7 @@
                                 "# explanatory comment\n\nhttps://example.invalid/a.tar.gz out\n")
           (let ((sources (kiss--sources-file-to-sources-objs file)))
             (should (= (length sources) 1))
-            (should (eq (slot-value (car sources) :type) 'remote))))
+            (should (eq (plist-get (car sources) :type) 'remote))))
       (ignore-errors (delete-file file)))))
 
 (ert-deftest kiss-package/dependency-order-precedes-dependents ()
@@ -121,12 +146,26 @@
 
 (ert-deftest kiss-download/package-object-assigns-source-package-before-download ()
   "Every source download sees the owning package name, including local sources."
-  (let* ((source (make-instance 'kiss-source :type 'local :uri "file"))
-         (package (make-instance 'kiss-package :name "demo" :sources (list source))))
+  (let* ((source (kiss-source :type 'local :uri "file"))
+         (package (kiss-package :name "demo" :sources (list source))))
     (cl-letf (((symbol-function 'kiss--source-download)
                (lambda (object)
-                 (string= (slot-value object :package) "demo"))))
+                 (string= (plist-get object :package) "demo"))))
       (should (kiss--download-pkg-obj package)))))
+
+(ert-deftest kiss-download/list-result-requires-every-package-to-succeed ()
+  "A list download succeeds exactly when each individual download succeeds."
+  (let (seen)
+    (cl-letf (((symbol-function 'kiss--search-pkg-obj)
+               (lambda (name) (kiss-package :name name)))
+              ((symbol-function 'kiss--download-pkg-obj)
+               (lambda (package)
+                 (push (plist-get package :name) seen)
+                 (not (string= (plist-get package :name) "bad")))))
+      (should (kiss-download '("one" "two")))
+      (should (equal (nreverse seen) '("one" "two")))
+      (setq seen nil)
+      (should-not (kiss-download '("one" "bad"))))))
 
 (ert-deftest kiss-build/generated-script-keeps-build-contract ()
   "The generated script calls BUILD with DESTDIR and VERSION in that order."
@@ -226,7 +265,7 @@
                               (concat kiss-installed-db-dir "demo")))))))))
 
 (ert-deftest tsort/order-respects-all-edges-and-detects-cycles ()
-  "Topological sorting orders dependencies first and rejects cyclic graphs."
+  "The declared tsort dependency orders dependencies and rejects cycles."
   (let ((order (tsort '((app (lib tools)) (lib (base)) (tools (base)) (base nil)))))
     (should (< (seq-position order 'base) (seq-position order 'lib)))
     (should (< (seq-position order 'base) (seq-position order 'tools)))
