@@ -413,16 +413,23 @@
         ;; NOTE: there is definitely still some work & cleanup stuff that
         ;; needs to happen to the below code, but I think this is pretty
         ;; close to replacing the current build function
-        (make-directory (concat install-dir kiss-installed-db-dir) t)
+        ;; `kiss-installed-db-dir' is absolute from the package root.  A
+        ;; staged package has a different host prefix, so append its path
+        ;; *relative to* `kiss-root' rather than embedding the host pathname
+        ;; in the archive tree.  Besides making package records canonical,
+        ;; this keeps builds hermetic when KISS_ROOT is redirected.
+        (let ((stage-db-dir
+               (concat (file-name-as-directory install-dir)
+                       (file-relative-name kiss-installed-db-dir kiss-root))))
+          (make-directory stage-db-dir t)
         ;; FIXME: make this fork happen at the end of this funciton ~ easier
         ;; to fix the dependencies and whatnot.
-        (kiss--package-to-dir pkg-obj
-                              (concat install-dir kiss-installed-db-dir))
+          (kiss--package-to-dir pkg-obj stage-db-dir)
 
         ;; FIXME: look over kiss code & implement /dev/null
         ;; for symlinks
         ;; Need to compute etcsums if they exist.
-        (let* ((manifest-lst
+          (let* ((manifest-lst
                 (kiss--get-manifest-for-dir install-dir))
                (etc-files
                 (seq-filter
@@ -434,31 +441,37 @@
                 (kiss--get-potential-binary-files manifest-lst)))
 
           ;; If we have any etcfiles, create etcsums
-          (when etc-files
-            (kiss--write-text
-             (mapconcat #'identity (mapcar #'kiss--b3 etc-files) "\n")
-             'utf-8
-             (concat install-dir kiss-installed-db-dir name "/etcsums")))
+            (when etc-files
+              (kiss--write-text
+               (mapconcat #'identity
+                          (mapcar (lambda (record)
+                                    (kiss--b3
+                                     (concat (file-name-as-directory install-dir)
+                                             (substring record 1))))
+                                  etc-files)
+                          "\n")
+               'utf-8
+               (concat stage-db-dir name "/etcsums")))
 
           ;; Next, create the manifest
-          (kiss--write-text
+            (kiss--write-text
            ;; FIXME: I don't think this should be needed,
            ;; since, *technically* kiss--get-manifest-for-dir
            ;; should have already taken care of this...
            (kiss--manifest-to-string (kiss--get-manifest-for-dir install-dir))
-           'utf-8
-           (concat install-dir kiss-installed-db-dir name "/manifest"))
+             'utf-8
+             (concat stage-db-dir name "/manifest"))
 
           ;; Potentially strip the binaries.
-          (when (and (eq 1 kiss-strip)
-                     (not (kiss--file-exists-p (concat build-dir "nostrip"))))
-            (kiss--build-strip-files
-             install-dir potential-binary-files))
+            (when (and (eq 1 kiss-strip)
+                       (not (kiss--file-exists-p (concat build-dir "nostrip"))))
+              (kiss--build-strip-files
+               install-dir potential-binary-files))
 
           ;; TODO: finish up this impl.
           ;; FIXME: also need to do dependency fixing
-          (kiss--build-get-missing-dependencies
-           install-dir potential-binary-files pkg-obj))
+            (kiss--build-get-missing-dependencies
+             install-dir potential-binary-files pkg-obj)))
 
         ;; FIXME; need to refork the package here, since we could have
         ;; picked up some extra dependencies

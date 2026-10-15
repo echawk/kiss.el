@@ -336,57 +336,18 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     (kiss--decompress tarball decomp-tarball)
     ;; Extract the tarball.
     (kiss--with-dir dir (shell-command (concat "tar xf " decomp-tarball)))
-    ;; Get all of the top level directories from the tarball.
-    (mapc
-     (lambda (tld)
-       (let* ((temp-f (kiss--file-make-temp-file))
-              (temp-d (concat temp-f "-" tld)))
-         (message "%s" (eq 0
-                           (shell-command
-                            (concat "mv -f " (concat dir "/" tld) " " temp-d))))
-
-         ;; NOTE: we need to call directory-files twice here, since
-         ;; First do the mv's
-         (mapc
-          (lambda (f)
-            (shell-command
-             (concat "mv -f " (concat temp-d f) " " dir)))
-          (nthcdr 2 (directory-files temp-d)))
-
-         ;; Then do the cp's
-         (let ((files (nthcdr 2 (directory-files temp-d))))
-           (if files
-               (mapc
-                (lambda (f)
-                  (shell-command
-                   (concat "cp -fRPp " (concat temp-d f) " " dir)))
-                files)))
-
-         ;; Make sure to rm the temp file.
-         (kiss--shell-command-as-user
-          (concat "rm -- " temp-f) (kiss--file-get-owner-name temp-f))
-         ;; Also rm the temp directory.
-         (kiss--shell-command-as-user
-          (concat "rm -rf -- " temp-d) (kiss--file-get-owner-name temp-d))))
-
-     ;; Make sure we only go through each top level directory *once*.
-     (seq-uniq
-      (mapcar
-       ;; Get rid of any possible junk after the /.
-       (lambda (str) (replace-regexp-in-string (rx "/" (0+ any) eol) "/" str))
-       (seq-filter
-        (lambda (line)
-          ;; Keep lines that have only **1** / in them.
-          (string-match-p (rx bol (0+ (not "/")) "/" (0+ (not "/")) eol) line))
-        ;; TODO: can I remove this seq-uniq?
-        (string-split
-         (shell-command-to-string (concat "tar tf " tarball))
-         "\n" t)))))
-
-    ;; Remove our decompressed tarball now that we are done with it.
-    (kiss--shell-command-as-user
-     (concat "rm -f -- " decomp-tarball)
-     (kiss--file-get-owner-name decomp-tarball))))
+    ;; Archives created by `kiss--file-make-tarball-of-dir' begin with `./'.
+    ;; Inspecting `tar tf' therefore mistakes that pseudo-directory for the
+    ;; component to strip.  The extracted tree has no such entry: every
+    ;; immediate directory is a real top-level archive component.  Moving its
+    ;; children directly is portable and preserves links and timestamps.
+    (dolist (top (directory-files dir t directory-files-no-dot-files-regexp))
+      (when (file-directory-p top)
+        (dolist (child (directory-files top t directory-files-no-dot-files-regexp))
+          (rename-file child (expand-file-name (file-name-nondirectory child) dir) t))
+        (delete-directory top)))
+    ;; The temporary decompressed archive belongs to the calling user.
+    (delete-file decomp-tarball)))
 
 (defun kiss--decompress (file-path out-path)
   "Decompress FILE-PATH to OUT-PATH based on the file name."

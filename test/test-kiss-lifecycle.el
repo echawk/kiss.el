@@ -90,6 +90,42 @@ exercise the same manifest contract as the build pipeline."
             (should-not (file-exists-p (concat kiss-root "usr/bin/dependent"))))
         (ignore-errors (delete-file archive))))))
 
+(ert-deftest kiss-lifecycle/conflict-choice-zero-refuses-before-live-replacement ()
+  "A conflicting archive fails under KISS_CHOICE=0 without changing its provider."
+  (kiss-test-with-fixture
+    (kiss-test-make-pkg "provider" "1" "1" :files '(("usr/bin/tool" . "original\n")))
+    (let ((archive (kiss-lifecycle--archive
+                    "challenger" "1" "1" '(("usr/bin/tool" . "replacement\n")))))
+      (unwind-protect
+          (let ((kiss-force nil) (kiss-hook nil) (kiss-choice 0))
+            (kiss-lifecycle-with-unprivileged-shell
+              (should-error (kiss--install-tarball archive)))
+            (should (kiss--pkg-is-installed-p "provider"))
+            (should-not (kiss--pkg-is-installed-p "challenger"))
+            (should (string= (kiss--read-text (concat kiss-root "usr/bin/tool"))
+                             "original\n")))
+        (ignore-errors (delete-file archive))))))
+
+(ert-deftest kiss-lifecycle/conflict-preserves-provider-as-an-alternative ()
+  "A permitted conflict keeps the installed provider and records the new choice."
+  (kiss-test-with-fixture
+    (kiss-test-make-pkg "provider" "1" "1" :files '(("usr/bin/tool" . "original\n")))
+    (let ((archive (kiss-lifecycle--archive
+                    "challenger" "1" "1" '(("usr/bin/tool" . "replacement\n")))))
+      (unwind-protect
+          (let ((kiss-force nil) (kiss-hook nil) (kiss-choice 1))
+            (kiss-lifecycle-with-unprivileged-shell
+              (kiss--install-tarball archive))
+            (should (kiss--pkg-is-installed-p "challenger"))
+            (should (string= (kiss--read-text (concat kiss-root "usr/bin/tool"))
+                             "original\n"))
+            (should (member "/var/db/kiss/choices/challenger>usr>bin>tool"
+                            (kiss-manifest "challenger")))
+            (should (member '("challenger" "/usr/bin/tool"
+                             "challenger>usr>bin>tool")
+                            (kiss-alternatives))))
+        (ignore-errors (delete-file archive))))))
+
 (ert-deftest kiss-lifecycle/upgrade-replaces-payload-and-removes-obsolete-files ()
   "An upgrade replaces retained payload and removes old manifest-only paths."
   (kiss-test-with-fixture

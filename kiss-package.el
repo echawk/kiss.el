@@ -284,23 +284,32 @@ Common Lisp plist or a Scheme alist/record."
   "(I) Fix up DIR for PKG so as to allow for alternatives."
   (let ((conf-files (kiss--package-get-conflict-files pkg extr-dir)))
     (when conf-files
-      ;; Make the choices dir in the extracted tarball.
-      (make-directory (concat extr-dir kiss-choices-db-dir) t)
+      ;; The choices database is root-relative package data.  An extracted
+      ;; archive has its own host prefix, so do not append KISS_ROOT's absolute
+      ;; pathname into it.
+      (let ((stage-choices-dir
+             (concat (file-name-as-directory extr-dir)
+                     (file-relative-name kiss-choices-db-dir kiss-root))))
+        (make-directory stage-choices-dir t)
 
       ;; Move all of the files to the appropriate place.
-      (dolist (path conf-files)
-        (let* ((alt      (string-replace "/" ">" path))
-               (alt-path (concat kiss-choices-db-dir pkg alt)))
+        (dolist (path conf-files)
+          (let* ((alt (string-replace "/" ">" path))
+                 (alt-record
+                  (concat "/"
+                          (file-relative-name
+                           (concat kiss-choices-db-dir pkg alt) kiss-root))))
 
-          ;; Move the file to the choices directory.
-          (kiss--silent-shell-command
-           (format
-            "mv -f '%s' '%s'" (concat extr-dir path) (concat extr-dir alt-path)))))
+          ;; Move the file to the choices directory.  Both paths are already
+          ;; fully resolved within the staging tree; `rename-file' avoids a
+          ;; shell parser treating the `>' characters in an alternative name
+          ;; as redirection operators.
+            (rename-file (concat extr-dir path) (concat extr-dir alt-record) t)))
 
       ;; Regenerate the manifest for the directory.
-      (kiss--write-text
-       (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
-       'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))))
+        (kiss--write-text
+         (kiss--manifest-to-string (kiss--get-manifest-for-dir extr-dir))
+         'utf-8 (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest"))))))
 
 (defun kiss--package-get-orphan-alternatives (pkg)
   "(I) Return a list of orphaned alternatives that would result from removing PKG."

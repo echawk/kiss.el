@@ -219,18 +219,13 @@
    (lambda (pkg) (concat kiss-installed-db-dir pkg "/manifest"))
    (mapcar 'car (kiss-list))))
 
-;; FIXME: would like to remove the reliance on 'grep' for these functions.
 ;;;###autoload
 (defun kiss-owns (file-path)
-  ;; TODO: See if this can be made a little less ugly.
-  (let* ((cmd (concat "grep " (rx bol (literal file-path) eol) " "
-                      (kiss--lst-to-str
-                       (kiss--get-installed-manifest-files))))
-         (cmd-out (shell-command-to-string cmd)))
-    (unless (string-empty-p cmd-out)
-      (car
-       (string-split
-        (replace-regexp-in-string kiss-installed-db-dir "" cmd-out) "/")))))
+  "Return the installed package owning root-relative FILE-PATH, or nil.
+Manifest records are canonical package data, so direct membership is portable
+and remains correct for paths containing shell metacharacters."
+  (seq-find (lambda (pkg) (member file-path (kiss-manifest pkg)))
+            (mapcar #'car (kiss-list))))
 
 
 ;; (cl-mapcar
@@ -408,7 +403,7 @@ a benchmarked, equivalence-tested replacement is available."
 
           ('file
            (let ((tmp
-                  (format "'%s__kiss-el-tmp-%s-%s-%s'"
+                  (format "%s__kiss-el-tmp-%s-%s-%s"
                           (kiss--dirname actual-file)
                           pkg
                           (kiss--basename actual-file)
