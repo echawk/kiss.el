@@ -119,6 +119,90 @@
         (kiss-get-alist '(("curl" . " -fL -o ") ("wget" . " -O "))))
     (should (string= (kiss--get-download-utility-arguments) " -fL -o "))))
 
+(ert-deftest kiss-download/package-object-assigns-source-package-before-download ()
+  "Every source download sees the owning package name, including local sources."
+  (let* ((source (make-instance 'kiss-source :type 'local :uri "file"))
+         (package (make-instance 'kiss-package :name "demo" :sources (list source))))
+    (cl-letf (((symbol-function 'kiss--source-download)
+               (lambda (object)
+                 (string= (slot-value object :package) "demo"))))
+      (should (kiss--download-pkg-obj package)))))
+
+(ert-deftest kiss-build/generated-script-keeps-build-contract ()
+  "The generated script calls BUILD with DESTDIR and VERSION in that order."
+  (let ((dir (file-name-as-directory (make-temp-file "kiss-build-" t))))
+    (unwind-protect
+        (let ((script (concat dir "runner"))
+              (build (concat dir "build"))
+              (work (concat dir "work/"))
+              (dest (concat dir "dest/"))
+              (log (concat dir "build.log")))
+          (kiss--build-make-script script build work dest "2.3.4" log)
+          (should (file-executable-p script))
+          (let ((contents (kiss--read-text script)))
+            (should (string-match-p (regexp-quote (concat build " " dest " 2.3.4"))
+                                    contents))
+            (should (string-match-p "export DESTDIR=" contents))))
+      (ignore-errors (delete-directory dir t)))))
+
+(ert-deftest kiss-hook/runs-each-executable-hook-with-contract-arguments ()
+  "Global hooks receive hook name followed by the three documented arguments."
+  (let* ((dir (file-name-as-directory (make-temp-file "kiss-hook-" t)))
+         (hook (concat dir "capture"))
+         (result (concat dir "result")))
+    (unwind-protect
+        (progn
+          (kiss-core-test-write
+           hook
+           (concat "#!/bin/sh\nprintf '%s|%s|%s|%s' \"$1\" \"$2\" \"$3\" \"$4\" > '"
+                   result "'\n")
+           t)
+          (let ((kiss-hook (list hook)))
+            (kiss--run-hook "post-build" "demo" "/stage" "extra"))
+          (should (string= (kiss--read-text result)
+                           "post-build|demo|/stage|extra")))
+      (ignore-errors (delete-directory dir t)))))
+
+(ert-deftest kiss-os/current-user-round-trips-through-uid ()
+  "The OS adapter maps the running user's name and uid consistently."
+  (let ((name (user-login-name))
+        (uid (user-real-uid)))
+    (should (= (kiss--get-uid-from-user name) uid))
+    (should (string= (kiss--get-user-from-uid uid) name))))
+
+(ert-deftest kiss-update/dispatches-only-enabled-repository-backends ()
+  "Update dispatch is governed solely by the detected feature set."
+  (let ((calls '())
+        (kiss-features '(:GIT :FOSSIL)))
+    (cl-letf (((symbol-function 'kiss--update-git-repos)
+               (lambda () (push 'git calls)))
+              ((symbol-function 'kiss--update-hg-repos)
+               (lambda () (push 'hg calls)))
+              ((symbol-function 'kiss--update-fossil-repos)
+               (lambda () (push 'fossil calls))))
+      (kiss-update)
+      (should (equal (nreverse calls) '(git fossil))))))
+
+(ert-deftest elkiss/unknown-command-exits-successfully ()
+  "The CLI wrapper can locate its library without a caller-managed load path."
+  (should (= 0 (call-process (expand-file-name "elkiss" default-directory)
+                             nil nil nil "not-a-kiss-command"))))
+
+(ert-deftest kiss-alternatives/lists-package-and-absolute-path ()
+  "A choice filename maps reversibly to its package and selected path."
+  (kiss-test-with-fixture
+    (let ((choice (concat kiss-choices-db-dir "demo>usr>bin>tool")))
+      (kiss-core-test-write choice "alternative")
+      (should (equal (kiss-alternatives)
+                     '(("demo" "/usr/bin/tool" "demo>usr>bin>tool")))))))
+
+(ert-deftest kiss-preferred/returns-owner-for-a-selected-alternative ()
+  "Preferred alternatives are resolved from choice names and package manifests."
+  (kiss-test-with-fixture
+    (kiss-test-make-pkg "demo" "1" "1" :manifest '("/usr/bin/tool"))
+    (kiss-core-test-write (concat kiss-choices-db-dir "demo>usr>bin>tool") "alt")
+    (should (equal (kiss-preferred) '(("demo" "/usr/bin/tool"))))))
+
 (ert-deftest kiss-core/redundant-dependencies-are-eliminated ()
   "A package implied by another requested package need not be built twice."
   (cl-letf (((symbol-function 'kiss--package-get-dependencies)
