@@ -32,6 +32,18 @@ exercise the same manifest contract as the build pipeline."
       (when dependencies
         (kiss-lifecycle--write (concat db "depends")
                                 (concat (string-join dependencies "\n") "\n")))
+      (let ((etc-files
+             (seq-filter (lambda (entry)
+                           (and (string-prefix-p "etc/" (car entry))
+                                (not (string-suffix-p "/" (car entry)))))
+                         files)))
+        (when etc-files
+          (kiss-lifecycle--write
+           (concat db "etcsums")
+           (concat (string-join
+                    (mapcar (lambda (entry) (kiss--b3 (concat stage (car entry))))
+                            etc-files)
+                    "\n") "\n"))))
       (kiss-lifecycle--write
        (concat db "manifest")
        (kiss--manifest-to-string (kiss--get-manifest-for-dir stage))))
@@ -89,6 +101,62 @@ exercise the same manifest contract as the build pipeline."
                                "gzip\n"))))
         (ignore-errors (delete-file archive))
         (ignore-errors (delete-file compressed))))))
+
+(ert-deftest kiss-lifecycle/upgrade-preserves-local-etc-and-saves-new-candidate ()
+  "A divergent /etc file survives an upgrade while changed upstream content is `.new'."
+  (skip-unless (executable-find "b3sum"))
+  (kiss-test-with-fixture
+    (let ((v1 (kiss-lifecycle--archive "demo" "1" "1"
+                                       '(("etc/demo.conf" . "old\n"))))
+          (v2 (kiss-lifecycle--archive "demo" "2" "1"
+                                       '(("etc/demo.conf" . "new\n")))))
+      (unwind-protect
+          (let ((kiss-force nil) (kiss-hook nil) (kiss-choice 1))
+            (kiss-lifecycle-with-unprivileged-shell
+              (kiss--install-tarball v1)
+              (kiss-lifecycle--write (concat kiss-root "etc/demo.conf") "local\n")
+              (kiss--install-tarball v2))
+            (should (string= (kiss--read-text (concat kiss-root "etc/demo.conf"))
+                             "local\n"))
+            (should (string= (kiss--read-text (concat kiss-root "etc/demo.conf.new"))
+                             "new\n")))
+        (ignore-errors (delete-file v1))
+        (ignore-errors (delete-file v2))))))
+
+(ert-deftest kiss-lifecycle/upgrade-replaces-unmodified-etc-file ()
+  "An unchanged /etc file is replaced by the package's new version on upgrade."
+  (skip-unless (executable-find "b3sum"))
+  (kiss-test-with-fixture
+    (let ((v1 (kiss-lifecycle--archive "demo" "1" "1"
+                                       '(("etc/demo.conf" . "old\n"))))
+          (v2 (kiss-lifecycle--archive "demo" "2" "1"
+                                       '(("etc/demo.conf" . "new\n")))))
+      (unwind-protect
+          (let ((kiss-force nil) (kiss-hook nil) (kiss-choice 1))
+            (kiss-lifecycle-with-unprivileged-shell
+              (kiss--install-tarball v1)
+              (kiss--install-tarball v2))
+            (should (string= (kiss--read-text (concat kiss-root "etc/demo.conf"))
+                             "new\n"))
+            (should-not (file-exists-p (concat kiss-root "etc/demo.conf.new"))))
+        (ignore-errors (delete-file v1))
+        (ignore-errors (delete-file v2))))))
+
+(ert-deftest kiss-lifecycle/remove-keeps-etc-configuration ()
+  "Removal deletes package state but deliberately retains /etc configuration."
+  (skip-unless (executable-find "b3sum"))
+  (kiss-test-with-fixture
+    (let ((archive (kiss-lifecycle--archive "demo" "1" "1"
+                                            '(("etc/demo.conf" . "configured\n")))))
+      (unwind-protect
+          (let ((kiss-force nil) (kiss-hook nil))
+            (kiss-lifecycle-with-unprivileged-shell
+              (kiss--install-tarball archive)
+              (kiss-remove "demo"))
+            (should (string= (kiss--read-text (concat kiss-root "etc/demo.conf"))
+                             "configured\n"))
+            (should-not (kiss--pkg-is-installed-p "demo")))
+        (ignore-errors (delete-file archive))))))
 
 (ert-deftest kiss-lifecycle/temporary-workspaces-are-rooted-and-distinct ()
   "Installer workspaces are strings beneath KISS_TMPDIR and never collide."

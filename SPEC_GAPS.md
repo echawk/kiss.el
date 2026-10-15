@@ -8,7 +8,7 @@ interaction with a caller's installed packages.
 
 ## Priority 1: filesystem correctness
 
-- [ ] Implement the `/etc` three-way upgrade algorithm using the old package
+- [x] Implement the `/etc` three-way upgrade algorithm using the old package
   `etcsums`, new package `etcsums`, and the live configuration-file checksum.
   Preserve locally modified files; install changed upstream files according to
   the KISS conflict policy.
@@ -17,7 +17,7 @@ interaction with a caller's installed packages.
     removed upstream config is handled, and positional checksum streams stay
     aligned.
 
-- [ ] Preserve modified `/etc` files when removing a package.
+- [x] Preserve modified `/etc` files when removing a package.
   - Affected: `kiss.el` (`kiss-remove`).
   - Tests: a modified configuration file survives removal while unmodified
     payload and database records are removed.

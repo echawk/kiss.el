@@ -51,6 +51,70 @@ manifest impossible to identify."
       (file-name-nondirectory
        (directory-file-name (file-name-directory manifest-path))))))
 
+(defun kiss--etc-manifest-file-records (manifest)
+  "Return regular-file records below /etc from MANIFEST in manifest order."
+  (seq-filter (lambda (record)
+                (and (string-prefix-p "/etc/" record)
+                     (not (string-suffix-p "/" record))))
+              manifest))
+
+(defun kiss--etc-checksum-map (manifest checksum-file)
+  "Associate /etc file records in MANIFEST with CHECKSUM-FILE's line stream.
+The KISS format deliberately stores an ordered checksum stream rather than
+path/checksum pairs; retain that positional contract at this boundary."
+  (let ((records (kiss--etc-manifest-file-records manifest))
+        (checksums (kiss--file-read-file checksum-file))
+        result)
+    (while records
+      (push (cons (pop records) (pop checksums)) result))
+    (nreverse result)))
+
+(defun kiss--install-etc-new-file (source target)
+  "Copy SOURCE to configuration candidate TARGET, preserving timestamps."
+  (let ((owner (kiss--file-get-owner-name kiss-root)))
+    (kiss--shell-command-as-user
+     (format "cp -fP %s %s" (shell-quote-argument source)
+             (shell-quote-argument target))
+     owner)
+    (kiss--shell-command-as-user
+     (format "touch -r %s %s" (shell-quote-argument source)
+             (shell-quote-argument target))
+     owner)))
+
+(defun kiss--install-etc-files (extr-dir pkg new-manifest old-sums)
+  "Install PKG's /etc entries using the KISS old/live/new checksum handshake.
+An unmodified live file is replaced.  A locally changed file is retained; if
+the new package differs, its candidate is saved alongside it with `.new'."
+  (let* ((new-sums (kiss--etc-checksum-map
+                    new-manifest
+                    (concat extr-dir "/var/db/kiss/installed/" pkg "/etcsums")))
+         (etc-dirs (seq-filter (lambda (record)
+                                 (and (string-prefix-p "/etc" record)
+                                      (string-suffix-p "/" record)))
+                               new-manifest)))
+    ;; Directories must exist before either the normal or `.new' copy path.
+    (kiss--install-files extr-dir kiss-root (reverse etc-dirs) pkg nil)
+    (dolist (entry new-sums)
+      (let* ((record (car entry))
+             (new-sum (cdr entry))
+             (old-sum (alist-get record old-sums nil nil #'string=))
+             (source (concat extr-dir record))
+             (target (kiss--manifest-record-to-root-path record))
+             (live-sum (when (file-exists-p target) (kiss--b3 target))))
+        (cond
+         ;; First install, a removed live file, or an unmodified configuration:
+         ;; install the package's version at its canonical pathname.
+         ((or (not (file-exists-p target))
+              (and old-sum (string= old-sum live-sum)))
+          (kiss--install-files extr-dir kiss-root (list record) pkg nil))
+         ;; The live file already contains the desired content, or this package
+         ;; did not change its configuration file.  Keep the user's file.
+         ((or (string= live-sum new-sum)
+              (and old-sum (string= old-sum new-sum))) nil)
+         ;; A live file from an unknown owner or a divergent local edit must
+         ;; never be overwritten by an upgrade.
+         (t (kiss--install-etc-new-file source (concat target ".new"))))))))
+
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."
   (unless (kiss--file-exists-p tarball)
@@ -140,6 +204,10 @@ manifest impossible to identify."
       ;; installing a package that is not presently intsalled.
       (let* ((new-manifest (kiss--file-read-file (concat extr-dir "/var/db/kiss/installed/" pkg "/manifest")))
              (old-manifest (kiss--file-read-file (concat kiss-installed-db-dir pkg "/manifest")))
+             ;; Capture old checksums before installing the new database entry.
+             (old-etc-sums (kiss--etc-checksum-map
+                            old-manifest
+                            (concat kiss-installed-db-dir pkg "/etcsums")))
              (files-not-present-in-new-manifest
               ;; NOTE: the order here is backwards from upstream.
               (seq-difference old-manifest new-manifest)))
@@ -150,18 +218,27 @@ manifest impossible to identify."
         (message (concat "kiss/install: Installing " pkg "..."))
 
         ;; Install the packages files.
-        (kiss--install-files extr-dir kiss-root (reverse new-manifest) pkg nil)
+        (let ((non-etc-manifest
+               (seq-remove (lambda (record) (string-prefix-p "/etc" record))
+                           new-manifest)))
+          (kiss--install-files extr-dir kiss-root (reverse non-etc-manifest) pkg nil)
+          (kiss--install-etc-files extr-dir pkg new-manifest old-etc-sums))
 
         ;; Remove any files that were in the old manifest that aren't
         ;; in the new one.
         (kiss--file-remove-files
          (mapcar #'kiss--manifest-record-to-root-path
-                 files-not-present-in-new-manifest))
+                 (seq-remove (lambda (record) (string-prefix-p "/etc" record))
+                             files-not-present-in-new-manifest)))
 
         ;; Install the packages files for a second time to fix
         ;; any potential mess that could have been made from the
         ;; previous rm.
-        (kiss--install-files extr-dir kiss-root (reverse new-manifest) pkg t)
+        (kiss--install-files
+         extr-dir kiss-root
+         (reverse (seq-remove (lambda (record) (string-prefix-p "/etc" record))
+                              new-manifest))
+         pkg t)
 
         (kiss--run-hook-pkg "post-install" pkg)
 

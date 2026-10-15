@@ -489,7 +489,8 @@ a benchmarked, equivalence-tested replacement is available."
 
                (kiss--file-remove-files
                 (mapcar #'kiss--manifest-record-to-root-path
-                        (kiss-manifest pkgs-l))))))
+                        (seq-remove (lambda (record) (string-prefix-p "/etc" record))
+                                    (kiss-manifest pkgs-l)))))))
         (t nil)))
 
 
