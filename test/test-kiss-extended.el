@@ -78,6 +78,32 @@
                        "source-data\n"))))
         (ignore-errors (delete-directory repo t))))))
 
+(ert-deftest kiss-source/vcs-command-failure-is-not-a-success ()
+  "A failed VCS command yields nil rather than a truthy nonzero status."
+  (kiss-test-with-fixture
+    (let ((source (kiss-source :type 'hg :package "demo"
+                               :uri "https://example.invalid/demo")))
+      (cl-letf (((symbol-function 'shell-command) (lambda (_command) 1)))
+        (should-not (kiss--source-download source))))))
+
+(ert-deftest kiss-source/local-transfer-runs-pre-and-post-source-hooks ()
+  "Successful source acquisition emits both documented source hook events."
+  (kiss-test-with-fixture
+    (let* ((repo (file-name-as-directory (make-temp-file "kiss-hook-repo-" t)))
+           (recipe (concat repo "demo/"))
+           (source (kiss-source :type 'local :package "demo" :uri "source"))
+           calls)
+      (unwind-protect
+          (progn
+            (kiss-extended--write (concat recipe "source") "data")
+            (let ((kiss-path (list repo)))
+              (cl-letf (((symbol-function 'kiss--run-hook)
+                         (lambda (&rest args) (push args calls))))
+                (should (kiss--source-download source)))
+              (should (equal (mapcar #'car (nreverse calls))
+                             '("pre-source" "post-source")))))
+        (ignore-errors (delete-directory repo t))))))
+
 (ert-deftest kiss-file/archive-roundtrip-preserves-staged-contents ()
   "Tarball creation followed by extraction keeps file data beneath its stage."
   (let ((stage (file-name-as-directory (make-temp-file "kiss-archive-stage-" t)))
@@ -146,7 +172,10 @@
           (progn
             (kiss-extended--write
              build
-             "#!/bin/sh -e\nmkdir -p \"$1/usr/bin\"\nprintf built > \"$1/usr/bin/demo\"\n" t)
+             (concat "#!/bin/sh -e\n"
+                     "mkdir -p \"$1/usr/bin\" \"$1/usr/share\"\n"
+                     "printf built > \"$1/usr/bin/demo\"\n"
+                     "printf '%s' \"$KISS_ROOT\" > \"$1/usr/share/kiss-root\"\n") t)
             (should (kiss--package-build package))
             (let ((archive (concat kiss-bindir "demo@1-1.tar")))
               (should (file-exists-p archive))
@@ -154,7 +183,9 @@
                 (kiss-install archive))
               (should (kiss--pkg-is-installed-p "demo"))
               (should (string= (kiss--read-text (concat kiss-root "usr/bin/demo"))
-                               "built"))))
+                               "built"))
+              (should (string= (kiss--read-text (concat kiss-root "usr/share/kiss-root"))
+                               kiss-root))))
         (ignore-errors (delete-directory recipe t))))))
 
 (ert-deftest kiss-update/git-toplevel-is-local-and-deterministic ()

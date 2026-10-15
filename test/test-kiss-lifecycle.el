@@ -67,6 +67,29 @@ exercise the same manifest contract as the build pipeline."
             (should (member "/usr/share/demo/readme" (kiss-manifest "demo"))))
         (ignore-errors (delete-file archive))))))
 
+(ert-deftest kiss-lifecycle/public-install-accepts-compressed-archive ()
+  "Public `kiss-install' recognizes a gzip-compressed package archive."
+  (skip-unless (executable-find "gzip"))
+  (kiss-test-with-fixture
+    (let* ((archive (kiss-lifecycle--archive "demo" "1" "1"
+                                             '(("usr/bin/demo" . "gzip\n"))))
+           (compressed (concat archive ".gz")))
+      (unwind-protect
+          (progn
+            (should (= 0 (shell-command
+                           (format "gzip -c -- %s > %s"
+                                   (shell-quote-argument archive)
+                                   (shell-quote-argument compressed)))))
+            (should (file-exists-p compressed))
+            (let ((kiss-force nil) (kiss-hook nil) (kiss-choice 1))
+              (kiss-lifecycle-with-unprivileged-shell
+                (kiss-install compressed))
+              (should (kiss--pkg-is-installed-p "demo"))
+              (should (string= (kiss--read-text (concat kiss-root "usr/bin/demo"))
+                               "gzip\n"))))
+        (ignore-errors (delete-file archive))
+        (ignore-errors (delete-file compressed))))))
+
 (ert-deftest kiss-lifecycle/temporary-workspaces-are-rooted-and-distinct ()
   "Installer workspaces are strings beneath KISS_TMPDIR and never collide."
   (kiss-test-with-fixture

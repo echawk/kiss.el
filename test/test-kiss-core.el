@@ -251,6 +251,43 @@
   (should (= 0 (call-process (expand-file-name "elkiss" default-directory)
                              nil nil nil "not-a-kiss-command"))))
 
+(ert-deftest elkiss/version-is-a-stable-public-command ()
+  "The library and CLI expose the implementation and compatibility versions."
+  (should (string-match-p (regexp-quote kiss-version) (kiss-version)))
+  (should (string-match-p (regexp-quote kiss-compat-version) (kiss-version)))
+  (with-temp-buffer
+    (should (= 0 (call-process (expand-file-name "elkiss" default-directory)
+                               nil t nil "version")))
+    (should (string-match-p (regexp-quote kiss-version) (buffer-string)))))
+
+(ert-deftest kiss-os/shell-commands-stops-on-the-first-failure ()
+  "The command adapter returns a boolean and does not run trailing commands."
+  (let (seen)
+    (cl-letf (((symbol-function 'shell-command)
+               (lambda (command)
+                 (push command seen)
+                 (if (string= command "bad") 1 0))))
+      (should-not (kiss--shell-commands '("first" "bad" "later")))
+      (should (equal (nreverse seen) '("first" "bad"))))))
+
+(ert-deftest kiss-build/queue-status-reports-deterministic-progress ()
+  "Building a package list reports one queue hook per dependency-order entry."
+  (let (hooks built)
+    (cl-letf (((symbol-function 'kiss-download) (lambda (_packages) t))
+              ((symbol-function 'kiss--package-get-order)
+               (lambda (_packages) '("base" "app")))
+              ((symbol-function 'kiss--search-pkg-obj)
+               (lambda (name) (kiss-package :name name)))
+              ((symbol-function 'kiss--package-build)
+               (lambda (package) (push (plist-get package :name) built)))
+              ((symbol-function 'kiss--run-hook)
+               (lambda (&rest args) (push args hooks))))
+      (kiss-build '("app"))
+      (should (equal (nreverse built) '("base" "app")))
+      (should (equal (nreverse hooks)
+                     '(("queue-status" "base" 1 2)
+                       ("queue-status" "app" 2 2)))))))
+
 (ert-deftest kiss-alternatives/lists-package-and-absolute-path ()
   "A choice filename maps reversibly to its package and selected path."
   (kiss-test-with-fixture

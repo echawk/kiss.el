@@ -305,6 +305,12 @@ a benchmarked, equivalence-tested replacement is available."
   (declare (pure t) (side-effect-free t))
   (kiss--get-potential-binary-files file-path-lst))
 
+;;;###autoload
+(defun kiss-version ()
+  "Return this implementation's version and compatible KISS version."
+  (interactive)
+  (format "kiss.el %s (KISS compatibility %s)" kiss-version kiss-compat-version))
+
 
 
 ;; FIXME: add in checks to the appropriate places.
@@ -328,14 +334,17 @@ a benchmarked, equivalence-tested replacement is available."
 (defun kiss-build (pkgs-l)
   (interactive)
   (cond ((listp pkgs-l)
-         (progn
-           ;; Download the package sources now.
-           (when (kiss-download pkgs-l)
-             (thread-last
-               pkgs-l
-               (kiss--package-get-order)
-               (mapcar #'kiss--search-pkg-obj)
-               (mapcar #'kiss--package-build)))))
+         ;; Download the package sources now.
+         (when (kiss-download pkgs-l)
+           (let* ((order (kiss--package-get-order pkgs-l))
+                  (total (length order))
+                  (current 0))
+             (mapcar
+              (lambda (pkg)
+                (setq current (1+ current))
+                (kiss--run-hook "queue-status" pkg current total)
+                (kiss--package-build (kiss--search-pkg-obj pkg)))
+              order))))
         ((atom pkgs-l)
          (progn
            (when (kiss-download pkgs-l)

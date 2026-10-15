@@ -183,7 +183,10 @@ manifest impossible to identify."
    ((atom pkgs-l)
     (let* ((tarball
             (cond ((and (file-exists-p pkgs-l)
-                        (kiss--file-is-tarball-p pkgs-l))
+                        ;; Compressed archives cannot have a tar header at
+                        ;; offset 257.  The configured decompressor table is
+                        ;; the portable archive-format authority here.
+                        (kiss--get-decompression-command pkgs-l))
                    pkgs-l)
                   (t
                    (concat

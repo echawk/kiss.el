@@ -22,8 +22,15 @@
      (shell-command ,command)))
 
 (defun kiss--shell-commands (command-lst)
-
-  nil)
+  "Run COMMAND-LST in order, stopping at the first nonzero status.
+Return t only if every command succeeds.  This small adapter centralizes
+command aggregation for callers that need portable, explicit failure
+propagation."
+  (let ((success t))
+    (while (and success command-lst)
+      (setq success (zerop (kiss--silent-shell-command (car command-lst))))
+      (setq command-lst (cdr command-lst)))
+    success))
 
 (defun kiss--shell-command-as-user (command user)
   "Run COMMAND as USER using `kiss-su'."

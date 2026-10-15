@@ -15,6 +15,7 @@
 (progn
   (require 'seq))
 (require 'kiss-file)
+(require 'kiss-hook)
 
 (defun kiss-source (&rest fields)
   "Create a portable source record from keyword FIELDS.
@@ -47,7 +48,7 @@ keeps no Emacs object-system dependency in the package format layer."
          (concat (car (kiss-search p)) "/" u))))))
 
 (defun kiss--source-download (obj)
-
+  "Fetch OBJ into its cache and return t only when every command succeeds."
   (let ((cache-path (kiss--source-get-cache-path obj)))
     (make-directory (kiss--dirname cache-path) t)
     (let* ((ty (plist-get obj :type))
@@ -61,59 +62,46 @@ keeps no Emacs object-system dependency in the package format layer."
                    ('hg     "tip")
                    ('fossil "trunk"))
                cb)))
-        (pcase ty
+      (kiss--run-hook "pre-source" p (kiss--source-to-string obj) cache-path)
+      (let ((success
+             (pcase ty
           ('git
-
-           (progn
-             (unless (kiss--file-exists-p (concat cache-path "/.git"))
-               (make-directory cache-path t)
-               (shell-command (concat "git init " cache-path)))
-
-             (kiss--with-dir
-              cache-path
-              (progn
-                (unless
-                    (eq 0
-                        (shell-command
+           (and
+            (or (kiss--file-exists-p (concat cache-path "/.git"))
+                (progn
+                  (make-directory cache-path t)
+                  (eq 0 (shell-command (concat "git init " cache-path)))))
+            (kiss--with-dir
+             cache-path
+             (and
+              (or (eq 0 (shell-command
                          (concat "git remote set-url origin " u " 2> /dev/null")))
-                  (shell-command
-                   (concat "git remote add origin " u)))
-                (shell-command (concat "git fetch --depth=1 origin " commit))
-                (shell-command (concat "git reset --hard FETCH_HEAD"))))
-             ;; FIXME: return wether or not we were actually successful
-             t))
-
-          ;; FIXME: finish these implementations
+                  (eq 0 (shell-command (concat "git remote add origin " u))))
+              (eq 0 (shell-command (concat "git fetch --depth=1 origin " commit)))
+              (eq 0 (shell-command "git reset --hard FETCH_HEAD"))))))
           ('hg
-           (progn
-             (unless (kiss--file-exists-p (concat cache-path "/.hg"))
-               (make-directory cache-path t)
-               (kiss--with-dir cache-path (shell-command "hg init")))
-             (kiss--with-dir
-              (concat cache-path "/.hg")
-              (kiss--write-text
-               (concat "[paths]\n"
-                       "default = " u)
-               'utf-8 "hgrc"))
-             (kiss--with-dir
-              cache-path
-              (shell-command (concat "hg pull -r " commit)))))
-
-          ;; NOTE: the following could also potentially work:
-          ;; (concat "hg clone -u " commit " " u)))
-
-          ;; FIXME: Doesn't yet account for updated urls yet.
+           (and
+            (or (kiss--file-exists-p (concat cache-path "/.hg"))
+                (progn
+                  (make-directory cache-path t)
+                  (kiss--with-dir cache-path (eq 0 (shell-command "hg init")))))
+            (kiss--with-dir
+             (concat cache-path "/.hg")
+             (progn
+               (kiss--write-text (concat "[paths]\n" "default = " u)
+                                  'utf-8 "hgrc")
+               t))
+            (kiss--with-dir cache-path
+                            (eq 0 (shell-command (concat "hg pull -r " commit))))))
           ('fossil
            (if (file-exists-p (concat cache-path "/.fossil-settings"))
-               (progn
-                 (kiss--with-dir
-                  cache-path
-                  (shell-command (concat "fossil update " commit))))
+               (kiss--with-dir cache-path
+                                (eq 0 (shell-command (concat "fossil update " commit))))
              (progn
                (make-directory cache-path t)
-               (kiss--with-dir
-                cache-path
-                (shell-command (concat "fossil open -f " u " " commit))))))
+               (kiss--with-dir cache-path
+                                (eq 0 (shell-command
+                                       (concat "fossil open -f " u " " commit)))))))
 
           ('remote
            (if (file-exists-p cache-path) t
@@ -126,7 +114,10 @@ keeps no Emacs object-system dependency in the package format layer."
           ('local
            (kiss--file-exists-p
             (if (string-match-p (rx bol "/") u) u
-              (concat (car (kiss-search p)) "/" u))))))))
+              (concat (car (kiss-search p)) "/" u)))))))
+        (when success
+          (kiss--run-hook "post-source" p (kiss--source-to-string obj) cache-path))
+        success))))
 
 
 (defun kiss--source-get-local-checksum (obj)

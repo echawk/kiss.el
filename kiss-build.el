@@ -96,8 +96,10 @@
     "export GOFLAGS=\"-trimpath -modcacherw $GOFLAGS\" \n"
     "export GOPATH=\"$PWD/go\" \n"
     "export DESTDIR=\"" install-dir "\" \n"
-    ;; TODO: this might not be explicitly needed at this part?
-    ;; "export KISS_ROOT=" (getenv "KISS_ROOT") "\n"
+    ;; Build recipes need the same root view as the package manager.  Use the
+    ;; configured value rather than the process environment so redirected
+    ;; roots remain hermetic.
+    "export KISS_ROOT=\"" kiss-root "\" \n"
 
     ;; TODO: see if I can't implement something like this?
     ;; https://codeberg.org/kiss-community/repo/issues/121
