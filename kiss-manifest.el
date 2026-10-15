@@ -69,6 +69,21 @@
   (equal (kiss--get-manifest-for-dir dir)
          (kiss--file-read-file manifest-file)))
 
+(defun kiss--manifest-record-to-root-path (record)
+  "Resolve root-relative manifest RECORD beneath the configured `kiss-root'.
+
+KISS manifest records begin with `/`, but that slash denotes the package root,
+not the host filesystem root.  Reject traversal records even though a freshly
+validated archive cannot contain them: installed manifests are later trusted
+for removal, so this conversion must never escape `kiss-root'."
+  (unless (and (stringp record) (string-prefix-p "/" record))
+    (error "Invalid non-root-relative manifest record: %S" record))
+  (when (seq-some (lambda (component)
+                    (or (string= component ".") (string= component "..")))
+                  (string-split record "/" t))
+    (error "Unsafe manifest record: %S" record))
+  (concat (file-name-as-directory kiss-root) (substring record 1)))
+
 
 (defun kiss--manifest-to-string (pkg-manifest)
   "(I) Convert our internal representation of PKG-MANIFEST into a string."

@@ -50,8 +50,13 @@
   "(I) Run all hooks in `kiss-hook'."
   (dolist (kh kiss-hook)
     (when (kiss--file-is-executable-p kh)
-      (kiss--silent-shell-command
-       (format "%s %s %s %s %s" kh hook arg2 arg3 arg4)))))
+      (let ((status (kiss--silent-shell-command
+                     (format "%s %s %s %s %s" kh hook arg2 arg3 arg4))))
+        ;; A build-fail hook observes an already-failing build, so it cannot
+        ;; meaningfully make that failure worse.  Every other hook failure is
+        ;; fatal, matching the external KISS hook contract.
+        (when (and (not (string= hook "build-fail")) (not (zerop status)))
+          (error "KISS hook failed: %s (%s)" kh status))))))
 
 (defun kiss--run-hook-pkg (hook pkg)
   "(I) Run PKG's HOOK."
@@ -60,7 +65,9 @@
       ;; FIXME: need to expose the proper environment to this shell
       (with-environment-variables
           (("KISS_ROOT" kiss-root))
-        (kiss--shell-command-as-user
-         hook-fp (kiss--file-get-owner-name kiss-root))))))
+        (let ((status (kiss--shell-command-as-user
+                       hook-fp (kiss--file-get-owner-name kiss-root))))
+          (unless (zerop status)
+            (error "KISS package hook failed: %s (%s)" hook-fp status)))))))
 
 (provide 'kiss-hook)

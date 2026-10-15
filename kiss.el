@@ -484,7 +484,8 @@ a benchmarked, equivalence-tested replacement is available."
                                pkgs-l (concat kiss-installed-db-dir pkgs-l))
 
                (kiss--file-remove-files
-                (kiss-manifest pkgs-l)))))
+                (mapcar #'kiss--manifest-record-to-root-path
+                        (kiss-manifest pkgs-l))))))
         (t nil)))
 
 

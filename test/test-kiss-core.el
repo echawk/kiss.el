@@ -42,6 +42,14 @@
                                          "\n" t)))))
       (ignore-errors (delete-directory dir t)))))
 
+(ert-deftest kiss-manifest/records-resolve-only-under-kiss-root ()
+  "Manifest removal paths are always rooted in KISS_ROOT, never the host root."
+  (kiss-test-with-fixture
+    (should (string= (kiss--manifest-record-to-root-path "/usr/bin/demo")
+                     (concat kiss-root "usr/bin/demo")))
+    (should-error (kiss--manifest-record-to-root-path "usr/bin/demo"))
+    (should-error (kiss--manifest-record-to-root-path "/usr/../etc/passwd"))))
+
 (ert-deftest kiss-source/parser-classifies-and-canonicalizes-records ()
   "Source parsing preserves each source form's semantic fields."
   (let ((git (kiss--string-to-source-obj
@@ -136,6 +144,10 @@
                       (list "/usr/bin/tool"
                             kiss-installed-db-dir
                             (concat kiss-installed-db-dir "demo/manifest")))
+                     "demo"))
+    ;; Archive records are root-relative, even when KISS_ROOT is not '/'.
+    (should (string= (kiss--package-get-from-manifest
+                      '("/usr/bin/tool" "/var/db/kiss/installed/demo/manifest"))
                      "demo"))))
 
 (ert-deftest kiss-download/utility-arguments-follow-selected-downloader ()
@@ -202,6 +214,18 @@
                            "post-build|demo|/stage|extra")))
       (ignore-errors (delete-directory dir t)))))
 
+(ert-deftest kiss-hook/failure-is-fatal-except-for-build-fail ()
+  "Hook errors abort normal operations but do not mask an existing build error."
+  (let* ((dir (file-name-as-directory (make-temp-file "kiss-hook-" t)))
+         (hook (concat dir "fail")))
+    (unwind-protect
+        (progn
+          (kiss-core-test-write hook "#!/bin/sh\nexit 23\n" t)
+          (let ((kiss-hook (list hook)))
+            (should-error (kiss--run-hook "post-install" "demo"))
+            (should-not (kiss--run-hook "build-fail" "demo"))))
+      (ignore-errors (delete-directory dir t)))))
+
 (ert-deftest kiss-os/current-user-round-trips-through-uid ()
   "The OS adapter maps the running user's name and uid consistently."
   (let ((name (user-login-name))
@@ -263,6 +287,16 @@
          (should (equal (kiss-search "demo")
                         (list (concat repo "demo")
                               (concat kiss-installed-db-dir "demo")))))))))
+
+(ert-deftest kiss-upgrade/uses-opaque-version-inequality ()
+  "Upgrade selection treats version fields as strings, not numeric versions."
+  (kiss-test-with-fixture
+    (kiss-test-make-pkg "demo" "1.10" "1")
+    (kiss-core-test-with-repository
+     (lambda (repo)
+       (kiss-core-test-write (concat repo "demo/version") "1.2 1\n")
+       (let ((kiss-path (list repo)))
+         (should (equal (kiss--get-out-of-date-pkgs) '("demo"))))))))
 
 (ert-deftest tsort/order-respects-all-edges-and-detects-cycles ()
   "The declared tsort dependency orders dependencies and rejects cycles."

@@ -25,10 +25,11 @@
   ;; do the pid trick that the shell implementation of kiss does.
   ;; So the compromise is to pick a random number from 1 to 30000.
   (let ((rn (kiss--get-random-number)))
-    (while (file-exists-p (concat kiss-tmpdir rn))
+    (while (file-exists-p (concat kiss-tmpdir (number-to-string rn)))
       (setq rn (kiss--get-random-number)))
-    (make-directory (concat kiss-tmpdir rn) t)
-    (concat kiss-tmpdir rn)))
+    (let ((path (concat kiss-tmpdir (number-to-string rn))))
+      (make-directory path t)
+      path)))
 
 (defun kiss--package-get-from-manifest (file-path-lst)
   "Return the package identity encoded by a manifest record list.
@@ -36,13 +37,16 @@ The embedded `.../installed/P/manifest' record is authoritative; relying on
 the parent database-directory record made valid archives with a minimal
 manifest impossible to identify."
   (declare (side-effect-free t))
-  (let ((manifest-path
-         (seq-find
-          (lambda (path)
-            (string-match-p
-             (rx (literal kiss-installed-db-dir) (1+ (not "/")) "/manifest" eol)
-             path))
-          file-path-lst)))
+  (let* ((record-db-dir
+          (concat "/" (file-relative-name kiss-installed-db-dir kiss-root)))
+         (manifest-record-regexp
+          (concat "\\`\\(?:" (regexp-quote record-db-dir) "\\|"
+                  (regexp-quote kiss-installed-db-dir)
+                  "\\)\\([^/]+\\)/manifest\\'"))
+         (manifest-path
+          (seq-find (lambda (path)
+                      (string-match-p manifest-record-regexp path))
+                    file-path-lst)))
     (when manifest-path
       (file-name-nondirectory
        (directory-file-name (file-name-directory manifest-path))))))
@@ -150,7 +154,9 @@ manifest impossible to identify."
 
         ;; Remove any files that were in the old manifest that aren't
         ;; in the new one.
-        (kiss--file-remove-files files-not-present-in-new-manifest)
+        (kiss--file-remove-files
+         (mapcar #'kiss--manifest-record-to-root-path
+                 files-not-present-in-new-manifest))
 
         ;; Install the packages files for a second time to fix
         ;; any potential mess that could have been made from the
