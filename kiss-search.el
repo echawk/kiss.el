@@ -23,8 +23,10 @@
 (defun kiss-search (q)
   (interactive "sQuery: ")
   ;; FIXME: use kiss--file-exists-p ?
-  (seq-filter 'file-exists-p
-              (mapcar (lambda (repo) (concat repo "/" q))
+  (seq-filter #'file-directory-p
+              (mapcar (lambda (repo)
+                        (kiss--file-normalize-file-path
+                         (concat repo "/" q)))
                       `(,@kiss-path
                         ,kiss-installed-db-dir))))
 

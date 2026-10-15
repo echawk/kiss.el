@@ -208,6 +208,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 
 (defun kiss--rwx-lst-to-octal (lst)
+  (declare (pure t) (side-effect-free t))
   (cl-assert
    (seq-reduce
     (lambda (a b) (and a b))
@@ -253,6 +254,8 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 
 ;; FIXME: use kiss--file-normalize-file-path
 (defun kiss--dirname (file-path)
+  "Return the absolute parent directory of FILE-PATH, without a trailing slash."
+  (declare (pure t) (side-effect-free t))
   (concat
    "/"
    (string-join
@@ -260,6 +263,8 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     "/")))
 
 (defun kiss--basename (file-path)
+  "Return the final path component of FILE-PATH."
+  (declare (pure t) (side-effect-free t))
   (car (seq-reverse (string-split file-path "/"))))
 
 ;; TODO: need to account for symlinks w/ (file-symlink-p
@@ -457,6 +462,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
 ;; equivalent functionality.
 (defun kiss--lib-is-system-p (lib-string)
   "Return T if the lib indicated by LIB-STRING is expected on a posix system."
+  (declare (pure t) (side-effect-free t))
   (string-match-p
    (rx
     (or

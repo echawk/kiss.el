@@ -13,7 +13,8 @@
 (eval-when-compile
   (require 'kiss-env))
 (progn
-  (require 'eieio))
+  (require 'eieio)
+  (require 'seq))
 (require 'kiss-file)
 
 (defclass kiss-source ()
@@ -167,6 +168,9 @@
     (string= (slot-value obj :checksum) (kiss--source-get-local-checksum obj))))
 
 (defun kiss--source-to-string (obj)
+  "Return the canonical KISS `sources' record for OBJ."
+  ;; OBJ is mutable, so this is effect-free but not compiler-pure.
+  (declare (side-effect-free t))
   (with-slots
       ((package :package)
        (type :type)
@@ -197,6 +201,8 @@
 
 (defun kiss--string-to-source-obj (str)
   "(I) Generate a kiss-source object from STR. Will have an empty package slot."
+  ;; Parsing allocates a fresh, mutable source object.
+  (declare (side-effect-free t))
 
   (let ((type      nil)
         (uri       nil)
@@ -238,7 +244,11 @@
 
 
 (defun kiss--sources-file-to-sources-objs (file-path)
-  (mapcar #'kiss--string-to-source-obj (kiss--file-read-file file-path)))
+  "Read source records from FILE-PATH, ignoring blank lines and comments."
+  (mapcar #'kiss--string-to-source-obj
+          (seq-remove (lambda (line)
+                        (string-match-p (rx bol (* whitespace) "#") line))
+                      (kiss--file-read-file file-path))))
 
 (defun kiss--def-pkg-sources (name &rest arguments)
   (let ((src-objs (mapcar #'kiss--string-to-source-obj arguments)))

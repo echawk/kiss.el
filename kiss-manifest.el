@@ -25,7 +25,11 @@
          ;; find cmd
          (mapcar
           (lambda (file-path)
-            (let ((cfp (replace-regexp-in-string dir "" file-path)))
+            ;; Manifest records are absolute paths *relative to the package
+            ;; root*.  `file-relative-name' avoids treating DIR as a regular
+            ;; expression and, unlike stripping DIR with a replacement,
+            ;; preserves the required leading slash.
+            (let ((cfp (concat "/" (file-relative-name file-path dir))))
               (cond
                ((kiss--file-is-directory-p file-path) (concat cfp "/"))
                (t cfp ))))
@@ -68,6 +72,7 @@
 
 (defun kiss--manifest-to-string (pkg-manifest)
   "(I) Convert our internal representation of PKG-MANIFEST into a string."
+  (declare (pure t) (side-effect-free t))
   (concat (string-join pkg-manifest "\n") "\n"))
 
 ;; (kiss--manifest-to-string (kiss-manifest "xdo"))

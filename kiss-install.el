@@ -31,18 +31,20 @@
     (concat kiss-tmpdir rn)))
 
 (defun kiss--package-get-from-manifest (file-path-lst)
-  "(I) Determine the package name from a manifest."
-  (when (member kiss-installed-db-dir file-path-lst)
-    (thread-last
-      file-path-lst
-      (seq-filter
-       (lambda (fp) (string-match-p
-                (rx
-                 (literal kiss-installed-db-dir) (1+ (not "/")) "/" eol) fp)))
-      (car)
-      (funcall (lambda (str) (string-split str "/" t)))
-      (reverse)
-      (car))))
+  "Return the package identity encoded by a manifest record list.
+The embedded `.../installed/P/manifest' record is authoritative; relying on
+the parent database-directory record made valid archives with a minimal
+manifest impossible to identify."
+  (let ((manifest-path
+         (seq-find
+          (lambda (path)
+            (string-match-p
+             (rx (literal kiss-installed-db-dir) (1+ (not "/")) "/manifest" eol)
+             path))
+          file-path-lst)))
+    (when manifest-path
+      (file-name-nondirectory
+       (directory-file-name (file-name-directory manifest-path))))))
 
 (defun kiss--install-tarball (tarball)
   "(I) Install TARBALL if it is a valid kiss package."

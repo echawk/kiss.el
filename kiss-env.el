@@ -202,7 +202,9 @@ Valid strings: bwrap, proot."
 ;; Some common functions
 
 (defun kiss--get-decompression-command (file-path)
-  (declare (pure t) (side-effect-free t))
+  ;; The result deliberately follows the dynamically configurable alist, so
+  ;; this is effect-free but not referentially pure.
+  (declare (side-effect-free t))
   (let ((matched-rgx
          (thread-last
            kiss-decompress-alist
@@ -216,8 +218,10 @@ Valid strings: bwrap, proot."
   (cdr (assoc kiss-compress kiss-compress-alist)))
 
 (defun kiss--get-random-number (&optional upper-bound)
-  "(I) Number from 1 to UPPER-BOUND, exclusive. Default UPPER-BOUND is 30000."
-  (message "%s" (mod (abs (random)) (if upper-bound upper-bound 30000))))
+  "Return a random integer from zero to UPPER-BOUND, exclusive.
+UPPER-BOUND defaults to 30000.  This helper has no output side effect so it
+can safely be used to construct temporary paths."
+  (mod (abs (random)) (or upper-bound 30000)))
 
 (defun kiss--lst-to-str (lst)
   "(I) Convert LST to a string."
