@@ -11,15 +11,58 @@ cache, network, or privilege escalation.
 
 Each implementation must be an executable path that honors the standard KISS
 CLI and these environment variables: `KISS_ROOT`, `KISS_PATH`,
-`XDG_CACHE_HOME`, `HOME`, and `KISS_PROMPT=0`.  It compares command exit
-status, specification-defined stdout, and a normalized snapshot of the
-resulting `KISS_ROOT`.  Stderr is retained for diagnostics but is not compared,
-because progress wording is intentionally non-normative.
+`XDG_CACHE_HOME`, `HOME`, and `KISS_PROMPT=0`.  Hook cases additionally set a
+single fixture-local `KISS_HOOK`.  It compares command exit status,
+specification-defined stdout, normalized hook traces, and a normalized snapshot
+of the resulting `KISS_ROOT`.  Stderr is retained for diagnostics but is not
+compared, because progress wording is intentionally non-normative.
 
 Built-in cases are deliberately small and portable:
 
 - `version`: command output and status;
 - `list-installed`: an installed recipe yields the specified list record.
+- `list-all` and `list-empty`: no-argument listing is stable for populated
+  and empty installed databases;
+- `search-shadowing`: ordered `KISS_PATH` search retains the first match;
+- `search-pattern`: a literal wildcard reaches the implementation and selects
+  repository names using its documented lookup grammar;
+- `list-missing`: an unresolved installed-package query fails without state
+  mutation;
+- `remove-missing`: removal of an absent package fails without state mutation;
+- `remove-installed`: manifest-driven package removal deletes payload and
+  package database state.
+- `remove-missing-live-file` and `remove-shared-directory`: removal remains
+  safe when an owned file was already deleted and preserves directories still
+  owned by another package;
+- `remove-blocked-dependent`: a runtime dependency prevents removal without
+  mutating the installed package;
+- `remove-make-dependent`: a make-only dependency does not block removal of
+  an installed provider;
+- `remove-active-alternative`: removal of an active provider with an inactive
+  choice is refused, preventing an orphaned alternative;
+- `alternatives-list` and `preferred-active`: choice-store records resolve to
+  stable active-provider output;
+- `etc-install-*`, `etc-upgrade-*`, and `etc-remove-*`: the BLAKE3 `/etc`
+  checksum handshake covers new, unowned, unchanged, and locally modified
+  configuration. These cases skip when `b3sum` is unavailable;
+- `install-archive`: a locally generated binary archive installs payload and
+  embedded metadata;
+- `install-invalid-archive`: a non-archive with an archive-like name fails
+  without mutating the redirected root;
+- `install-gzip`, `install-bzip2`, `install-xz`, `install-lzma`, and
+  `install-zstd`: supported compressed forms install with the same observable
+  result. Each skips when its compressor is unavailable;
+- `install-missing-dependency`: a required runtime dependency blocks archive
+  installation before root mutation;
+- `install-conflict-choice-zero`: an archive conflict does not overwrite an
+  installed provider when the portable noninteractive `KISS_CHOICE=0` policy
+  is selected;
+- `upgrade-payload`: installation of a newer archive replaces common payload
+  and removes old-only manifest entries;
+- `install-hooks` and `remove-hooks`: fixture-local traces compare external
+  hook event order, arguments, and working directory.
+- `install-hook-failure` and `remove-hook-failure`: a failing external hook is
+  observable and its failure handling leaves the same state as the reference.
 
 To add a case, extend `setup_case` in `run.sh` with only temporary fixture
 files, select its argument vector, and rely on the existing comparison loop.

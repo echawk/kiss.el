@@ -14,4 +14,5 @@ esac
 EOF
     chmod 755 "$base/$name"
 done
-exec "$(dirname "$0")/run.sh" "$base/reference" "$base/candidate"
+exec "$(dirname "$0")/run.sh" "$base/reference" "$base/candidate" \
+    version list-installed
