@@ -44,7 +44,7 @@ interaction with a caller's installed packages.
   - Tests: local disposable Git/Hg/Fossil fixtures; failed transfer commands
     must make `kiss-download` return nil and prevent a build.
 
-- [ ] Apply discovered dynamic library dependencies to package metadata before
+- [x] Apply discovered dynamic library dependencies to package metadata before
   the archive is created.
   - Affected: `kiss-build.el`.
   - Tests: a controlled `kiss-owns` mapping adds a newly discovered dependency
@@ -74,12 +74,13 @@ interaction with a caller's installed packages.
   - Tests: mocked command runner verifies ordering, result aggregation, and
     stop-on-failure behaviour without running host commands.
 
-- [ ] Give repository update backends explicit success/failure propagation and
-  test local Git/Hg/Fossil repositories.  Pulls must remain disabled in the
-  default hermetic suite.
+- [x] Give repository update backends explicit success/failure propagation and
+  test local repository behavior.  Default tests may use only disposable
+  local remotes; network pulls remain disabled.
   - Affected: `kiss-update.el`.
-  - Tests: local repository discovery, backend command selection, hook order,
-    and failed command handling.
+  - Tests: local bare Git pull, backend command selection, hook order, and
+    failed command handling.  Mercurial/Fossil discovery remains
+    capability-gated follow-up coverage.
 
 ## Capability-gated follow-up
 

@@ -28,7 +28,8 @@
           (seq-uniq
            (mapcar (intern (concat "kiss--get-" (symbol-name ,type) "-dir-toplevel"))
                    (funcall
-                    (intern (concat "kiss--kiss-path-" (symbol-name ,type) "-repos")))))))
+                    (intern (concat "kiss--kiss-path-" (symbol-name ,type) "-repos"))))))
+         (success t))
      (dolist (repo repos)
        (kiss--with-dir
         repo
@@ -46,14 +47,19 @@
           (kiss--run-hook "pre-update" (if am-owner-p 0 1) repo-owner)
           ;; TODO: would like to make this a macro so that way this
           ;; code can be deduped
-          (if am-owner-p
-              (progn
-                (shell-command pull-cmd)
-                (shell-command update-cmd))
-            (progn
-              (kiss--shell-command-as-user pull-cmd repo-owner)
-              (kiss--shell-command-as-user update-cmd repo-owner)))
-          (kiss--run-hook "post-update"))))))
+          (let ((run-command
+                 (lambda (command)
+                   (zerop
+                    (if am-owner-p
+                        (shell-command command)
+                      (kiss--shell-command-as-user command repo-owner))))))
+            ;; A failed pull must not be followed by an update or post-update
+            ;; hook: the latter would falsely advertise a successful refresh.
+            (if (and (funcall run-command pull-cmd)
+                     (funcall run-command update-cmd))
+                (kiss--run-hook "post-update")
+              (setq success nil))))))
+     success))
 
 
 (defun kiss--dir-is-git-repo-p (dir)
@@ -135,11 +141,13 @@
 ;;;###autoload
 (defun kiss-update ()
   (interactive)
-  (when (member :GIT kiss-features)
-    (kiss--update-git-repos))
-  (when (member :MERCURIAL kiss-features)
-    (kiss--update-hg-repos))
-  (when (member :FOSSIL kiss-features)
-    (kiss--update-fossil-repos)))
+  (let ((success t))
+    (when (member :GIT kiss-features)
+      (unless (kiss--update-git-repos) (setq success nil)))
+    (when (member :MERCURIAL kiss-features)
+      (unless (kiss--update-hg-repos) (setq success nil)))
+    (when (member :FOSSIL kiss-features)
+      (unless (kiss--update-fossil-repos) (setq success nil)))
+    success))
 
 (provide 'kiss-update)

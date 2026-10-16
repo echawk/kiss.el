@@ -188,6 +188,54 @@
                                kiss-root))))
         (ignore-errors (delete-directory recipe t))))))
 
+(ert-deftest kiss-build/discovered-library-owners-persist-in-runtime-depends ()
+  "A build writes each newly discovered library owner to its package record."
+  (kiss-test-with-fixture
+    (let* ((recipe (file-name-as-directory (make-temp-file "kiss-build-recipe-" t)))
+           (build (concat recipe "build"))
+           (package (kiss-package :name "demo" :version "1" :release "1"
+                                  :build-file build :depends '("runtime")))
+           (kiss-force t)
+           (kiss-hook nil)
+           (kiss-strip 0)
+           (kiss-compress "")
+           (kiss-perfom-build-in-sandbox nil))
+      (unwind-protect
+          (progn
+            (kiss-extended--write
+             build
+             (concat "#!/bin/sh -e\n"
+                     "mkdir -p \"$1/usr/bin\"\n"
+                     "printf built > \"$1/usr/bin/demo\"\n") t)
+            ;; The controlled result includes a declared dependency, duplicate,
+            ;; self-reference, and invalid owners.  Only the new valid owner
+            ;; belongs in the generated runtime dependency record.
+            (cl-letf (((symbol-function 'kiss--get-potential-binary-files)
+                       (lambda (_manifest) '("/usr/bin/demo")))
+                      ((symbol-function 'kiss--build-get-missing-dependencies)
+                       (lambda (_dir files pkg)
+                         (should (equal files '("/usr/bin/demo")))
+                         (should (string= (plist-get pkg :name) "demo"))
+                         '("runtime" "libdemo" "demo" nil "" "libdemo"))))
+              (should (kiss--package-build package)))
+            (should (equal (plist-get package :depends)
+                           '("runtime" "libdemo")))
+            (kiss-extended-with-local-privileges
+              (kiss-install (concat kiss-bindir "demo@1-1.tar")))
+            (should (equal (plist-get
+                            (kiss--dir-to-kiss-package
+                             (concat kiss-installed-db-dir "demo"))
+                            :depends)
+                           '("libdemo" "runtime"))))
+        (ignore-errors (delete-directory recipe t))))))
+
+(ert-deftest kiss-build/merge-discovered-dependencies-is-idempotent ()
+  "Repeated library scans retain one canonical runtime dependency per owner."
+  (let ((package (kiss-package :name "demo" :depends '("runtime"))))
+    (should (equal (kiss--build-merge-discovered-dependencies
+                    package '("runtime" "libdemo" "demo" "libdemo" nil ""))
+                   '("runtime" "libdemo")))))
+
 (ert-deftest kiss-update/git-toplevel-is-local-and-deterministic ()
   "Git repository discovery works against a local disposable repository."
   (skip-unless (executable-find "git"))
@@ -199,5 +247,85 @@
                             (file-truename (kiss--get-git-dir-toplevel repo)))
                            (directory-file-name (file-truename repo)))))
       (ignore-errors (delete-directory repo t)))))
+
+(ert-deftest kiss-update/git-pulls-from-a-local-bare-upstream ()
+  "Updating a working clone fetches a new commit from a local bare remote."
+  (skip-unless (executable-find "git"))
+  (let* ((root (file-name-as-directory (make-temp-file "kiss-git-update-" t)))
+         (remote (concat root "remote.git"))
+         (producer (concat root "producer"))
+         (checkout (concat root "checkout")))
+    (unwind-protect
+        (progn
+          (should (zerop (call-process "git" nil nil nil "init" "--bare" "-q" remote)))
+          (should (zerop (call-process "git" nil nil nil "clone" "-q" remote producer)))
+          ;; Repository-local identity avoids relying on a caller's Git config.
+          (should (zerop (call-process "git" nil nil nil "-C" producer "config"
+                                       "user.email" "kiss-test@example.invalid")))
+          (should (zerop (call-process "git" nil nil nil "-C" producer "config"
+                                       "user.name" "KISS test")))
+          (kiss-extended--write (concat producer "/marker") "initial\n")
+          (should (zerop (call-process "git" nil nil nil "-C" producer "add" "marker")))
+          (should (zerop (call-process "git" nil nil nil "-C" producer "commit" "-qm" "initial")))
+          (should (zerop (call-process "git" nil nil nil "-C" producer "push" "-q"
+                                       "origin" "HEAD")))
+          (should (zerop (call-process "git" nil nil nil "clone" "-q" remote checkout)))
+          (kiss-extended--write (concat producer "/marker") "updated\n")
+          (should (zerop (call-process "git" nil nil nil "-C" producer "commit" "-am" "update")))
+          (should (zerop (call-process "git" nil nil nil "-C" producer "push" "-q"
+                                       "origin" "HEAD")))
+          (let ((kiss-path (list checkout))
+                (kiss-hook nil))
+            (should (kiss--update-git-repos)))
+          (should (string= (kiss--read-text (concat checkout "/marker"))
+                           "updated\n")))
+      (ignore-errors (delete-directory root t)))))
+
+(ert-deftest kiss-update/git-commands-and-hooks-follow-successful-update ()
+  "A successful update selects Git commands and emits pre/post hooks in order."
+  (kiss-test-with-fixture
+    (let ((repo (concat kiss-tmpdir "repo/"))
+          commands hooks)
+      (make-directory repo t)
+      (cl-letf (((symbol-function 'kiss--kiss-path-git-repos)
+                 (lambda () (list repo)))
+                ((symbol-function 'kiss--get-git-dir-toplevel)
+                 (lambda (directory) directory))
+                ((symbol-function 'kiss--file-get-owner-name)
+                 (lambda (_directory) "fixture-owner"))
+                ((symbol-function 'kiss--file-am-owner-p)
+                 (lambda (_directory) t))
+                ((symbol-function 'kiss--run-hook)
+                 (lambda (&rest args) (push args hooks)))
+                ((symbol-function 'shell-command)
+                 (lambda (command) (push command commands) 0)))
+        (should (kiss--update-git-repos)))
+      (should (equal (nreverse commands)
+                     '("git pull" "git submodule update --remote --init -f")))
+      (should (equal (mapcar #'car (nreverse hooks))
+                     '("pre-update" "post-update"))))))
+
+(ert-deftest kiss-update/failed-pull-is-reported-and-skips-post-update ()
+  "A failed pull returns nil and never runs the update command or post hook."
+  (kiss-test-with-fixture
+    (let ((repo (concat kiss-tmpdir "repo/"))
+          commands hooks)
+      (make-directory repo t)
+      (cl-letf (((symbol-function 'kiss--kiss-path-git-repos)
+                 (lambda () (list repo)))
+                ((symbol-function 'kiss--get-git-dir-toplevel)
+                 (lambda (directory) directory))
+                ((symbol-function 'kiss--file-get-owner-name)
+                 (lambda (_directory) "fixture-owner"))
+                ((symbol-function 'kiss--file-am-owner-p)
+                 (lambda (_directory) t))
+                ((symbol-function 'kiss--run-hook)
+                 (lambda (&rest args) (push args hooks)))
+                ((symbol-function 'shell-command)
+                 (lambda (command) (push command commands) 1)))
+        (should-not (kiss--update-git-repos)))
+      (should (equal commands '("git pull")))
+      (should (equal (mapcar #'car (nreverse hooks))
+                     '("pre-update"))))))
 
 ;;; test-kiss-extended.el ends here

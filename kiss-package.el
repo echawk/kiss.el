@@ -44,6 +44,23 @@ Common Lisp plist or a Scheme alist/record."
           (unless (string-empty-p kiss-compress)
             (concat "." kiss-compress))))
 
+(defun kiss--package-dependencies-to-string (depends make-depends)
+  "Return the canonical `depends' file contents for DEPENDS and MAKE-DEPENDS.
+Runtime dependencies are written verbatim; build-only dependencies carry the
+portable ` make' suffix.  Keeping this serialization in one place lets build
+time dependency discovery update the staged database without changing the
+meaning of recipe dependencies."
+  (declare (side-effect-free t))
+  (concat
+   (string-join
+    (sort
+     (append depends (mapcar (lambda (dependency)
+                              (concat dependency " make"))
+                            make-depends))
+     #'string-lessp)
+    "\n")
+   "\n"))
+
 (defun kiss--package-get-missing-dependencies (pkg-obj)
   (seq-remove #'kiss--pkg-is-installed-p
               (append (plist-get pkg-obj :depends)
@@ -161,14 +178,8 @@ Common Lisp plist or a Scheme alist/record."
         (pre-remove-file (plist-get package-obj :pre-remove-file))
         (post-install-file (plist-get package-obj :post-install-file)))
     (let ((version-str (concat version " " release "\n"))
-          (depends-str
-           (concat
-            (string-join
-             (sort
-              (append depends (mapcar (lambda (s) (concat s " make")) make-depends))
-              #'string-lessp)
-             "\n")
-            "\n"))
+          (depends-str (kiss--package-dependencies-to-string
+                        depends make-depends))
           (sources-str
            (concat
             (string-join (mapcar #'kiss--source-to-string sources) "\n") "\n"))

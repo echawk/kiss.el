@@ -150,8 +150,27 @@
         (mapcar (lambda (fp) (replace-regexp-in-string "\n" "" fp)))
         (mapcar #'kiss-owns)
         (seq-uniq)
+        (seq-filter #'stringp)
+        (seq-remove #'string-empty-p)
         (seq-remove (lambda (p) (string= p (plist-get pkg-obj :name)))))
       (plist-get pkg-obj :depends)))))
+
+(defun kiss--build-merge-discovered-dependencies (pkg-obj discovered)
+  "Return PKG-OBJ's runtime dependencies extended by DISCOVERED owners.
+Only nonempty package names distinct from the package itself are retained.
+The result is duplicate-free, preserving the declared dependencies before
+newly discovered ones so repeated scans are idempotent."
+  (declare (side-effect-free t))
+  (let ((name (plist-get pkg-obj :name)))
+    (seq-uniq
+     (append
+      (plist-get pkg-obj :depends)
+      (seq-filter
+       (lambda (dependency)
+         (and (stringp dependency)
+              (not (string-empty-p dependency))
+              (not (string= dependency name))))
+       discovered)))))
 
 
 (defun kiss--build-strip-files (dir file-path-lst)
@@ -375,12 +394,7 @@
 
 (defun kiss--package-build (pkg-obj)
   (let ((name (plist-get pkg-obj :name))
-        (version (plist-get pkg-obj :version))
-        (release (plist-get pkg-obj :release))
-        (build-file (plist-get pkg-obj :build-file))
-        (depends (plist-get pkg-obj :depends))
-        (make-depends (plist-get pkg-obj :make-depends))
-        (sources (plist-get pkg-obj :sources)))
+        (version (plist-get pkg-obj :version)))
 
     ;; Check for missing deps
     (unless kiss-force
@@ -470,10 +484,21 @@
               (kiss--build-strip-files
                install-dir potential-binary-files))
 
-          ;; TODO: finish up this impl.
-          ;; FIXME: also need to do dependency fixing
-            (kiss--build-get-missing-dependencies
-             install-dir potential-binary-files pkg-obj)))
+          ;; Persist non-system shared-library owners in the staged package
+          ;; record.  Discovery can legitimately be unavailable (for example
+          ;; outside GNU/Linux), in which case it returns no additions.
+            (let ((discovered
+                   (kiss--build-get-missing-dependencies
+                    install-dir potential-binary-files pkg-obj)))
+              (setf (plist-get pkg-obj :depends)
+                    (kiss--build-merge-discovered-dependencies
+                     pkg-obj discovered))
+              (kiss--write-text
+               (kiss--package-dependencies-to-string
+                (plist-get pkg-obj :depends)
+                (plist-get pkg-obj :make-depends))
+               'utf-8
+               (concat stage-db-dir name "/depends")))))
 
         ;; FIXME; need to refork the package here, since we could have
         ;; picked up some extra dependencies
