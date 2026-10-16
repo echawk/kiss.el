@@ -32,23 +32,80 @@
                         (nth 0 record)
                         (replace-regexp-in-string "[[:space:]]+" "-"
                                                   (nth 1 record))))))))
+    ((or "alternatives" "preferred")
+     (dolist (record result)
+       (elkiss--print-lines (list (string-join (seq-take record 2) " ")))))
+    ("remove"
+     (dolist (record result)
+       (elkiss--print-lines
+        (list (if (stringp record) record (string-join record " "))))))
+    ("build" nil)
     (_ (when result (elkiss--print-lines (list (format "%s" result)))))))
 
-(let ((kiss-function-sym (and kiss-command
-                              (intern (concat "kiss-" kiss-command)))))
-  (condition-case err
-      (cond
-       ((not (fboundp kiss-function-sym))
-        (message "elkiss: unknown command: %s" kiss-command)
-        (kill-emacs 1))
-       (t
-        (let ((result (apply kiss-function-sym kiss-command-args)))
-          (elkiss--print-result kiss-command result)
-          ;; Lookup commands use an empty result to report a portable miss.
-          (kill-emacs (if (and (member kiss-command '("list" "search"))
-                               (null result))
-                          1
-                        0)))))
-    (error
-     (message "elkiss: %s" (error-message-string err))
-     (kill-emacs 1))))
+(defun elkiss--remove (package)
+  "Run portable removal preflight for PACKAGE and return (STATUS . RESULT)."
+  (cond
+   ((not (kiss--pkg-is-installed-p package)) (cons 1 nil))
+   ((let ((dependents (kiss--package-get-hard-dependents package)))
+      (when dependents
+        (cons 1 (mapcar (lambda (name) (concat name "/depends")) dependents)))))
+   ((let ((orphans (kiss--package-get-orphan-alternatives package)))
+      (when orphans
+        (cons 1 (mapcar (lambda (path) (list package path)) orphans)))))
+   (t
+    (kiss-remove package)
+    (cons 0 nil))))
+
+(defun elkiss--invoke (command arguments)
+  "Return COMMAND's `(STATUS . RESULT)' under the portable CLI contract."
+  (pcase command
+    ("remove" (if (= (length arguments) 1)
+                  (elkiss--remove (car arguments))
+                (cons 1 nil)))
+    ("preferred"
+     (let ((result (kiss-preferred)))
+       (when arguments
+         (setq result (seq-filter (lambda (record)
+                                    (string= (car record) (car arguments)))
+                                  result)))
+       (cons (if result 0 1) result)))
+    (_
+     (let* ((function (and command (intern (concat "kiss-" command))))
+            (result (and (fboundp function) (apply function arguments))))
+       (if (not (fboundp function))
+           (cons 1 nil)
+         (cons (if (and (member command '("list" "search")) (null result)) 1 0)
+               result))))))
+
+(let ((exit-status 0))
+  (unwind-protect
+      (condition-case err
+          (let* ((kiss-defer-build-cleanup t)
+                 (outcome (elkiss--invoke kiss-command kiss-command-args))
+                 (status (car outcome))
+                 (result (cdr outcome)))
+            (if (and (not (fboundp (intern (concat "kiss-" kiss-command))))
+                     (not (member kiss-command '("remove" "preferred"))))
+                (message "elkiss: unknown command: %s" kiss-command)
+              (elkiss--print-result kiss-command result))
+            (setq exit-status status))
+        (error
+         (message "elkiss: %s" (error-message-string err))
+         (setq exit-status 1)))
+    ;; Upstream invokes global hooks once on process exit.  Keep this cleanup
+    ;; outside command dispatch so it also observes unsuccessful commands.
+    (unless (string= kiss-command "remove")
+      (condition-case err
+          (kiss--run-hook "SIGEXIT")
+        (error
+         (message "elkiss: %s" (error-message-string err))
+         (setq exit-status 1)))))
+  (when (string-prefix-p (file-name-as-directory kiss-tmpdir)
+                          default-directory)
+    ;; `default-directory' is the staged package record after a successful
+    ;; build.  Its first relative component is the private process workspace.
+    (let* ((relative (file-relative-name default-directory kiss-tmpdir))
+           (workspace (car (split-string relative "/" t))))
+      (when workspace
+        (delete-directory (expand-file-name workspace kiss-tmpdir) t))))
+  (kill-emacs exit-status))

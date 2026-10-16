@@ -20,6 +20,9 @@
 (require 'kiss-package)
 (require 'kiss-download)
 
+(defvar kiss-defer-build-cleanup nil
+  "When non-nil, let the CLI run SIGEXIT before removing a build workspace.")
+
 (defun kiss-build-env (&rest fields)
   "Create a portable build-environment record from keyword FIELDS."
   (unless (zerop (mod (length fields) 2))
@@ -52,6 +55,7 @@
 
       (make-directory install-dir t)
       (make-directory log-dir t)
+      (make-directory kiss-bindir t)
       (kiss--build-make-script k-el-build
                                build-file
                                build-dir
@@ -425,10 +429,10 @@ newly discovered ones so repeated scans are idempotent."
             (log-dir (plist-get build-env-obj :log-dir))
             (log-file (plist-get build-env-obj :log-file)))
 
-        (kiss--run-hook "pre-extract" name install-dir)
         (kiss--package-extract-sources pkg-obj build-dir)
 
-        (kiss--run-hook "pre-build" name build-dir)
+        (kiss--with-dir build-dir
+          (kiss--run-hook "pre-build" name (directory-file-name build-dir)))
         (message (concat "Building " name " at version: " version))
 
         (when (> (kiss--silent-shell-command
@@ -436,7 +440,8 @@ newly discovered ones so repeated scans are idempotent."
                  0)
           (kiss--run-hook "build-fail" name build-dir)
           (error (concat "Build of " name " at " version " failed!")))
-        (kiss--run-hook "post-build" name install-dir)
+        (kiss--with-dir build-dir
+          (kiss--run-hook "post-build" name install-dir))
 
         ;; NOTE: there is definitely still some work & cleanup stuff that
         ;; needs to happen to the below code, but I think this is pretty
@@ -510,7 +515,7 @@ newly discovered ones so repeated scans are idempotent."
                 (plist-get pkg-obj :depends)
                 (plist-get pkg-obj :make-depends))
                'utf-8
-               (concat stage-db-dir name "/depends")))))
+               (concat stage-db-dir name "/depends"))))
 
         ;; FIXME; need to refork the package here, since we could have
         ;; picked up some extra dependencies
@@ -523,14 +528,22 @@ newly discovered ones so repeated scans are idempotent."
                   (concat kiss-bindir (kiss--package-bin-name pkg-obj)))
           (error (format "Failed to create a tarball for %s" name)))
 
-        (kiss--run-hook "post-package" name
-                        (concat kiss-bindir (kiss--package-bin-name pkg-obj)))
+        (let ((stage-pkg-dir (concat stage-db-dir name)))
+          (kiss--with-dir stage-pkg-dir
+            (kiss--run-hook "post-package" name
+                            (concat kiss-bindir (kiss--package-bin-name pkg-obj))))
+          ;; The global SIGEXIT hook runs after command dispatch; retain the
+          ;; package-record working directory prescribed by the KISS build
+          ;; lifecycle for that final event.
+          (when kiss-defer-build-cleanup
+            (setq default-directory (file-name-as-directory stage-pkg-dir))))
 
         ;; rm the build directory
-        (message (concat "Removing the build directory (" proc-dir ")"))
-        (kiss--silent-shell-command
-         (format "rm -rf -- '%s'" proc-dir))
-        t))))
+        (unless kiss-defer-build-cleanup
+          (message (concat "Removing the build directory (" proc-dir ")"))
+          (kiss--silent-shell-command
+           (format "rm -rf -- '%s'" proc-dir)))
+        t)))))
 
 (defun kiss--build-determine-build-cmd (build-env-obj pkg-obj)
   (let ((proc-dir (plist-get build-env-obj :proc-dir))

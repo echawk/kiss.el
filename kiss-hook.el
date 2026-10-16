@@ -51,7 +51,10 @@
   (dolist (kh kiss-hook)
     (when (kiss--file-is-executable-p kh)
       (let ((status (kiss--silent-shell-command
-                     (format "%s %s %s %s %s" kh hook arg2 arg3 arg4))))
+                     (string-join
+                      (mapcar (lambda (argument) (format "%s" argument))
+                              (delq nil (list kh hook arg2 arg3 arg4)))
+                      " "))))
         ;; A build-fail hook observes an already-failing build, so it cannot
         ;; meaningfully make that failure worse.  Every other hook failure is
         ;; fatal, matching the external KISS hook contract.

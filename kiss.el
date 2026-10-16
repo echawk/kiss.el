@@ -348,6 +348,7 @@ a benchmarked, equivalence-tested replacement is available."
         ((atom pkgs-l)
          (progn
            (when (kiss-download pkgs-l)
+             (kiss--run-hook "queue-status" pkgs-l 1 1)
              (kiss--package-build
               (kiss--search-pkg-obj pkgs-l)))))))
 
