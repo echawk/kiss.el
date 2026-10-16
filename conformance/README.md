@@ -17,6 +17,9 @@ specification-defined stdout, normalized hook traces, and a normalized snapshot
 of the resulting `KISS_ROOT`.  Stderr is retained for diagnostics but is not
 compared, because progress wording is intentionally non-normative.
 
+Every run ends with a `PASS` or `FAIL` summary, its passed/failed/skipped
+counts, and—on failure—the stable names of every failed case.
+
 Built-in cases are deliberately small and portable:
 
 - `version`: command output and status;
@@ -26,6 +29,8 @@ Built-in cases are deliberately small and portable:
 - `search-shadowing`: ordered `KISS_PATH` search retains the first match;
 - `search-pattern`: a literal wildcard reaches the implementation and selects
   repository names using its documented lookup grammar;
+- `search-nonmatch` and `search-installed-fallback`: lookup reports an absent
+  name consistently and searches the installed database after repositories;
 - `list-missing`: an unresolved installed-package query fails without state
   mutation;
 - `remove-missing`: removal of an absent package fails without state mutation;

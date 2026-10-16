@@ -34,8 +34,8 @@ and [hook interface](https://github.com/echawk/kiss-spec/blob/master/hooks.md).
 | 3 | Redirected root/cache and noninteractive environment | implemented | Every case |
 | 4.1–4.3 | Installed directory, manifest ownership, shared directories | partial | Listing, missing-live-file removal, and shared-directory removal; add duplicate file ownership cases |
 | 4.2 | Portable package identity | planned | Invalid archive names and command argument grammar |
-| 5.1 | Ordered repository lookup and installed fallback | partial | `search-shadowing`; add installed fallback and invalid recipe lookup |
-| 5.2 | Search patterns and output order | partial | Exact and literal-glob search; add duplicate results, empty query, and literal nonmatch |
+| 5.1 | Ordered repository lookup and installed fallback | partial | `search-shadowing`, `search-installed-fallback`; add invalid recipe lookup |
+| 5.2 | Search patterns and output order | partial | Exact, literal-glob, and literal-nonmatch search; add duplicate results and empty query |
 | 5.3 | Binary-cache preferred/fallback archive lookup | planned | Compressor preference, fallback suffix, wrong-version miss |
 | 6.1 | Manifest shape and unsafe archive rejection | partial | Install, corrupt archive, and missing-manifest rejection; add traversal, duplicate, and malformed manifest cases |
 | 6.2 | Ordered `etcsums`, legacy digest handling | partial | `etc-install-*`, `etc-upgrade-*`, `etc-remove-*`; add positional misalignment and legacy SHA-256 |

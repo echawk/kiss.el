@@ -29,7 +29,8 @@ shift 2
 
 if [ "$#" -eq 0 ]; then
     set -- version list-installed list-all list-empty search-shadowing \
-        search-pattern list-missing remove-missing remove-installed \
+        search-pattern search-nonmatch search-installed-fallback list-missing \
+        remove-missing remove-installed \
         remove-missing-live-file remove-shared-directory \
         remove-blocked-dependent remove-active-alternative install-archive \
         install-invalid-archive install-missing-manifest \
@@ -355,6 +356,14 @@ setup_case() {
             # rather than being expanded by the harness shell.
             case_args='search d*'
             ;;
+        search-nonmatch)
+            make_recipe "$repo_a/demo" 1
+            case_args='search absent'
+            ;;
+        search-installed-fallback)
+            make_recipe "$root/var/db/kiss/installed/demo" 1
+            case_args='search demo'
+            ;;
         list-missing)
             case_args='list missing'
             ;;
@@ -619,6 +628,9 @@ tmp_parent=${tmp_parent%/}
 temporary_base=$(mktemp -d "$tmp_parent/kiss-conformance.XXXXXX") || exit 1
 trap 'rm -rf "$temporary_base"' EXIT HUP INT TERM
 failed=0
+passed=0
+skipped=0
+failed_cases=
 
 for case_name do
     ref_fixture=$temporary_base/reference-$case_name
@@ -627,6 +639,7 @@ for case_name do
     setup_status=$?
     if [ "$setup_status" -eq 77 ]; then
         printf 'skip %s (missing capability)\n' "$case_name"
+        skipped=$((skipped + 1))
         continue
     fi
     [ "$setup_status" -eq 0 ] || exit "$setup_status"
@@ -639,6 +652,7 @@ for case_name do
        cmp -s "$ref_fixture/hook.trace.normalized" "$cand_fixture/hook.trace.normalized" &&
        cmp -s "$ref_fixture/root.snapshot" "$cand_fixture/root.snapshot"; then
         printf 'ok %s\n' "$case_name"
+        passed=$((passed + 1))
     else
         printf 'not ok %s\n' "$case_name" >&2
         diff -u "$ref_fixture/status" "$cand_fixture/status" || true
@@ -647,8 +661,17 @@ for case_name do
         diff -u "$ref_fixture/root.snapshot" "$cand_fixture/root.snapshot" || true
         printf '%s\n' "  reference stderr: $ref_fixture/stderr" >&2
         printf '%s\n' "  candidate stderr: $cand_fixture/stderr" >&2
-        failed=1
+        failed=$((failed + 1))
+        failed_cases="${failed_cases}${failed_cases:+ }${case_name}"
     fi
 done
+
+printf '\nconformance: %d passed, %d failed, %d skipped\n' \
+       "$passed" "$failed" "$skipped"
+if [ "$failed" -eq 0 ]; then
+    printf 'conformance: PASS\n'
+else
+    printf 'conformance: FAIL (failed cases: %s)\n' "$failed_cases" >&2
+fi
 
 exit "$failed"

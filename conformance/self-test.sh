@@ -14,5 +14,13 @@ esac
 EOF
     chmod 755 "$base/$name"
 done
-exec "$(dirname "$0")/run.sh" "$base/reference" "$base/candidate" \
-    version list-installed
+output=$("$(dirname "$0")/run.sh" "$base/reference" "$base/candidate" \
+    version list-installed)
+printf '%s\n' "$output"
+case "$output" in
+  *"conformance: 2 passed, 0 failed, 0 skipped"*"conformance: PASS") ;;
+  *)
+      echo "self-test: missing successful conformance summary" >&2
+      exit 1
+      ;;
+esac
