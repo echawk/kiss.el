@@ -15,7 +15,7 @@
   "Execute privilege-adapter commands locally inside a temporary fixture."
   (declare (indent 0))
   `(cl-letf (((symbol-function 'kiss--shell-command-as-user)
-              (lambda (command _user) (shell-command command))))
+              (lambda (command _user) (kiss--silent-shell-command command))))
      ,@body))
 
 (ert-deftest kiss-package/recipe-roundtrip-preserves-canonical-fields ()
@@ -83,7 +83,8 @@
   (kiss-test-with-fixture
     (let ((source (kiss-source :type 'hg :package "demo"
                                :uri "https://example.invalid/demo")))
-      (cl-letf (((symbol-function 'shell-command) (lambda (_command) 1)))
+      (cl-letf (((symbol-function 'call-process-shell-command)
+                 (lambda (&rest _) 1)))
         (should-not (kiss--source-download source))))))
 
 (ert-deftest kiss-source/local-transfer-runs-pre-and-post-source-hooks ()
@@ -331,8 +332,8 @@
                  (lambda (_directory) t))
                 ((symbol-function 'kiss--run-hook)
                  (lambda (&rest args) (push args hooks)))
-                ((symbol-function 'shell-command)
-                 (lambda (command) (push command commands) 0)))
+                ((symbol-function 'call-process-shell-command)
+                 (lambda (command &rest _) (push command commands) 0)))
         (should (kiss--update-git-repos)))
       (should (equal (nreverse commands)
                      '("git pull" "git submodule update --remote --init -f")))
@@ -355,8 +356,8 @@
                  (lambda (_directory) t))
                 ((symbol-function 'kiss--run-hook)
                  (lambda (&rest args) (push args hooks)))
-                ((symbol-function 'shell-command)
-                 (lambda (command) (push command commands) 1)))
+                ((symbol-function 'call-process-shell-command)
+                 (lambda (command &rest _) (push command commands) 1)))
         (should-not (kiss--update-git-repos)))
       (should (equal commands '("git pull")))
       (should (equal (mapcar #'car (nreverse hooks))

@@ -49,6 +49,8 @@ Built-in cases are deliberately small and portable:
   embedded metadata;
 - `install-invalid-archive`: a non-archive with an archive-like name fails
   without mutating the redirected root;
+- `install-missing-manifest`: a syntactically valid tar without KISS package
+  metadata fails without mutating the redirected root;
 - `install-gzip`, `install-bzip2`, `install-xz`, `install-lzma`, and
   `install-zstd`: supported compressed forms install with the same observable
   result. Each skips when its compressor is unavailable;
@@ -57,6 +59,8 @@ Built-in cases are deliberately small and portable:
 - `install-conflict-choice-zero`: an archive conflict does not overwrite an
   installed provider when the portable noninteractive `KISS_CHOICE=0` policy
   is selected;
+- `build-recipe`: a no-source local recipe stages deterministic payload and
+  exercises build lifecycle hooks without a sandbox, network, or live root;
 - `upgrade-payload`: installation of a newer archive replaces common payload
   and removes old-only manifest entries;
 - `install-hooks` and `remove-hooks`: fixture-local traces compare external

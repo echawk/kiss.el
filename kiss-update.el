@@ -51,7 +51,7 @@
                  (lambda (command)
                    (zerop
                     (if am-owner-p
-                        (shell-command command)
+                        (kiss--silent-shell-command command)
                       (kiss--shell-command-as-user command repo-owner))))))
             ;; A failed pull must not be followed by an update or post-update
             ;; hook: the latter would falsely advertise a successful refresh.
@@ -64,7 +64,7 @@
 
 (defun kiss--dir-is-git-repo-p (dir)
   "(I) Return t if DIR is a git repo, nil otherwise."
-  (eq 0 (shell-command (concat "git -C " dir " rev-parse 'HEAD@{upstream}'"))))
+  (eq 0 (kiss--silent-shell-command (concat "git -C " dir " rev-parse 'HEAD@{upstream}'"))))
 
 (defun kiss--git-subm-superproject-dir (dir)
   "(I) Return the directory for a git submodule's (DIR) superproject."
@@ -101,7 +101,7 @@
   (kiss--with-dir dir (shell-command-to-string "hg root")))
 
 (defun kiss--dir-is-hg-repo-p (dir)
-  (kiss--with-dir dir (eq 0 (shell-command "hg root"))))
+  (kiss--with-dir dir (eq 0 (kiss--silent-shell-command "hg root"))))
 
 (defun kiss--kiss-path-hg-repos ()
   (seq-filter #'kiss--dir-is-hg-repo-p kiss-path))

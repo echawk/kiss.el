@@ -143,11 +143,11 @@ meaning of recipe dependencies."
 
         (pcase type
           ((or 'git 'hg 'fossil)
-           (shell-command (concat "cp -PRf " cache "/. "  outdir)))
+           (kiss--silent-shell-command (concat "cp -PRf " cache "/. "  outdir)))
           (_
            (if (kiss--file-is-tarball-p cache)
                (kiss--file-extract-tarball cache outdir)
-             (shell-command (concat "cp -PRf " cache " " outdir)))))))))
+             (kiss--silent-shell-command (concat "cp -PRf " cache " " outdir)))))))))
 
 (defun kiss--dir-to-kiss-package (dir-path)
   (let ((name          (kiss--basename dir-path))

@@ -106,21 +106,21 @@ directory to be known first."
             (or (kiss--file-exists-p (concat cache-path "/.git"))
                 (progn
                   (make-directory cache-path t)
-                  (eq 0 (shell-command (concat "git init " cache-path)))))
+                  (eq 0 (kiss--silent-shell-command (concat "git init " cache-path)))))
             (kiss--with-dir
              cache-path
              (and
-              (or (eq 0 (shell-command
+              (or (eq 0 (kiss--silent-shell-command
                          (concat "git remote set-url origin " u " 2> /dev/null")))
-                  (eq 0 (shell-command (concat "git remote add origin " u))))
-              (eq 0 (shell-command (concat "git fetch --depth=1 origin " commit)))
-              (eq 0 (shell-command "git reset --hard FETCH_HEAD"))))))
+                  (eq 0 (kiss--silent-shell-command (concat "git remote add origin " u))))
+              (eq 0 (kiss--silent-shell-command (concat "git fetch --depth=1 origin " commit)))
+              (eq 0 (kiss--silent-shell-command "git reset --hard FETCH_HEAD"))))))
           ('hg
            (and
             (or (kiss--file-exists-p (concat cache-path "/.hg"))
                 (progn
                   (make-directory cache-path t)
-                  (kiss--with-dir cache-path (eq 0 (shell-command "hg init")))))
+                  (kiss--with-dir cache-path (eq 0 (kiss--silent-shell-command "hg init")))))
             (kiss--with-dir
              (concat cache-path "/.hg")
              (progn
@@ -128,21 +128,21 @@ directory to be known first."
                                   'utf-8 "hgrc")
                t))
             (kiss--with-dir cache-path
-                            (eq 0 (shell-command (concat "hg pull -r " commit))))))
+                            (eq 0 (kiss--silent-shell-command (concat "hg pull -r " commit))))))
           ('fossil
            (if (file-exists-p (concat cache-path "/.fossil-settings"))
                (kiss--with-dir cache-path
-                                (eq 0 (shell-command (concat "fossil update " commit))))
+                                (eq 0 (kiss--silent-shell-command (concat "fossil update " commit))))
              (progn
                (make-directory cache-path t)
                (kiss--with-dir cache-path
-                                (eq 0 (shell-command
+                                (eq 0 (kiss--silent-shell-command
                                        (concat "fossil open -f " u " " commit)))))))
 
           ('remote
            (if (file-exists-p cache-path) t
              (eq 0
-                 (shell-command
+                 (kiss--silent-shell-command
                   (concat
                    kiss-get
                    " " u (kiss--get-download-utility-arguments) cache-path)))))

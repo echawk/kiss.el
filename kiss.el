@@ -274,7 +274,7 @@ and remains correct for paths containing shell metacharacters."
 ;;;###autoload
 (defun kiss-fork (pkg dir)
   "Fork PKG to DIR."
-  (eq 0 (shell-command
+  (eq 0 (kiss--silent-shell-command
          (concat "cp -Lrf " (car (kiss-search pkg)) " " dir))))
 
 (defun kiss--get-potential-binary-files (file-path-lst)

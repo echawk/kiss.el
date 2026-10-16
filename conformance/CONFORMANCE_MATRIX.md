@@ -37,13 +37,13 @@ and [hook interface](https://github.com/echawk/kiss-spec/blob/master/hooks.md).
 | 5.1 | Ordered repository lookup and installed fallback | partial | `search-shadowing`; add installed fallback and invalid recipe lookup |
 | 5.2 | Search patterns and output order | partial | Exact and literal-glob search; add duplicate results, empty query, and literal nonmatch |
 | 5.3 | Binary-cache preferred/fallback archive lookup | planned | Compressor preference, fallback suffix, wrong-version miss |
-| 6.1 | Manifest shape and unsafe archive rejection | partial | Install and malformed-archive rejection; add traversal, duplicate, and malformed manifest cases |
+| 6.1 | Manifest shape and unsafe archive rejection | partial | Install, corrupt archive, and missing-manifest rejection; add traversal, duplicate, and malformed manifest cases |
 | 6.2 | Ordered `etcsums`, legacy digest handling | partial | `etc-install-*`, `etc-upgrade-*`, `etc-remove-*`; add positional misalignment and legacy SHA-256 |
 | 6.3 | Archive names and supported compression | partial | `install-archive` plus gated gzip/bzip2/xz/lzma/zstd cases; add lzip and wrong-suffix fixtures |
 | 7 | Commands, aliases, argument validation, current-directory defaults | partial | `version`, populated/empty list, search, install/remove; add aliases, defaults, bad arguments, help, extensions |
 | 8 | Dependency DAG and explicit ordering | partial | Missing runtime dependency, removal block, and make-only removal; add diamond, cycle, and explicit-order cases |
 | 9 | Sources, cache, checksum, extraction | planned | Local file/directory/tar fixtures, git ref fixture, checksum mismatch and `SKIP` |
-| 10 | Build command, staged package, logs, strip, prompt | planned | Minimal build recipe, failure hook, `nostrip`, cache use, and build/install prompt cases |
+| 10 | Build command, staged package, logs, strip, prompt | partial | Minimal no-source build and lifecycle-hook case; add failure hook, `nostrip`, cache use, and build/install prompt cases |
 | 11.1–11.2 | Archive validation and ownership conflicts | partial | Invalid archive, missing dependency, and no-choice ownership conflict; add malformed metadata and interactive-choice fixtures |
 | 11.3 | Install and upgrade passes | partial | `install-archive`, `upgrade-payload`; add common-file atomic replacement and directory/file edge cases |
 | 11.4 | `/etc` three-way merge | partial | First/unowned install and unmodified/modified upgrade/removal; add `.new` and misalignment fixtures |
@@ -64,7 +64,7 @@ and [hook interface](https://github.com/echawk/kiss-spec/blob/master/hooks.md).
 |---|---|---|---|
 | 2 | Line-oriented metadata and whitespace rules | planned | Comments, blank records, invalid bytes, field whitespace |
 | 3 | Opaque version plus decimal release | planned | Valid/invalid recipe and archive matrix |
-| 4 | Executable build with DESTDIR and VERSION arguments | planned | Minimal recipe records observed args and working directory |
+| 4 | Executable build with DESTDIR and VERSION arguments | partial | `build-recipe` stages a payload; add explicit recorded-argument and working-directory fixture |
 | 5 | Source forms and destination | planned | Relative/absolute file and directory, remote URL, Git ref, destination |
 | 6 | BLAKE3 checksums and `SKIP` | gated | Requires `b3sum`; include length/mismatch/legacy tests |
 | 7 | Runtime and `make` dependencies | partial | Runtime block covered; add make-only behavior and malformed records |

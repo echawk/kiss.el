@@ -33,8 +33,8 @@
                             kiss-tmpdir kiss-srcdir kiss-bindir kiss-logdir))
              (make-directory d t))
            ,@body)
-       (ignore-errors (shell-command (format "rm -rf '%s'" (file-name-directory root))))
-       (ignore-errors (shell-command (format "rm -rf '%s'" (file-name-directory cache)))))))
+       (ignore-errors (kiss--silent-shell-command (format "rm -rf '%s'" (file-name-directory root))))
+       (ignore-errors (kiss--silent-shell-command (format "rm -rf '%s'" (file-name-directory cache)))))))
 
 (defun kiss-test-make-pkg (name version release &rest keys)
   "Create installed package NAME VERSION-RELEASE in the fixture db.
@@ -53,7 +53,7 @@ Returns the package db directory."
     ;; build file: present & executable, as spec 4.1 requires for `list`.
     (let ((b (concat pkgdir "/build")))
       (kiss--write-text "#!/bin/sh -e\n" 'utf-8 b)
-      (shell-command (format "chmod +x '%s'" b)))
+      (kiss--silent-shell-command (format "chmod +x '%s'" b)))
     (let* ((deps (plist-get keys :depends))
            (mdeps (plist-get keys :make-depends)))
       (when (or deps mdeps)

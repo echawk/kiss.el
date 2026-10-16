@@ -55,9 +55,9 @@
   "Write PREFIX under DIR plus .gz/.bz2/.xz copies; return the four paths."
   (let ((f (concat dir prefix)))
     (with-temp-file f (insert "hello\n"))
-    (shell-command (concat "gzip -c '" f "' > '" f ".gz'"))
-    (shell-command (concat "bzip2 -c '" f "' > '" f ".bz2'"))
-    (shell-command (concat "xz -c '" f "' > '" f ".xz'"))
+    (kiss--silent-shell-command (concat "gzip -c '" f "' > '" f ".gz'"))
+    (kiss--silent-shell-command (concat "bzip2 -c '" f "' > '" f ".bz2'"))
+    (kiss--silent-shell-command (concat "xz -c '" f "' > '" f ".xz'"))
     (list f (concat f ".gz") (concat f ".bz2") (concat f ".xz"))))
 
 (ert-deftest kiss-file/magic-gzip-detects-only-gzip ()
@@ -102,7 +102,7 @@
           (with-temp-file (concat inner "d/f") (insert "x"))
           ;; The archive must live OUTSIDE the tree that is tarred: BSD
           ;; tar refuses to add the archive to itself (empty result).
-          (shell-command (format "cd '%sinner' && tar -cf - . > '../t.tar'" dir))
+          (kiss--silent-shell-command (format "cd '%sinner' && tar -cf - . > '../t.tar'" dir))
           (should (kiss--file-is-tarball-p tar))
           (should-not (kiss--file-is-tarball-p (concat inner "d/f")))
           (should-not (kiss--file-is-gzip-p tar)))
@@ -260,7 +260,7 @@ the mapping agrees with the (4,2,1) bit layout of POSIX modes."
                (gz (concat dir "pkg.tar.gz"))
                (out (concat dir "out")))
           (with-temp-file orig (insert "tar-content-here\n"))
-          (shell-command (concat "gzip -c '" orig "' > '" gz "'"))
+          (kiss--silent-shell-command (concat "gzip -c '" orig "' > '" gz "'"))
           (kiss--decompress gz out)
           (should (string= (kiss--read-text out) (kiss--read-text orig))))
       (kiss-test-rm-tree dir))))

@@ -311,12 +311,19 @@
 (ert-deftest kiss-os/shell-commands-stops-on-the-first-failure ()
   "The command adapter returns a boolean and does not run trailing commands."
   (let (seen)
-    (cl-letf (((symbol-function 'shell-command)
-               (lambda (command)
+    (cl-letf (((symbol-function 'call-process-shell-command)
+               (lambda (command &rest _)
                  (push command seen)
                  (if (string= command "bad") 1 0))))
       (should-not (kiss--shell-commands '("first" "bad" "later")))
       (should (equal (nreverse seen) '("first" "bad"))))))
+
+(ert-deftest kiss-os/silent-shell-command-discards-subprocess-output ()
+  "Status-only subprocesses leave the caller's output buffer untouched."
+  (with-temp-buffer
+    (insert "sentinel")
+    (should (zerop (kiss--silent-shell-command "printf subprocess-output")))
+    (should (equal (buffer-string) "sentinel"))))
 
 (ert-deftest kiss-build/queue-status-reports-deterministic-progress ()
   "Building a package list reports one queue hook per dependency-order entry."

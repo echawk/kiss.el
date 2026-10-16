@@ -16,10 +16,14 @@
 (require 'kiss-env)
 
 (defmacro kiss--silent-shell-command (command)
-  "Run shell commands silently in the terminal."
-  `(let ((inhibit-message t)
-         (message-log-max nil))
-     (shell-command ,command)))
+  "Run COMMAND through the shell without emitting Emacs status messages.
+
+`shell-command' announces every successful and failed subprocess in batch
+mode, even when its output is otherwise discarded.  Status-only KISS helpers
+must use this adapter so normal work and test output remains quiet.  The
+integer exit status is preserved exactly."
+  `(with-temp-buffer
+     (call-process-shell-command ,command nil (current-buffer) nil)))
 
 (defun kiss--shell-commands (command-lst)
   "Run COMMAND-LST in order, stopping at the first nonzero status.

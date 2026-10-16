@@ -129,7 +129,7 @@ the new package differs, its candidate is saved alongside it with `.new'."
     (kiss--decompress tarball decomp-tarball)
     (kiss--with-dir
      extr-dir
-     (shell-command
+     (kiss--silent-shell-command
       (concat "tar xf " decomp-tarball)))
     (kiss--file-remove-file decomp-tarball)
 
@@ -195,11 +195,11 @@ the new package differs, its candidate is saved alongside it with `.new'."
       ;; make a backup of the manifest and etcsum files
       (if (kiss--pkg-is-installed-p pkg)
           (progn
-            (shell-command
+            (kiss--silent-shell-command
              (format "cp '%s%s/manifest' '%s/manifest-copy'"
                      kiss-installed-db-dir pkg proc-dir))
             (if (file-exists-p (concat kiss-installed-db-dir pkg "/etcsums"))
-                (shell-command
+                (kiss--silent-shell-command
                  (format "cp '%s%s/etcsums' '%s/etcsums-copy'"
                          kiss-installed-db-dir pkg proc-dir)))))
 

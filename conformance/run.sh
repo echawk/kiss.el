@@ -32,8 +32,9 @@ if [ "$#" -eq 0 ]; then
         search-pattern list-missing remove-missing remove-installed \
         remove-missing-live-file remove-shared-directory \
         remove-blocked-dependent remove-active-alternative install-archive \
-        install-invalid-archive install-missing-dependency \
-        install-conflict-choice-zero upgrade-payload \
+        install-invalid-archive install-missing-manifest \
+        install-missing-dependency \
+        install-conflict-choice-zero build-recipe upgrade-payload \
         install-hooks remove-hooks \
         install-hook-failure remove-hook-failure \
         alternatives-list preferred-active
@@ -65,6 +66,19 @@ make_recipe() {
     mkdir -p "$recipe"
     printf '%s 1\n' "$version" > "$recipe/version"
     printf '#!/bin/sh\nexit 0\n' > "$recipe/build"
+    chmod 755 "$recipe/build"
+}
+
+make_build_recipe() {
+    recipe=$1
+    mkdir -p "$recipe"
+    printf '1 1\n' > "$recipe/version"
+    cat > "$recipe/build" <<'EOF'
+#!/bin/sh
+set -eu
+mkdir -p "$1/usr/bin"
+printf 'built payload\n' > "$1/usr/bin/demo"
+EOF
     chmod 755 "$recipe/build"
 }
 
@@ -138,6 +152,14 @@ make_conflict_archive() {
     chmod 755 "$db/build"
     write_manifest "$stage" "$db/manifest"
     (cd "$stage" && tar -cf "$archive" .)
+}
+
+make_missing_manifest_archive() {
+    fixture=$1
+    stage="$fixture/stage-incomplete"
+    mkdir -p "$stage/usr/bin"
+    printf 'not a KISS package\n' > "$stage/usr/bin/demo"
+    (cd "$stage" && tar -cf "$fixture/incomplete.tar" .)
 }
 
 make_conflict_owner() {
@@ -429,6 +451,10 @@ setup_case() {
             printf 'not a package archive\n' > "$fixture/bad.tar"
             case_args="install $fixture/bad.tar"
             ;;
+        install-missing-manifest)
+            make_missing_manifest_archive "$fixture"
+            case_args="install $fixture/incomplete.tar"
+            ;;
         install-gzip)
             command -v gzip >/dev/null 2>&1 || return 77
             make_archive "$fixture" demo 1 payload
@@ -468,6 +494,11 @@ setup_case() {
             make_conflict_archive "$fixture"
             printf '0\n' > "$fixture/choice"
             case_args="install $fixture/alpha.tar"
+            ;;
+        build-recipe)
+            make_build_recipe "$repo_a/demo"
+            make_trace_hook "$fixture"
+            case_args='build demo'
             ;;
         upgrade-payload)
             make_installed_demo "$root"
@@ -536,6 +567,7 @@ snapshot_tree() {
 run_implementation() {
     implementation=$1
     fixture=$2
+    physical_fixture=$(cd "$fixture" && pwd -P)
     args=$(cat "$fixture/args")
     # Cases use only arguments without whitespace.  This is intentional: the
     # harness operates at the executable argv boundary, not through eval.
@@ -567,12 +599,24 @@ run_implementation() {
     # Path-producing commands necessarily mention their fixture.  Normalize
     # that private prefix only; implementations must still agree on all path
     # components and output ordering beneath it.
-    sed "s|$fixture|<fixture>|g" "$fixture/stdout" > "$fixture/stdout.normalized"
-    sed "s|$fixture|<fixture>|g" "$fixture/hook.trace" > "$fixture/hook.trace.normalized"
+    # Build workspaces include a process identifier.  It is intentionally
+    # private to each invocation, so normalize just that component after
+    # replacing the fixture prefix; all stable hook arguments still compare
+    # exactly.
+    sed -E -e "s|$physical_fixture|<fixture>|g" \
+        -e "s|$fixture|<fixture>|g" \
+        -e 's|<fixture>/cache/kiss/proc/[0-9]+|<fixture>/cache/kiss/proc/<pid>|g' \
+        "$fixture/stdout" > "$fixture/stdout.normalized"
+    sed -E -e "s|$physical_fixture|<fixture>|g" \
+        -e "s|$fixture|<fixture>|g" \
+        -e 's|<fixture>/cache/kiss/proc/[0-9]+|<fixture>/cache/kiss/proc/<pid>|g' \
+        "$fixture/hook.trace" > "$fixture/hook.trace.normalized"
     snapshot_tree "$fixture/root" > "$fixture/root.snapshot"
 }
 
-temporary_base=$(mktemp -d "${TMPDIR:-/tmp}/kiss-conformance.XXXXXX") || exit 1
+tmp_parent=${TMPDIR:-/tmp}
+tmp_parent=${tmp_parent%/}
+temporary_base=$(mktemp -d "$tmp_parent/kiss-conformance.XXXXXX") || exit 1
 trap 'rm -rf "$temporary_base"' EXIT HUP INT TERM
 failed=0
 

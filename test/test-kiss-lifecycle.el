@@ -57,7 +57,7 @@ exercise the same manifest contract as the build pipeline."
   "Run BODY with the privilege adapter executing directly in the fixture."
   (declare (indent 0))
   `(cl-letf (((symbol-function 'kiss--shell-command-as-user)
-              (lambda (command _user) (shell-command command))))
+              (lambda (command _user) (kiss--silent-shell-command command))))
      ,@body))
 
 (ert-deftest kiss-lifecycle/install-persists-payload-and-authoritative-db ()
@@ -88,7 +88,7 @@ exercise the same manifest contract as the build pipeline."
            (compressed (concat archive ".gz")))
       (unwind-protect
           (progn
-            (should (= 0 (shell-command
+            (should (= 0 (kiss--silent-shell-command
                            (format "gzip -c -- %s > %s"
                                    (shell-quote-argument archive)
                                    (shell-quote-argument compressed)))))

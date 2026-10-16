@@ -115,7 +115,7 @@
    ;; Write this script to a temporary location.
    'utf-8 k-el-build)
   ;; Mark the script as executable.
-  (shell-command (format "chmod +x '%s'" k-el-build)))
+  (kiss--silent-shell-command (format "chmod +x '%s'" k-el-build)))
 
 
 ;; FIXME: support other kiss-elf commands
@@ -375,9 +375,9 @@ newly discovered ones so repeated scans are idempotent."
                           (kiss--file-is-directory-p normalized-file))
                 (pcase file
                   ((rx "/" eol)
-                   (shell-command (concat "mkdir -p '" normalized-file "'")))
+                   (kiss--silent-shell-command (concat "mkdir -p '" normalized-file "'")))
                   (_
-                   (shell-command (concat "cp -fP '" file "' '" normalized-file "'"))))))))
+                   (kiss--silent-shell-command (concat "cp -fP '" file "' '" normalized-file "'"))))))))
 
         ;; FIXME: will need to eventually update the manifests that are installed
         ;; in the system, just in case if packages decide to (wrongly) use
@@ -390,7 +390,7 @@ newly discovered ones so repeated scans are idempotent."
                     (file (cdr pair)))
                 ;; We just have to move over the file from the
                 ;; choices dir in the fake chroot to the right place.
-                (shell-command
+                (kiss--silent-shell-command
                  (format
                   "mv -f '%s' '%s'"
                   
@@ -431,7 +431,7 @@ newly discovered ones so repeated scans are idempotent."
         (kiss--run-hook "pre-build" name build-dir)
         (message (concat "Building " name " at version: " version))
 
-        (when (> (shell-command
+        (when (> (kiss--silent-shell-command
                   (kiss--build-determine-build-cmd build-env-obj pkg-obj))
                  0)
           (kiss--run-hook "build-fail" name build-dir)
@@ -528,7 +528,7 @@ newly discovered ones so repeated scans are idempotent."
 
         ;; rm the build directory
         (message (concat "Removing the build directory (" proc-dir ")"))
-        (shell-command
+        (kiss--silent-shell-command
          (format "rm -rf -- '%s'" proc-dir))
         t))))
 

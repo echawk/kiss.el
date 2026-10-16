@@ -139,20 +139,20 @@
 
 (defun kiss--file-is-executable-p (file-path)
   "Return T if FILE-PATH exists and is executable."
-  (eq 0 (shell-command (format "test -x '%s'" file-path))))
+  (eq 0 (kiss--silent-shell-command (format "test -x '%s'" file-path))))
 
 ;; TODO: Look into rm'ing these funcs since they should not have to exist.
 (defun kiss--file-is-regular-file-p (file-path)
   "Return T if FILE-PATH exists and is a regular file."
-  (eq 0 (shell-command (format "test -f '%s'" file-path))))
+  (eq 0 (kiss--silent-shell-command (format "test -f '%s'" file-path))))
 
 (defun kiss--file-is-symbolic-link-p (file-path)
   "Return T if FILE-PATH exists and is a symbolic link."
-  (eq 0 (shell-command (format "test -h '%s'" file-path))))
+  (eq 0 (kiss--silent-shell-command (format "test -h '%s'" file-path))))
 
 (defun kiss--file-is-directory-p (file-path)
   "Return T if FILE-PATH exists and is a directory."
-  (eq 0 (shell-command (format "test -d '%s'" file-path))))
+  (eq 0 (kiss--silent-shell-command (format "test -d '%s'" file-path))))
 
 (defun kiss--file-identify (file-path)
   "Identify FILE-PATH as a symbol representing what kind of file it is."
@@ -272,7 +272,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
             (rmcmd (format "rm -- '%s'" file-path)))
         (eq 0
             (if (kiss--file-am-owner-p file-path)
-                (shell-command rmcmd)
+                (kiss--silent-shell-command rmcmd)
               (kiss--shell-command-as-user rmcmd owner))))))
 
 (defun kiss--file-remove-directory (dir-path)
@@ -283,7 +283,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
             (rmcmd (format "rmdir -- '%s'" dir-path)))
         (eq 0
             (if (kiss--file-am-owner-p dir-path)
-                (shell-command rmcmd)
+                (kiss--silent-shell-command rmcmd)
               (kiss--shell-command-as-user rmcmd owner))))))
 
 (defun kiss--file-remove-files (file-path-lst)
@@ -325,7 +325,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   (kiss--with-dir
    dir
    (eq 0
-       (shell-command
+       (kiss--silent-shell-command
         (format "tar -cf -  . | %s > '%s'"
                 (kiss--get-compression-command) file-path)))))
 
@@ -335,7 +335,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
     ;; Decompress the tarball.
     (kiss--decompress tarball decomp-tarball)
     ;; Extract the tarball.
-    (kiss--with-dir dir (shell-command (concat "tar xf " decomp-tarball)))
+    (kiss--with-dir dir (kiss--silent-shell-command (concat "tar xf " decomp-tarball)))
     ;; Archives created by `kiss--file-make-tarball-of-dir' begin with `./'.
     ;; Inspecting `tar tf' therefore mistakes that pseudo-directory for the
     ;; component to strip.  The extracted tree has no such entry: every
@@ -353,7 +353,7 @@ This function returns t if FILE-PATH exists and nil if it doesn't."
   "Decompress FILE-PATH to OUT-PATH based on the file name."
   (let ((cmd (kiss--get-decompression-command file-path)))
     (when cmd
-      (shell-command (concat cmd file-path " > " out-path)))))
+      (kiss--silent-shell-command (concat cmd file-path " > " out-path)))))
 
 (defun kiss--b3 (file-path)
   "Run b3sum on FILE-PATH."
