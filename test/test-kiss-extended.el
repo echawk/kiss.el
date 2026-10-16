@@ -236,6 +236,40 @@
                     package '("runtime" "libdemo" "demo" "libdemo" nil ""))
                    '("runtime" "libdemo")))))
 
+(ert-deftest kiss-build/dynamic-library-discovery-honors-redirected-root ()
+  "A locally linked library resolves to its fixture package owner on GNU/Linux."
+  (skip-unless (and (eq system-type 'gnu/linux)
+                    (executable-find "cc") (executable-find "ldd")
+                    (executable-find "realpath")))
+  (kiss-test-with-fixture
+    (let* ((compiler (executable-find "cc"))
+           (library (concat kiss-root "usr/lib/libkissfixture.so"))
+           (app (concat kiss-root "usr/bin/kiss-fixture-app"))
+           (source (concat kiss-tmpdir "fixture.c"))
+           (app-source (concat kiss-tmpdir "app.c"))
+           (wrapper-dir (concat kiss-tmpdir "bin/"))
+           (wrapper (concat wrapper-dir "cc"))
+           (package (kiss-package :name "consumer" :depends '())))
+      (kiss-test-make-pkg "libowner" "1" "1"
+                          :files '(("usr/lib/libkissfixture.so" . "placeholder")))
+      (kiss-extended--write source "int fixture(void) { return 0; }\n")
+      (kiss-extended--write app-source "int fixture(void); int main(void) { return fixture(); }\n")
+      (should (zerop (call-process compiler nil nil nil "-shared" "-fPIC"
+                                   "-o" library source)))
+      (should (zerop (call-process compiler nil nil nil app-source "-L"
+                                   (concat kiss-root "usr/lib")
+                                   (concat "-Wl,-rpath," kiss-root "usr/lib")
+                                   "-lkissfixture" "-o" app)))
+      (kiss-extended--write
+       wrapper
+       (format "#!/bin/sh\ncase \"$1\" in\n  -print-file-name=libkissfixture.so) printf '%%s\\n' %s ;;\n  *) exec %s \"$@\" ;;\nesac\n"
+               (shell-quote-argument library) (shell-quote-argument compiler)) t)
+      (let ((process-environment (copy-sequence process-environment)))
+        (setenv "PATH" (concat wrapper-dir ":" (getenv "PATH")))
+        (should (equal (kiss--build-get-missing-dependencies
+                        kiss-root '("/usr/bin/kiss-fixture-app") package)
+                       '("libowner")))))))
+
 (ert-deftest kiss-update/git-toplevel-is-local-and-deterministic ()
   "Git repository discovery works against a local disposable repository."
   (skip-unless (executable-find "git"))

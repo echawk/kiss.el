@@ -31,11 +31,11 @@ interaction with a caller's installed packages.
 
 ## Priority 2: format and build correctness
 
-- [ ] Validate package names, `version` fields, decimal releases, dependency
+- [x] Validate package names, `version` fields, decimal releases, dependency
   records, and source records at recipe/archive boundaries.
   - Affected: `kiss-package.el`, `kiss-source.el`, `kiss-install.el`.
   - Tests: accepted/rejected boundary cases from the port-format grammar;
-    generated invalid records must never cause database mutation.
+    malformed archive identity/dependencies must never cause database mutation.
 
 - [x] Make source-download failure status unambiguous and fatal for all VCS
   backends.  Git, Mercurial, and Fossil commands currently do not consistently

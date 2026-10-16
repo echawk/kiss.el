@@ -31,6 +31,42 @@ keeps no Emacs object-system dependency in the package format layer."
       (setf (plist-get source (pop fields)) (pop fields)))
     source))
 
+(defun kiss--source-destination-p (destination)
+  "Return non-nil when DESTINATION is a safe relative extraction directory."
+  (declare (side-effect-free t))
+  (and (stringp destination)
+       (not (string-match-p (rx (or "\0" "\n")) destination))
+       (not (string-prefix-p "/" destination))
+       (not (member ".." (string-split destination "/" t)))))
+
+(defun kiss--source-validate-object (source)
+  "Validate SOURCE's portable fields and return SOURCE.
+This checks metadata syntax only.  Whether a local pathname exists is a
+resolution-time concern, since repository-relative sources need their recipe
+directory to be known first."
+  (declare (side-effect-free t))
+  (let ((type (plist-get source :type))
+        (uri (plist-get source :uri))
+        (destination (plist-get source :extracted-path))
+        (ref (plist-get source :commit-or-branch)))
+    (unless (memq type '(local remote git hg fossil))
+      (error "Invalid source type: %S" type))
+    (unless (and (stringp uri) (not (string-empty-p uri))
+                 (not (string-match-p (rx (or "\0" "\n" whitespace)) uri)))
+      (error "Invalid source URI: %S" uri))
+    (when (eq type 'remote)
+      (unless (string-match-p "://" uri)
+        (error "Remote source lacks a URL scheme: %s" uri)))
+    (when (memq type '(git hg fossil))
+      (unless (string-match-p "://" uri)
+        (error "VCS source lacks a URL scheme: %s" uri))
+      (unless (and (stringp ref)
+                   (not (string-match-p (rx (or "\0" "\n" whitespace)) ref)))
+        (error "Invalid source reference: %S" ref)))
+    (unless (kiss--source-destination-p destination)
+      (error "Invalid source destination: %S" destination))
+    source))
+
 (defun kiss--source-get-cache-path (obj)
   (declare (side-effect-free t))
   (let* ((ty (plist-get obj :type))
@@ -134,6 +170,7 @@ keeps no Emacs object-system dependency in the package format layer."
   "Return the canonical KISS `sources' record for OBJ."
   ;; OBJ is mutable, so this is effect-free but not compiler-pure.
   (declare (side-effect-free t))
+  (kiss--source-validate-object obj)
   (let ((type (plist-get obj :type))
         (uri (plist-get obj :uri))
         (extracted-path (plist-get obj :extracted-path))
@@ -153,54 +190,53 @@ keeps no Emacs object-system dependency in the package format layer."
 
 
 (defun kiss--string-to-source-obj (str)
-  "(I) Generate a kiss-source object from STR. Will have an empty package slot."
+  "Parse one portable `sources' record STR into a source object.
+Blank and comment records belong to the file reader and are not valid here."
   ;; Parsing allocates a fresh, mutable source object.
   (declare (side-effect-free t))
 
-  (let ((type      nil)
-        (uri       nil)
-        (extr-path nil)
-        (c-or-b    nil)
-        (obj       nil)
-        (str-split-on-spaces (string-split str " " t)))
-    (setq type
-          (pcase str
-            ((rx bol "git+") 'git)
-            ((rx bol "hg+") 'hg)
-            ((rx bol "fossil+") 'fossil)
-            ((rx "://") 'remote)
-            (_ 'local)))
-    (setq c-or-b
-          (pcase type
-            ((or 'git 'hg 'fossil)
-             (thread-last
-               str-split-on-spaces
-               (car)
-               (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
-               (nth 1)))
-            (_ "")))
-    (setq extr-path (nth 1 str-split-on-spaces))
-    (setq uri
-          (replace-regexp-in-string
-           (rx bol (or "git+" "hg+" "fossil+"))
-           ""
-           (thread-last
-             str-split-on-spaces
-             (car)
-             (funcall (lambda (s) (string-split s (rx (or "#" "@")))))
-             (car))))
-
-    (setq obj (kiss-source :type type :uri uri
-                           :commit-or-branch (or c-or-b "")
-                           :extracted-path (or extr-path "")))
-    obj))
+  (unless (and (stringp str)
+               (not (string-match-p (rx (or "\0" "\n")) str)))
+    (error "Invalid source record: %S" str))
+  (let ((trimmed (string-trim str)))
+    (unless (string-match
+             "\\`\\([^[:space:]]+\\)\\(?:[[:space:]]+\\(.*\\)\\)?\\'" trimmed)
+      (error "Source record must contain SOURCE and optional DESTINATION: %s" str))
+    (let ((source-field (match-string 1 trimmed))
+          ;; Unlike `depends', the destination is the remainder of the line.
+          ;; Retain embedded spaces for consumer compatibility, though portable
+          ;; producer files conventionally avoid them.
+          (destination (match-string 2 trimmed)))
+    (let ((type (cond ((string-prefix-p "git+" source-field) 'git)
+                      ((string-prefix-p "hg+" source-field) 'hg)
+                      ((string-prefix-p "fossil+" source-field) 'fossil)
+                      ((string-match-p "://" source-field) 'remote)
+                      (t 'local)))
+          (uri source-field)
+          (reference ""))
+      (when (memq type '(git hg fossil))
+        (setq uri (replace-regexp-in-string
+                   (rx bol (or "git+" "hg+" "fossil+")) "" uri))
+        ;; The final @ or # introduces the optional shallow reference.
+        (when (string-match "\\`\\(.+\\)[@#]\\([^@#]+\\)\\'" uri)
+          (setq reference (match-string 2 uri)
+                uri (match-string 1 uri)))
+        (when (string-match-p (rx (or "@" "#") eol) uri)
+          (error "Source reference is empty: %s" source-field)))
+      (let ((object (kiss-source :type type :uri uri
+                                 :commit-or-branch reference
+                                 :extracted-path
+                                 (replace-regexp-in-string "/+\\'" ""
+                                                           (or destination "")))))
+        (kiss--source-validate-object object))))))
 
 
 (defun kiss--sources-file-to-sources-objs (file-path)
   "Read source records from FILE-PATH, ignoring blank lines and comments."
   (mapcar #'kiss--string-to-source-obj
           (seq-remove (lambda (line)
-                        (string-match-p (rx bol (* whitespace) "#") line))
+                        (or (string-match-p (rx bol (* whitespace) eol) line)
+                            (string-match-p (rx bol (* whitespace) "#") line)))
                       (kiss--file-read-file file-path))))
 
 (defun kiss--def-pkg-sources (name &rest arguments)

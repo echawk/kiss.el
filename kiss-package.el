@@ -22,6 +22,67 @@
 (require 'kiss-os)
 (require 'kiss-source)
 
+(defconst kiss--package-name-regexp
+  "\\`[A-Za-z0-9][A-Za-z0-9+_.-]*\\'"
+  "Portable KISS package-name grammar.")
+
+(defun kiss--package-name-p (name)
+  "Return non-nil when NAME is a portable package identity."
+  (declare (pure t) (side-effect-free t))
+  (and (stringp name) (string-match-p kiss--package-name-regexp name)))
+
+(defun kiss--package-assert-name (name)
+  "Signal an error unless NAME is a portable package identity."
+  (unless (kiss--package-name-p name)
+    (error "Invalid package name: %S" name))
+  name)
+
+(defun kiss--package-parse-version-record (record)
+  "Parse and validate the required VERSION RELEASE RECORD."
+  (let ((fields (and (stringp record)
+                     (split-string record "[[:space:]]+" t))))
+    (unless (= (length fields) 2)
+      (error "Version record must contain exactly VERSION and RELEASE: %S" record))
+    (let ((version (car fields))
+          (release (cadr fields)))
+      (unless (and (not (string-empty-p version))
+                   (not (string-match-p (rx (or "/" "@" whitespace)) version)))
+        (error "Invalid package version: %S" version))
+      (unless (string-match-p "\\`[0-9]+\\'" release)
+        (error "Package release must be a decimal integer: %S" release))
+      (list version release))))
+
+(defun kiss--package-parse-dependency-record (record)
+  "Parse one `depends' RECORD, returning (PACKAGE . MAKE-P).
+Blank and comment records return nil."
+  (let ((trimmed (string-trim record)))
+    (unless (or (string-empty-p trimmed) (string-prefix-p "#" trimmed))
+      (let ((fields (split-string trimmed "[[:space:]]+" t)))
+        (unless (or (= (length fields) 1)
+                    (and (= (length fields) 2)
+                         (string= (cadr fields) "make")))
+          (error "Invalid dependency record: %s" record))
+        (cons (kiss--package-assert-name (car fields))
+              (= (length fields) 2))))))
+
+(defun kiss--package-validate-object (package &optional require-build)
+  "Validate PACKAGE at a recipe or generated-metadata boundary.
+When REQUIRE-BUILD is non-nil, also require its build file to be executable."
+  (declare (side-effect-free t))
+  (kiss--package-assert-name (plist-get package :name))
+  (kiss--package-parse-version-record
+   (concat (plist-get package :version) " " (plist-get package :release)))
+  (dolist (dependency (append (plist-get package :depends)
+                              (plist-get package :make-depends)))
+    (kiss--package-assert-name dependency))
+  (dolist (source (plist-get package :sources))
+    (kiss--source-validate-object source))
+  (when (and require-build
+             (not (kiss--file-is-executable-p (plist-get package :build-file))))
+    (error "Package build file must be executable: %s"
+           (plist-get package :build-file)))
+  package)
+
 (defun kiss-package (&rest fields)
   "Create a portable package record from keyword FIELDS.
 
@@ -107,8 +168,11 @@ meaning of recipe dependencies."
         (deps  nil)
         (mdeps nil))
 
-    (setq ver (car (string-split (car (kiss--file-read-file ver-file)) " " t)))
-    (setq rel (cadr (string-split (car (kiss--file-read-file ver-file)) " " t)))
+    (pcase-let ((`(,parsed-version ,parsed-release)
+                 (kiss--package-parse-version-record
+                  (car (kiss--file-read-file ver-file)))))
+      (setq ver parsed-version
+            rel parsed-release))
 
     (setq obj
           (kiss-package
@@ -123,21 +187,10 @@ meaning of recipe dependencies."
     (when srcs (setf (plist-get obj :sources) srcs))
 
     (when (kiss--file-exists-p depends-file)
-      (let ((read-data
-             (seq-remove
-              (lambda (s) (string-match-p (rx bol "#") s))
-              (kiss--file-read-file depends-file))))
-
-        (setq deps
-              (seq-remove
-               (lambda (str) (string-match-p (rx (1+ any) (1+ whitespace) "make") str))
-               read-data))
-
-        (setq mdeps
-              (mapcar
-               (lambda (str)
-                 (replace-regexp-in-string (rx (1+ whitespace) (0+ any) eol) "" str))
-               (seq-difference read-data deps))))
+      (let ((records (delq nil (mapcar #'kiss--package-parse-dependency-record
+                                        (kiss--file-read-file depends-file)))))
+        (setq deps (mapcar #'car (seq-remove #'cdr records)))
+        (setq mdeps (mapcar #'car (seq-filter #'cdr records))))
       (when deps  (setf (plist-get obj :depends) deps))
       (when mdeps (setf (plist-get obj :make-depends) mdeps)))
 
@@ -165,9 +218,10 @@ meaning of recipe dependencies."
           (if (kiss--file-exists-p post-install-file) post-install-file ""))
     (setf (plist-get obj :pre-remove-file)
           (if (kiss--file-exists-p pre-remove-file) pre-remove-file ""))
-    obj))
+    (kiss--package-validate-object obj t)))
 
 (defun kiss--package-to-dir (package-obj dir)
+  (kiss--package-validate-object package-obj t)
   (let ((name (plist-get package-obj :name))
         (version (plist-get package-obj :version))
         (release (plist-get package-obj :release))
@@ -362,15 +416,10 @@ meaning of recipe dependencies."
 (defun kiss--get-dependencies-from-file (file-path)
   "(I) Return the dependencies in FILE-PATH."
   (when (file-exists-p file-path)
-    (seq-remove
-     #'string-empty-p
-     ;; All of this below is to emulate `awk '{print $1}' < file'
-     (mapcar (lambda (s) (car (string-split s " ")))
-             (string-split
-              (replace-regexp-in-string
-               "#.*$" ""
-               (kiss--read-text file-path))
-              "\n")))))
+    (mapcar #'car
+            (delq nil
+                  (mapcar #'kiss--package-parse-dependency-record
+                          (kiss--file-read-file file-path))))))
 
 (defun kiss--package-get-dependencies (pkg &optional installed-p)
   "(I) Get the dependencies of PKG as a list, nil if PKG has no dependencies.

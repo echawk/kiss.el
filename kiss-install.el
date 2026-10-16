@@ -139,6 +139,12 @@ the new package differs, its candidate is saved alongside it with `.new'."
       (unless pkg
         (error "kiss/install: Unable to detemine the package!"))
 
+      ;; Reject invalid identity and recipe metadata before hooks, conflict
+      ;; resolution, or any KISS_ROOT mutation.  Archives are untrusted input.
+      (kiss--package-assert-name pkg)
+      (kiss--dir-to-kiss-package
+       (concat extr-dir "/var/db/kiss/installed/" pkg))
+
       ;; assume that the existence of the manifest file is all that
       ;; makes a valid KISS pkg.
       (unless (file-exists-p

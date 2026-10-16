@@ -105,6 +105,54 @@
             (should (eq (plist-get (car sources) :type) 'remote))))
       (ignore-errors (delete-file file)))))
 
+(ert-deftest kiss-format/package-version-and-dependency-records-follow-port-grammar ()
+  "Portable package metadata accepts only the documented field forms."
+  (dolist (name '("a" "A9" "libfoo++" "foo.bar_baz-1"))
+    (should (kiss--package-name-p name)))
+  (dolist (name '("" "-leading" "with space" "slash/name" "name@version"
+                  "name>choice" "name\nnext"))
+    (should-not (kiss--package-name-p name)))
+  (should (equal (kiss--package-parse-version-record "1.2.3 04")
+                 '("1.2.3" "04")))
+  (dolist (record '("" "1" "1 2 extra" "release@1 2" "release/name 2"
+                    "1 one" "1 -1"))
+    (should-error (kiss--package-parse-version-record record)))
+  (should (equal (kiss--package-parse-dependency-record "builder make")
+                 '("builder" . t)))
+  (should (equal (kiss--package-parse-dependency-record "runtime")
+                 '("runtime" . nil)))
+  (dolist (record '("bad/name" "runtime optional" "runtime make extra"))
+    (should-error (kiss--package-parse-dependency-record record))))
+
+(ert-deftest kiss-format/source-records-preserve-destinations-and-reject-unsafe-paths ()
+  "Source destination is the line remainder but must remain safely relative."
+  (let ((source (kiss--string-to-source-obj
+                 "git+https://example.invalid/project.git@v1.2 output/")))
+    (should (equal (plist-get source :uri) "https://example.invalid/project.git"))
+    (should (equal (plist-get source :commit-or-branch) "v1.2"))
+    (should (equal (plist-get source :extracted-path) "output")))
+  (should (equal (plist-get (kiss--string-to-source-obj
+                             "https://example.invalid/a.tar.gz output directory")
+                            :extracted-path)
+                 "output directory"))
+  (dolist (record '("" "https://example.invalid/a.tar.gz /outside"
+                    "https://example.invalid/a.tar.gz ../outside"
+                    "git+https://example.invalid/project.git@"))
+    (should-error (kiss--string-to-source-obj record))))
+
+(ert-deftest kiss-format/recipe-reader-fails-before-returning-invalid-metadata ()
+  "Malformed recipe fields are rejected at the repository metadata boundary."
+  (let ((root (file-name-as-directory (make-temp-file "kiss-invalid-recipe-" t))))
+    (unwind-protect
+        (let ((recipe (concat root "demo/")))
+          (kiss-core-test-write (concat recipe "build") "#!/bin/sh -e\n" t)
+          (kiss-core-test-write (concat recipe "version") "1 not-a-release\n")
+          (should-error (kiss--dir-to-kiss-package recipe))
+          (kiss-core-test-write (concat recipe "version") "1 1\n")
+          (kiss-core-test-write (concat recipe "depends") "runtime optional\n")
+          (should-error (kiss--dir-to-kiss-package recipe)))
+      (ignore-errors (delete-directory root t)))))
+
 (ert-deftest kiss-package/dependency-order-precedes-dependents ()
   "Every dependency occurs before its dependent in the computed build order."
   (kiss-test-with-fixture

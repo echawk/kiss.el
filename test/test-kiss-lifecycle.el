@@ -181,6 +181,25 @@ exercise the same manifest contract as the build pipeline."
             (should-not (file-exists-p (concat kiss-root "usr/bin/dependent"))))
         (ignore-errors (delete-file archive))))))
 
+(ert-deftest kiss-lifecycle/install-rejects-invalid-metadata-before-mutation ()
+  "Malformed archive identity or dependencies cannot write fixture payloads."
+  (kiss-test-with-fixture
+    (let ((bad-name (kiss-lifecycle--archive
+                     "bad name" "1" "1" '(("usr/bin/bad" . "payload"))))
+          (bad-dependency (kiss-lifecycle--archive
+                           "demo" "1" "1" '(("usr/bin/demo" . "payload"))
+                           '("runtime optional"))))
+      (unwind-protect
+          (let ((kiss-force t) (kiss-hook nil))
+            (kiss-lifecycle-with-unprivileged-shell
+              (should-error (kiss--install-tarball bad-name))
+              (should-error (kiss--install-tarball bad-dependency)))
+            (should-not (file-exists-p (concat kiss-root "usr/bin/bad")))
+            (should-not (file-exists-p (concat kiss-root "usr/bin/demo")))
+            (should-not (kiss--pkg-is-installed-p "demo")))
+        (ignore-errors (delete-file bad-name))
+        (ignore-errors (delete-file bad-dependency))))))
+
 (ert-deftest kiss-lifecycle/conflict-choice-zero-refuses-before-live-replacement ()
   "A conflicting archive fails under KISS_CHOICE=0 without changing its provider."
   (kiss-test-with-fixture

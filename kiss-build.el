@@ -119,6 +119,17 @@
 
 
 ;; FIXME: support other kiss-elf commands
+(defun kiss--build-library-owner (library-path)
+  "Return the installed owner of LIBRARY-PATH under the configured root.
+`realpath' yields a host pathname, while manifests deliberately store paths
+relative to `KISS_ROOT'.  Convert only paths beneath the configured root;
+host system libraries then naturally have no fixture owner."
+  (let ((root (file-name-as-directory kiss-root)))
+    (kiss-owns
+     (if (string-prefix-p root library-path)
+         (concat "/" (file-relative-name library-path root))
+       library-path))))
+
 (defun kiss--build-get-missing-dependencies (dir file-path-lst pkg-obj)
   ;; NOTE: only works w/ ldd.
   (pcase system-type
@@ -148,7 +159,7 @@
          (lambda (lib) (shell-command-to-string (concat "cc -print-file-name=" lib))))
         (mapcar (lambda (lib) (shell-command-to-string (concat "realpath " lib))))
         (mapcar (lambda (fp) (replace-regexp-in-string "\n" "" fp)))
-        (mapcar #'kiss-owns)
+        (mapcar #'kiss--build-library-owner)
         (seq-uniq)
         (seq-filter #'stringp)
         (seq-remove #'string-empty-p)
@@ -393,6 +404,7 @@ newly discovered ones so repeated scans are idempotent."
             package-needs-to-provide-lst)))))))
 
 (defun kiss--package-build (pkg-obj)
+  (kiss--package-validate-object pkg-obj t)
   (let ((name (plist-get pkg-obj :name))
         (version (plist-get pkg-obj :version)))
 
