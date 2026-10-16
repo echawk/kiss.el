@@ -11,14 +11,44 @@
 (setq kiss-command      (car argv))
 (setq kiss-command-args (cdr argv))
 
-(let ((kiss-function-sym (intern (concat "kiss-" kiss-command))))
-  (cond
-   ((fboundp kiss-function-sym)
-    (message "%s" (apply kiss-function-sym kiss-command-args)))
-   ((executable-find (symbol-name kiss-function-sym))
-    (message
-     (shell-command-to-string
-      (string-join
-       (cons (symbol-name kiss-function-sym) kiss-command-args)
-       " "))))))
-(kill-emacs)
+(defun elkiss--print-lines (lines)
+  "Write each string in LINES as one machine-readable stdout record."
+  (dolist (line lines)
+    (princ line)
+    (terpri)))
+
+(defun elkiss--print-result (command result)
+  "Write COMMAND's portable CLI representation for RESULT to stdout."
+  (pcase command
+    ("version" (elkiss--print-lines (list kiss-compat-version)))
+    ("search" (elkiss--print-lines result))
+    ("list"
+     (let ((records (if (and (listp result) (stringp (car result)))
+                        (list result)
+                      result)))
+       (dolist (record records)
+         (elkiss--print-lines
+          (list (format "%s %s"
+                        (nth 0 record)
+                        (replace-regexp-in-string "[[:space:]]+" "-"
+                                                  (nth 1 record))))))))
+    (_ (when result (elkiss--print-lines (list (format "%s" result)))))))
+
+(let ((kiss-function-sym (and kiss-command
+                              (intern (concat "kiss-" kiss-command)))))
+  (condition-case err
+      (cond
+       ((not (fboundp kiss-function-sym))
+        (message "elkiss: unknown command: %s" kiss-command)
+        (kill-emacs 1))
+       (t
+        (let ((result (apply kiss-function-sym kiss-command-args)))
+          (elkiss--print-result kiss-command result)
+          ;; Lookup commands use an empty result to report a portable miss.
+          (kill-emacs (if (and (member kiss-command '("list" "search"))
+                               (null result))
+                          1
+                        0)))))
+    (error
+     (message "elkiss: %s" (error-message-string err))
+     (kill-emacs 1))))

@@ -20,13 +20,15 @@
 ;;;###autoload
 (defun kiss-search (q)
   (interactive "sQuery: ")
-  ;; FIXME: use kiss--file-exists-p ?
-  (seq-filter #'file-directory-p
-              (mapcar (lambda (repo)
-                        (kiss--file-normalize-file-path
-                         (concat repo "/" q)))
-                      `(,@kiss-path
-                        ,kiss-installed-db-dir))))
+  "Return package directories matching the KISS glob Q in lookup order."
+  (let ((pattern (wildcard-to-regexp q)))
+    (seq-mapcat
+     (lambda (repo)
+       (if (file-directory-p repo)
+           (seq-filter #'file-directory-p
+                       (directory-files repo t pattern t))
+         '()))
+     `(,@kiss-path ,kiss-installed-db-dir))))
 
 (defun kiss--search-pkg-obj (q)
   (let ((res (kiss-search q)))

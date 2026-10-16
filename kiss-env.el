@@ -18,22 +18,31 @@
   :prefix "kiss-"
   :group :application)
 
-;; TODO: cleanup these names, they're not consistent...
-(defconst kiss-root "/")
+;; These values are captured at process startup.  Test fixtures dynamically
+;; bind them, while the CLI receives the standard KISS environment contract.
+(defconst kiss-root
+  (file-name-as-directory (or (getenv "KISS_ROOT") "/")))
 (defconst kiss-installed-db-dir (concat kiss-root "var/db/kiss/installed/"))
 (defconst kiss-choices-db-dir (concat kiss-root "var/db/kiss/choices/"))
 
+(defconst kiss-cache-dir
+  (file-name-as-directory
+   (expand-file-name
+    "kiss"
+    (or (getenv "XDG_CACHE_HOME")
+        (expand-file-name ".cache" (or (getenv "HOME") "~"))))))
+
 (defconst kiss-tmpdir
-  (concat (getenv "HOME") "/.cache/kiss/proc/"))
+  (concat kiss-cache-dir "proc/"))
 
 (defconst kiss-srcdir
-  (concat (getenv "HOME") "/.cache/kiss/sources/"))
+  (concat kiss-cache-dir "sources/"))
 
 (defconst kiss-bindir
-  (concat (getenv "HOME") "/.cache/kiss/bin/"))
+  (concat kiss-cache-dir "bin/"))
 
 (defconst kiss-logdir
-  (concat (getenv "HOME") "/.cache/kiss/logs/"))
+  (concat kiss-cache-dir "logs/"))
 
 ;; the master branch will always be versioned as '0' - this prevents
 ;; version checks from depending on master branch features & requiring anyone

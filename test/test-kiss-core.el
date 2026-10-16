@@ -294,19 +294,21 @@
       (kiss-update)
       (should (equal (nreverse calls) '(git fossil))))))
 
-(ert-deftest elkiss/unknown-command-exits-successfully ()
-  "The CLI wrapper can locate its library without a caller-managed load path."
-  (should (= 0 (call-process (expand-file-name "elkiss" default-directory)
-                             nil nil nil "not-a-kiss-command"))))
+(ert-deftest elkiss/unknown-command-exits-nonzero ()
+  "The CLI wrapper rejects an unknown command without caller-managed paths."
+  (should-not (= 0 (call-process (expand-file-name "elkiss" default-directory)
+                                 nil nil nil "not-a-kiss-command"))))
 
 (ert-deftest elkiss/version-is-a-stable-public-command ()
-  "The library and CLI expose the implementation and compatibility versions."
+  "The library exposes both versions and the CLI emits the KISS version."
   (should (string-match-p (regexp-quote kiss-version) (kiss-version)))
   (should (string-match-p (regexp-quote kiss-compat-version) (kiss-version)))
   (with-temp-buffer
     (should (= 0 (call-process (expand-file-name "elkiss" default-directory)
                                nil t nil "version")))
-    (should (string-match-p (regexp-quote kiss-version) (buffer-string)))))
+    (should (string-match-p
+             (concat (regexp-quote kiss-compat-version) "\n\\'")
+             (buffer-string)))))
 
 (ert-deftest kiss-os/shell-commands-stops-on-the-first-failure ()
   "The command adapter returns a boolean and does not run trailing commands."
