@@ -37,7 +37,7 @@ remove hook exit behavior, alternatives, and preferred-provider output.
 Use a known KISS executable as the reference:
 
 ```sh
-./conformance/run.sh ~/.kiss/kiss ./elkiss version list-installed search-shadowing
+./kiss-spec/conformance/run.sh ~/.kiss/kiss ./elkiss version list-installed search-shadowing
 ```
 
 Do not run mutating differential cases against `elkiss` until the root-safety

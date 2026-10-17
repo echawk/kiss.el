@@ -1,0 +1,3 @@
+[submodule "kiss-spec"]
+	path = kiss-spec
+	url = https://github.com/echawk/kiss-spec

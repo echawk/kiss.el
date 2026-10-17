@@ -27,7 +27,7 @@ feature.
 | Alternatives, preferred choice, and orphan detection | `kiss-alternatives/*`, `kiss-preferred/*`, dependent tests | covered |
 | Package and global hooks receive the documented contract and fail safely | `kiss-hook/*` | covered |
 | Public list, owns, fork, build/install, and upgrade dispatch | `kiss-public/*`, lifecycle tests | covered |
-| Cross-implementation CLI conformance | `conformance/run.sh`: version, list/search, install/upgrade/remove, alternatives/preferred, hooks | covered by opt-in differential harness; full plan in `conformance/CONFORMANCE_MATRIX.md` |
+| Cross-implementation CLI conformance | `kiss-spec/conformance/run.sh`: version, list/search, install/upgrade/remove, alternatives/preferred, hooks | covered by opt-in differential suite; full plan in `kiss-spec/conformance/CONFORMANCE_MATRIX.md` |
 | Git repository discovery / update backend dispatch | `kiss-update/*`, local bare-remote pull | covered; network is never contacted |
 | Mercurial and Fossil discovery/update | backend dispatch tests | gated (optional executables) |
 | zstd magic/decompression | file magic tests | gated (optional compressor) |
